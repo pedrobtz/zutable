@@ -23,7 +23,7 @@ fewer.
 
 | Stage | Title | CI | Issue | Pull request | Done |
 | --- | --- | --- | --- | --- | --- |
-| 0 | [Package identity](#stage-0--package-identity) | quick | [#2](https://github.com/pedrobtz/zutable/issues/2) | | |
+| 0 | [Package identity](#stage-0--package-identity) | quick | [#2](https://github.com/pedrobtz/zutable/issues/2) | | 2026-11-17 |
 | 1 | [Types and schema](#stage-1--types-and-schema) | quick | [#3](https://github.com/pedrobtz/zutable/issues/3) | | |
 | 2 | [Tables](#stage-2--tables) | quick | [#4](https://github.com/pedrobtz/zutable/issues/4) | | |
 | 3 | [Vocabulary and typing](#stage-3--vocabulary-and-typing) | quick | [#5](https://github.com/pedrobtz/zutable/issues/5) | | |

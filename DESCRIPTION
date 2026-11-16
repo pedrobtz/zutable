@@ -1,17 +1,31 @@
 Package: zutable
-Title: What the Package Does (One Line, Title Case)
+Title: Typed Tables Queried with SQL Clauses
 Version: 0.0.0.9000
 Authors@R: 
-    person("First", "Last", , "first.last@example.com", role = c("aut", "cre"))
-Description: What the package does (one paragraph).
+    person("Pedro", "Baltazar", , "pedrobtz@gmail.com",
+           role = c("aut", "cre", "cph"))
+Description: A data frame that always knows its schema: the name, logical
+    type and nullability of every column, with the types of 'Apache Arrow'.
+    Queries are written in the bracket, with the clauses of SQL (structured
+    query language) as named arguments over bare column names, and are
+    translated into typed expressions over a closed vocabulary, so the
+    schema of every result, and every type error, is known before any data
+    is read. Existing columns are updated in place, a table can be frozen
+    against further change, and grouping, sorting, joining and reducing run
+    on a cache-conscious kernel whose header other packages can use through
+    'LinkingTo'.
 License: MIT + file LICENSE
 Config/roxygen2/version: 8.1.1
 Encoding: UTF-8
+Language: en-GB
 Roxygen: list(markdown = TRUE)
 Suggests: 
     knitr,
     rmarkdown,
     testthat (>= 3.0.0)
 Config/testthat/edition: 3
-URL: https://pedrobtz.github.io/zutable/
+URL: https://pedrobtz.github.io/zutable/, https://github.com/pedrobtz/zutable
+BugReports: https://github.com/pedrobtz/zutable/issues
+Depends: 
+    R (>= 4.1)
 VignetteBuilder: knitr
