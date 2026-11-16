@@ -41,7 +41,8 @@ by the maintainer; (M) are the maintainer’s.
 
 ## Current state
 
-Scaffolded 2026-11-16 with `create-pkg.sh` (C via `use_c()`); no
+Scaffolded 2026-11-16 with `create-pkg.sh` (C via `use_c()`). Stage 0
+(2026-11-17) gave it its identity, conditions and CI; no table
 functionality yet. The roadmap in `.agents/roadmap.md` takes it to
 v0.1.0; for now 0.1.0 includes the kernel (design D35).
 
@@ -100,10 +101,17 @@ yet.
 
 ## Continuous integration
 
-Calls the shared r-actions workflows `r-cmd-check.yml` (profile `auto`)
-and `coverage.yml` (badge on `gh-pages`), plus r-lib’s pkgdown workflow.
-No package-specific workflows yet; the kernel design plans a consumer
-fixture workflow and a fuzz target.
+Calls the shared r-actions workflows `r-cmd-check.yml` (profile `auto`,
+plus a Windows R-devel row in the full profile, weekly on Mondays 02:41
+UTC), `coverage.yml` (badge on `gh-pages`) and `assurance.yml`
+(`ungated-jobs: fail`), plus r-lib’s pkgdown workflow. No
+package-specific workflows yet; the kernel stages add `check-headers`, a
+consumer fixture and a fuzz target. Stages marked `full` in the roadmap:
+3, 6, 10, 11, 12.
+
+Tests run shuffled everywhere: `tests/testthat.R` and
+`tools/ci-run-tests.R` print their seed, and `ZUTABLE_TEST_SEED` replays
+an order.
 
 ## Vendored native code
 
