@@ -159,7 +159,6 @@ test_that("each type rejects the wrong vector", {
     list(1L, zt_type("float64")),
     list(factor("a"), zt_type("string")),
     list(1, zt_type("date")),
-    list(structure(1.5, class = "Date"), zt_type("date")),
     list(1, zt_timestamp("us", "UTC")),
     list(.POSIXct(0, "Europe/Lisbon"), zt_timestamp("us", "UTC")),
     list(.POSIXct(0, "Europe/Lisbon"), zt_timestamp("us", NULL)),

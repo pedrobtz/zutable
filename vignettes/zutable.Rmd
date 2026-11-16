@@ -14,7 +14,7 @@ vignette: >
 knitr::opts_chunk$set(collapse = TRUE, comment = "#>", eval = FALSE)
 ```
 
-```{r setup}
+```{r setup, eval = TRUE}
 library(zutable)
 ```
 
@@ -24,7 +24,7 @@ reaches the code that breaks. A zutable always knows its schema, and every
 query is checked against it before any data is read. This page uses one
 small table of trades throughout.
 
-```{r}
+```{r, eval = TRUE}
 trades <- zutable(
   id       = c(1L, 1L, 2L, 2L, 3L),
   day      = as.Date("2026-01-01") + 0:4,

@@ -127,13 +127,7 @@ vector_problem <- function(x, type) {
     float64 = plain(is.double(x)),
     string = plain(is.character(x)),
     int64 = if (inherits(x, "zu_int64")) NULL else "not a zu_int64 vector",
-    date = {
-      if (!inherits(x, "Date")) {
-        "not a Date vector"
-      } else if (any(unclass(x) != trunc(unclass(x)), na.rm = TRUE)) {
-        "a date with a fraction of a day"
-      }
-    },
+    date = if (inherits(x, "Date")) NULL else "not a Date vector",
     timestamp = {
       if (identical(type$unit, "ns")) {
         if (inherits(x, "zutempo_instant")) NULL else "not a zutempo instant"

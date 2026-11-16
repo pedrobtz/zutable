@@ -2,7 +2,6 @@
 % Please edit documentation in R/zutable-package.R
 \docType{package}
 \name{zutable-package}
-\alias{zutable}
 \alias{zutable-package}
 \title{zutable: Typed Tables Queried with SQL Clauses}
 \description{

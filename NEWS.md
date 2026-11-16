@@ -11,3 +11,12 @@
 * `na(type)` gives a typed missing value, for placeholders.
 * `register_extension_type()` lets a package type its vector class as an
   Arrow extension.
+* `zutable()` and `as_zutable()` create typed tables: plain data frames
+  that carry their schema and print it under the column names. Values
+  enter exactly or not at all.
+* `conform()` checks a table against a schema and lists every mismatch;
+  `metadata()` returns a table's key-value pairs.
+* Base R's value forms (`x[i, ]`, `x[, j]`, `x$col`) work, so `head()`,
+  `subset()`, `split()` and `unique()` return zutables. No replacement
+  changes a table's schema: a value must fit its column's type, and
+  renaming or removing a column is an error.

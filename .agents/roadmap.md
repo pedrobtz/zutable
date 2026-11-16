@@ -25,7 +25,7 @@ fewer.
 | --- | --- | --- | --- | --- | --- |
 | 0 | [Package identity](#stage-0--package-identity) | quick | [#2](https://github.com/pedrobtz/zutable/issues/2) | [#26](https://github.com/pedrobtz/zutable/pull/26) | 2026-11-17 |
 | 1 | [Types and schema](#stage-1--types-and-schema) | quick | [#3](https://github.com/pedrobtz/zutable/issues/3) | [#27](https://github.com/pedrobtz/zutable/pull/27) | 2026-11-17 |
-| 2 | [Tables](#stage-2--tables) | quick | [#4](https://github.com/pedrobtz/zutable/issues/4) | | |
+| 2 | [Tables](#stage-2--tables) | quick | [#4](https://github.com/pedrobtz/zutable/issues/4) | | 2026-11-17 |
 | 3 | [Vocabulary and typing](#stage-3--vocabulary-and-typing) | quick | [#5](https://github.com/pedrobtz/zutable/issues/5) | | |
 | 4 | [Bracket and plans](#stage-4--bracket-and-plans) | quick | [#6](https://github.com/pedrobtz/zutable/issues/6) | | |
 | 5 | [Aggregates](#stage-5--aggregates) | quick | [#7](https://github.com/pedrobtz/zutable/issues/7) | | |
