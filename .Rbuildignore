@@ -12,3 +12,6 @@
 ^\.worktrees$
 ^src/.*\.(o|so|dll|dylib)$
 ^\.github$
+^_pkgdown\.yml$
+^docs$
+^pkgdown$
