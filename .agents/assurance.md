@@ -65,6 +65,6 @@ One row per limit the package enforces. "Straddled by" is the test of
 
 | Limit | Unit | Straddled by |
 | --- | --- | --- |
-| `POSIXct` instants as `timestamp("us")` | seconds from 1970, ±2³³ | gap #3 |
+| `POSIXct` instants as `timestamp("us")` | seconds from 1970, ±2³³ | tests/testthat/test-types.R: the 2^33-second limit is straddled on both sides |
 | `int32` arithmetic | value, ±(2³¹ − 1) | gap #5 |
 | Key and table length | rows, 2³¹ − 1 | gap #12 |
