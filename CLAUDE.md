@@ -1,0 +1,114 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working
+with code in this repository.
+
+## Shared conventions
+
+The portfolio’s shared rules (`workflow`, `r-package`, `ci`,
+`native-code`, `correctness`, `assurance`) come from the
+[r-skills](https://github.com/pedrobtz/r-skills) plugin’s `rules/`,
+loaded at session start because of the marker above. Never copy them
+here. Where this file and a shared rule disagree, this file wins for
+this package. Cloud sessions do not load the plugin and run without
+them.
+
+## What this is
+
+zutable gives R typed tables: a data.frame that always knows the name,
+logical type (Arrow’s) and nullability of every column, queried through
+a bracket whose named arguments are SQL’s clauses (`where`, `select`,
+`by`, `having`, `order`, `limit`, `distinct`) over bare column names.
+The bracket is captured and translated into typed expressions over a
+closed vocabulary, so every result’s schema and every type error is
+known before data is touched; the same plan runs in the package’s own
+executor, over a file scan, or as SQL in DuckDB or `zuspark`. `:=`
+updates existing columns in place through C. Beneath the local executor
+sits a grouped kernel (group, sort, join, reduce) with a C header for
+siblings. No `Imports`; `LinkingTo: zufast` from the first kernel code;
+every reader and engine is in `Suggests`. It deliberately does not
+invent an engine, add columns to an existing table, copy data.table’s
+surface beyond the bracket and `:=`, use threads, or exceed 2³¹ − 1
+rows.
+
+The specification is
+[.agents/design.md](https://pedrobtz.github.io/zutable/.agents/design.md)
+(from RFC 0074) with the kernel in
+[.agents/design-kernel.md](https://pedrobtz.github.io/zutable/.agents/design-kernel.md)
+(from RFC 0037). They outrank this file: `CLAUDE.md` orients, the design
+decides. Decisions marked (C) there are the RFC’s and may be overturned
+by the maintainer; (M) are the maintainer’s.
+
+## Current state
+
+Scaffolded 2026-11-16 with `create-pkg.sh` (C via `use_c()`); no
+functionality yet. The roadmap in `.agents/roadmap.md` takes it to
+v0.1.0; for now 0.1.0 includes the kernel (design D35).
+
+## Versions and dependents
+
+The current version’s parent issue is
+[\#1](https://github.com/pedrobtz/zutable/issues/1) for `v0.1.0`.
+Sibling packages that depend on this one before CRAN does: none. Planned
+header consumers (`zucsv`, `zuxlsx`, `zudedup`, `zulm`) are listed in
+design-kernel §3. zutable cannot reach CRAN before `zufast` (on CRAN
+since 2026-11-16) and needs `zuarrow`’s release for its Arrow paths.
+
+## Commands
+
+Only the shared commands so far.
+
+## Architecture
+
+To be written as stages land; see `.agents/design.md`. The scaffold set
+up C through `use_c()`:
+[src/zutable.c](https://pedrobtz.github.io/zutable/src/zutable.c) is an
+empty unit and `R/zutable-package.R` registers the DLL. The kernel’s
+header goes under `inst/include/` and `src/` stays a thin R translation
+over it (design-kernel §4).
+
+## Invariants that are easy to break
+
+These are fixed by the design before any code exists:
+
+- **No `Imports`.** Every sibling and engine is `Suggests`; a type whose
+  vector lives in an absent sibling is a `zutable_type_error` naming it,
+  never a silent degrade to double or character.
+- **No route changes a table’s schema.** `:=`, `$<-`, `[[<-`, `[<-` keep
+  the column set and types; `names<-` and assigning `NULL` are errors.
+- **`zt_commit()` swaps column pointers and never writes into a
+  vector**, so a vector shared with another object is never corrupted
+  and `copy()` duplicates only the list. It also enforces `freeze()` and
+  clears column properties.
+- **Every operator has a reference implementation in R over base**,
+  written first and kept as the oracle for the kernel (D29). Do not
+  delete it when the C version lands.
+- **The plan keeps the six lineage rules of design §8.5** from the first
+  commit (resolved references, kept expressions, source identity, …),
+  although lineage is not exported in 0.1.0.
+- **The kernel header compiles as C11 without R under `ZT_STANDALONE`**,
+  and as C++17 (design-kernel §4, §8); nothing in `src/` is an
+  algorithm.
+- **Errors are base-R conditions** under `zutable_error`; no `cli` or
+  `rlang`.
+
+## Testing
+
+Conformance suite: none yet; DuckDB is planned as the oracle for the
+emitters and vocabulary (design §14). Helpers: none yet. Runtime: none
+yet.
+
+## Continuous integration
+
+Calls the shared r-actions workflows `r-cmd-check.yml` (profile `auto`)
+and `coverage.yml` (badge on `gh-pages`), plus r-lib’s pkgdown workflow.
+No package-specific workflows yet; the kernel design plans a consumer
+fixture workflow and a fuzz target.
+
+## Vendored native code
+
+Planned by design-kernel §4.3: fluxsort and crumsort (Unlicense) as
+controls, swenson/sort (MIT) for harness rungs, and ports to C of
+Vergesort (MIT), ska sort (Boost 1.0) and pdqsort (zlib) with their
+licence notices kept. Pinned versions and local patches: to fill in when
+each is vendored.
