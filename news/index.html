@@ -38,6 +38,13 @@
 <ul><li>
 <code><a href="../reference/zutable_info.html">zutable_info()</a></code> reports the package version.</li>
 <li>Every condition the package raises inherits from <code>zutable_error</code>.</li>
+<li>
+<code><a href="../reference/schema.html">schema()</a></code>, <code><a href="../reference/schema.html">field()</a></code> and <code><a href="../reference/schema.html">not_null()</a></code> describe a table’s columns with Arrow’s logical types: <code>int32</code>, <code>float64</code>, <code>string</code>, <code>date</code>, <code>timestamp(unit, tz)</code>, <code>decimal(p, s)</code>, <code>enum(levels)</code>, <code>list(type)</code>, <code>struct(...)</code> and more, read inside the call so they mask nothing. <code><a href="../reference/schema.html">schema()</a></code> of a data frame infers its types.</li>
+<li>A <code>POSIXct</code> with no time zone is typed <code>timestamp("us", "UTC")</code>.</li>
+<li>
+<code>na(type)</code> gives a typed missing value, for placeholders.</li>
+<li>
+<code><a href="../reference/register_extension_type.html">register_extension_type()</a></code> lets a package type its vector class as an Arrow extension.</li>
 </ul></div>
   </main></div>
 
