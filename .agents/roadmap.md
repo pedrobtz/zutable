@@ -24,7 +24,7 @@ fewer.
 | Stage | Title | CI | Issue | Pull request | Done |
 | --- | --- | --- | --- | --- | --- |
 | 0 | [Package identity](#stage-0--package-identity) | quick | [#2](https://github.com/pedrobtz/zutable/issues/2) | [#26](https://github.com/pedrobtz/zutable/pull/26) | 2026-11-17 |
-| 1 | [Types and schema](#stage-1--types-and-schema) | quick | [#3](https://github.com/pedrobtz/zutable/issues/3) | | |
+| 1 | [Types and schema](#stage-1--types-and-schema) | quick | [#3](https://github.com/pedrobtz/zutable/issues/3) | | 2026-11-17 |
 | 2 | [Tables](#stage-2--tables) | quick | [#4](https://github.com/pedrobtz/zutable/issues/4) | | |
 | 3 | [Vocabulary and typing](#stage-3--vocabulary-and-typing) | quick | [#5](https://github.com/pedrobtz/zutable/issues/5) | | |
 | 4 | [Bracket and plans](#stage-4--bracket-and-plans) | quick | [#6](https://github.com/pedrobtz/zutable/issues/6) | | |
@@ -929,8 +929,6 @@ CRAN review.
 
 ## Blocking open questions
 
-- [§19 Q1](design.md#19-open-questions-and-the-ergonomics-tests) blocks
-  Stage 1: what a `POSIXct` with an empty `tzone` declares.
 - [§19 Q4](design.md#19-open-questions-and-the-ergonomics-tests) blocks
   Stage 4 and Stage 6: whether `explain()` and `copy()` register methods
   on dplyr's and data.table's generics.

@@ -225,6 +225,14 @@ vector representation and one Arrow format string.
   held in `POSIXct` too and keep their unit in the schema. Nanoseconds
   are not: at a 2026 date the same test recovered 0.4% of nanosecond
   counts, so `timestamp("ns")` needs `zutempo`.
+- **A `POSIXct` with no time zone is `timestamp("us", "UTC")`** (D38).
+  Its stored value is already an instant counted from 1970 in UTC; an
+  empty `tzone` only means "print in local time". Declaring the session's
+  zone would make a type depend on the machine, and a zoneless timestamp
+  is wall-clock time, which a `POSIXct` is not. The constructors set such
+  a column's `tzone` to `"UTC"`, so it prints in UTC, and a string literal
+  compared with it is read in UTC. A file column with no zone stays
+  `timestamp(unit)` with no zone, distinct from UTC.
 
 Type names are resolved inside `schema()`, `cast()` and `na()`, which
 capture their arguments; they are not exported objects, so `date` and
@@ -960,6 +968,26 @@ overturn it.
   OpenLineage's column-lineage facet, and the six rules of §8.5, are
   (C).
 
+- **D38 (M).** A `POSIXct` with an empty `tzone` declares
+  `timestamp("us", "UTC")`, and the constructors set its `tzone` to
+  `"UTC"` (§4.1). Agreed with the maintainer on 2026-11-17, on the
+  recommendation recorded there; answers Q1.
+- **D39 (C).** A `decimal` vector, which holds a scale but no precision,
+  is inferred as `decimal(38, s)`, or `decimal(76, s)` when a value needs
+  more than 38 digits: Arrow's two decimal widths, so the inferred type
+  is the narrowest one an engine stores without loss. A value that is not
+  a finite number (`NaN`, `Infinity`) has no Arrow type and is a
+  `zutable_type_error`. 2026-11-17, Stage 1.
+- **D40 (C).** The extension registry of §4.1 is
+  `register_extension_type(name, ptype, storage)`: a zero-length
+  prototype names the class and gives the missing value, and inference
+  types a vector of that class as the extension. 2026-11-17, Stage 1.
+- **D41 (C).** Until `zuint` and `zutempo` are on CRAN they are not in
+  `Suggests`, since CI cannot install them; the types ask for them by a
+  name held in a variable, and their tests run against hand-built
+  vectors in their layouts. `na(timestamp("ns"))` waits on a
+  missing-value constructor in `zutempo`. 2026-11-17, Stage 1.
+
 ## 16. Order of work
 
 The order of work, pieces 1 to 8, became the stages of
@@ -1086,11 +1114,12 @@ same day. Numbers are `Rdatatable/data.table` issues.
 
 ## 19. Open questions and the ergonomics tests
 
-- **Q1.** Answered on 2026-11-16 by D34: microseconds. What remains is
-  what a `POSIXct` with an empty `tzone` declares: a time zone of
-  `"UTC"`, the session's zone, or a timestamp without one.
+- **Q1.** Answered on 2026-11-16 by D34: microseconds, and on
+  2026-11-17 by D38: a `POSIXct` with an empty `tzone` declares
+  `timestamp("us", "UTC")`.
 - **Q2.** What unsigned Arrow integers read as: `int64`, `float64`, or
-  an error.
+  an error. Until it is answered, `schema()` refuses the unsigned
+  type names with a `zutable_type_error`.
 - **Q3.** Answered on 2026-11-16 by D33: a parameter of `join()`.
 - **Q4.** `collect()`, `explain()` and `copy()` share names with dplyr
   and data.table. Whether to register methods on their generics when
