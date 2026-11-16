@@ -1,0 +1,14 @@
+^LICENSE\.md$
+^\.agents$
+^vignettes/articles$
+^CLAUDE\.md$
+^\.claude$
+^AGENTS\.md$
+^cran-comments\.md$
+^CRAN-SUBMISSION$
+^\.Rproj\.user$
+^\.vscode$
+^\.superpowers$
+^\.worktrees$
+^src/.*\.(o|so|dll|dylib)$
+^\.github$
