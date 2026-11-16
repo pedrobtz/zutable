@@ -1,3 +1,4 @@
-# zutable (development version)
+# zutable 0.0.0.9000
 
-* Initial CRAN submission.
+* `zutable_info()` reports the package version.
+* Every condition the package raises inherits from `zutable_error`.
