@@ -91,3 +91,28 @@ test_that("text to double agrees with DuckDB's correctly rounded parser", {
   want <- DBI::dbGetQuery(con, "SELECT CAST(s AS DOUBLE) AS d FROM t")$d
   expect_identical(got, want)
 })
+
+test_that("binary numeric functions agree with DuckDB on every pair of edge values", {
+  skip_if_not_installed("duckdb")
+  skip_if_not_installed("DBI")
+  con <- DBI::dbConnect(duckdb::duckdb())
+  withr::defer(DBI::dbDisconnect(con, shutdown = TRUE))
+  edge <- c(-Inf, -3.75, -2, -1, -0.5, -0, 0, 0.5, 1, 2, 3.75, Inf, NaN, NA)
+  grid <- expand.grid(a = edge, b = edge)
+  cols <- list(c1 = grid$a, c2 = grid$b)
+  n <- nrow(grid)
+  fns <- c("+", "-", "*", "/", "%/%", "%%", "^", "==", "!=", "<", "<=", ">",
+           ">=")
+  for (fn in fns) {
+    node <- vocab_node(fn, c("float64", "float64"))
+    res <- duck_compare(con, node, cols, n, FALSE)
+    expect_true(same_values(res$want, res$got, node$type),
+                info = diff_info(fn, c("float64", "float64"), cols, res, node$type))
+  }
+  for (fn in c("abs", "sqrt", "exp", "log", "round", "floor", "ceiling")) {
+    node <- vocab_node(fn, "float64")
+    res <- duck_compare(con, node, list(c1 = edge), length(edge), FALSE)
+    expect_true(same_values(res$want, res$got, node$type),
+                info = diff_info(fn, "float64", list(c1 = edge), res, node$type))
+  }
+})

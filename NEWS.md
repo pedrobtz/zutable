@@ -25,3 +25,9 @@
   logic, strings, patterns, dates, `cast()`, `case()`, aggregates, and
   `r()` to run arbitrary R. Every expression is typed before any data is
   read, and every function gives the same result locally and in DuckDB.
+* The bracket takes SQL's clauses as named arguments: `where`, `select`
+  (with `.all` and `-name`), `order` (with `desc()`), `limit` and
+  `distinct`, run in SQL's logical order. `x[cond, .(...)]` reads as in
+  data.table, and a position that mentions no column is a value form.
+* `explain()` prints the plan that made a table, one step per line;
+  `dplyr::explain()` reaches it too.

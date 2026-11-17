@@ -340,6 +340,7 @@ zt_format_cells <- function(col) {
     }, ""))
   }
   out <- format(col, trim = TRUE)
-  out[is.na(col)] <- "NA"
+  # NaN is a value and prints as one (D47); only the null prints as NA.
+  out[zt_is_null(col)] <- "NA"
   as.character(out)
 }

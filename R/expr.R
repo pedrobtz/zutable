@@ -93,11 +93,25 @@ zt_tr <- function(expr, ctx) {
 # Whether an expression needs the data: it mentions a column, or is one of
 # the forms that are never constant (count(), .N, r()).
 zt_needs_data <- function(expr, ctx) {
-  names <- all.names(expr)
-  plain <- names[!startsWith(names, "..")]
-  any(plain %in% ctx$columns) ||
+  zt_mentions_column(expr, ctx$columns) ||
     any(c(".N", "count", "r", "cast", "case") %in%
           all.names(expr, functions = TRUE))
+}
+
+# Whether an expression refers to one of `cols`: a bare name that is a
+# column, outside function position and outside the right of `$` and `@`.
+zt_mentions_column <- function(e, cols) {
+  if (is.symbol(e)) {
+    return(as.character(e) %in% cols)
+  }
+  if (!is.call(e)) return(FALSE)
+  head <- e[[1L]]
+  args <- as.list(e)[-1L]
+  if (identical(head, as.name("$")) || identical(head, as.name("@"))) {
+    args <- args[1L]
+  }
+  if (!is.symbol(head) && zt_mentions_column(head, cols)) return(TRUE)
+  any(vapply(args, function(a) !missing(a) && zt_mentions_column(a, cols), NA))
 }
 
 # Named arguments are only those an entry declares (digits =, .default =).

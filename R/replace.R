@@ -3,27 +3,24 @@
 # those forms keep their base meaning, so head(), subset(), split(),
 # unique() and friends work. No route changes a table's schema.
 
-#' Index a zutable
-#'
-#' The value forms of the bracket keep base R's meaning: a first position
-#' that is an integer or logical vector selects rows, and a second position
-#' that is a character, integer or logical vector selects columns. A
-#' bracket always returns a table, so `x[, "score"]` is a one-column table;
-#' `x$score` and `x[["score"]]` give the vector. `drop` is accepted and
-#' ignored.
+#' Replace values in a zutable
 #'
 #' Replacing values (`x$col <- v`, `x[["col"]] <- v`, `x[i, "col"] <- v`)
 #' needs the column to exist and `v` to fit its type: exactly, or as a
 #' literal that is exactly representable there, such as `1` in an `int32`
-#' column. Renaming, and assigning `NULL`, are `zutable_schema_error`s.
+#' column. Renaming, and assigning `NULL`, are `zutable_schema_error`s, so
+#' no replacement changes a table's schema. Selecting rows and columns by
+#' value is the bracket's: see [zutable-bracket].
 #'
 #' @param x A zutable.
-#' @param i Rows: an integer or logical vector.
-#' @param j Columns: a character, integer or logical vector.
-#' @param drop Ignored.
+#' @param i,j Rows and columns, as for a data frame.
 #' @param name,value The column and its new values.
-#' @param ... Not used.
 #' @return A zutable.
+#' @examples
+#' x <- zutable(id = 1:3, score = c(1.5, 2, 2.5))
+#' x$id <- 7
+#' x[2, "score"] <- 0
+#' x
 #' @name zutable-indexing
 #' @examples
 #' x <- zutable(id = 1:3, score = c(1.5, 2, 2.5))
@@ -52,31 +49,6 @@ zt_plain <- function(x) {
   attr(x, "properties") <- NULL
   class(x) <- "data.frame"
   x
-}
-
-#' @rdname zutable-indexing
-#' @export
-`[.zutable` <- function(x, i, j, ..., drop = FALSE) {
-  call <- sys.call()
-  zt_validate(x, call)
-  n_args <- nargs() - !missing(drop)
-  rows <- NULL
-  cols <- NULL
-  if (n_args <= 2L) {
-    # x[i]: one position. Rows for code that knows zutable (data.table's
-    # reading); columns, as for a list, inside base R (D43).
-    if (!missing(i)) {
-      if (zt_aware(parent.frame())) {
-        rows <- zt_row_index(i, .row_names_info(x, 2L), call)
-      } else {
-        cols <- zt_col_index(i, names(x), call)
-      }
-    }
-  } else {
-    if (!missing(i)) rows <- zt_row_index(i, .row_names_info(x, 2L), call)
-    if (!missing(j)) cols <- zt_col_index(j, names(x), call)
-  }
-  zt_subset(x, rows, cols, call)
 }
 
 zt_row_index <- function(i, n, call) {
@@ -253,6 +225,13 @@ zt_set_column <- function(x, pos, value) {
   data[[pos]] <- value
   attributes(data) <- attrs
   attr(data, "properties") <- list()
+  # A value written outside the plan: its lineage is unknown, not stale
+  # (§8.5 rule 6).
+  rec <- attr(data, "plan", exact = TRUE)
+  if (!is.null(rec)) {
+    rec$unknown <- union(rec$unknown, names(x)[[pos]])
+    attr(data, "plan") <- rec
+  }
   data
 }
 
