@@ -9,9 +9,8 @@
 test_that("every vocabulary row agrees with DuckDB", {
   skip_if_not_installed("duckdb")
   skip_if_not_installed("DBI")
-  con <- DBI::dbConnect(duckdb::duckdb())
+  con <- duck_connect()
   withr::defer(DBI::dbDisconnect(con, shutdown = TRUE))
-  DBI::dbExecute(con, "SET TimeZone = 'UTC'")
   withr::local_seed(20261117)
   checked <- 0L
   for (entry in zt_vocab) {
@@ -38,9 +37,8 @@ test_that("every vocabulary row agrees with DuckDB", {
 test_that("the special forms agree with DuckDB", {
   skip_if_not_installed("duckdb")
   skip_if_not_installed("DBI")
-  con <- DBI::dbConnect(duckdb::duckdb())
+  con <- duck_connect()
   withr::defer(DBI::dbDisconnect(con, shutdown = TRUE))
-  DBI::dbExecute(con, "SET TimeZone = 'UTC'")
   withr::local_seed(20261118)
   n <- 40L
   cols <- list(i = vocab_sample("int32", n), f = vocab_sample("float64", n),
@@ -81,7 +79,7 @@ test_that("the special forms agree with DuckDB", {
 test_that("text to double agrees with DuckDB's correctly rounded parser", {
   skip_if_not_installed("duckdb")
   skip_if_not_installed("DBI")
-  con <- DBI::dbConnect(duckdb::duckdb())
+  con <- duck_connect()
   withr::defer(DBI::dbDisconnect(con, shutdown = TRUE))
   withr::local_seed(20261119)
   v <- c(stats::runif(300, -1e6, 1e6), 10^stats::runif(300, -300, 300),

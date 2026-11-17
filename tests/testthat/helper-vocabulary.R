@@ -155,3 +155,13 @@ ec <- function(x, to) {
   node <- zt_translate(bquote(cast(x, .(to))), s, environment())
   zt_eval(node, list(x = x), zt_nrow_of(x))
 }
+
+# A DuckDB connection for the oracle tests that never touches the network:
+# no extension is installed or loaded on demand (a test must not download,
+# and valgrind sees DuckDB's HTTP client otherwise).
+duck_connect <- function() {
+  DBI::dbConnect(duckdb::duckdb(config = list(
+    autoinstall_known_extensions = "false",
+    autoload_known_extensions = "false"
+  )))
+}
