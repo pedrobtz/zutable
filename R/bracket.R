@@ -44,7 +44,8 @@
 #'   order of first appearance, `by` columns first in the result.
 #' @param having A condition on the groups, naming result columns or
 #'   aggregating input ones.
-#' @param update An update, which a later stage of the package adds.
+#' @param update An update: `col := value` or a block of them; see
+#'   [zutable-update].
 #' @param order Sort keys.
 #' @param limit A row count.
 #' @param distinct `TRUE` to keep one of each distinct result row.
@@ -67,6 +68,7 @@ zt_clause_names <- c("where", "select", "update", "by", "having", "order",
                         order, limit, distinct = FALSE, drop = FALSE) {
   call <- sys.call()
   env <- parent.frame()
+  zt_state$skip_print <- NULL
   zt_validate(x, call)
   if (!zt_aware(env)) {
     # Base R's own code indexes a zutable as a data frame (D43).
@@ -126,15 +128,32 @@ zt_clause_names <- c("where", "select", "update", "by", "having", "order",
     ), call = call)
   }
   select_e <- ex$select %||% ex$j
-  q <- list(where = where_e, select = select_e, update = ex$update,
+  q <- list(where = where_e, select = if (!zt_is_update(select_e %||% quote(x))) select_e,
+            update = ex$update,
             by = ex$by, having = ex$having, order = ex$order,
             limit = ex$limit, distinct = distinct)
-  for (k in c("update")) {
-    if (!is.null(q[[k]])) {
-      zutable_abort("syntax", sprintf(
-        "the `%s` clause is not implemented yet", k
+  upd <- q$update %||% (if (!is.null(select_e) && zt_is_update(select_e)) select_e)
+  if (!is.null(upd)) {
+    if (!is.null(q$having) || !is.null(q$order) || !is.null(q$limit) ||
+        !isFALSE(q$distinct)) {
+      zutable_abort("syntax", paste(
+        "an update takes `where` and `by` only; query the result in a",
+        "bracket of its own"
       ), call = call)
     }
+    if (!zt_is_update(upd)) {
+      zutable_abort("syntax", "`update` is `col := value` or a block of them",
+                    call = call)
+    }
+    up <- zt_plan_update(x, upd, where_e, q$by, env, call)
+    out <- zt_run_update(x, up, call)
+    frames <- sys.nframe()
+    zt_arm_print_skip(out, frames)
+    return(invisible(out))
+  }
+  if (!is.null(select_e) && is.call(select_e) && identical(select_e[[1L]], as.name("{"))) {
+    q$select <- NULL
+    return(zt_block_query(x, select_e, q, env, call))
   }
   plan <- zt_plan_query(x, q, env, call)
   zt_execute(x, plan, call)

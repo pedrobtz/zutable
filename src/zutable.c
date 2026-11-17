@@ -6,6 +6,9 @@
 
 SEXP zt_parse_f64(SEXP x);
 SEXP zt_format_f64(SEXP x);
+SEXP zt_commit(SEXP x, SEXP which, SEXP cols, SEXP plan);
+SEXP zt_freeze(SEXP x);
+SEXP zt_copy(SEXP x);
 
 // Native routines are registered here as stages add them. Symbols are
 // hidden (Makevars) and only R_init_zutable is exported (design section 3,
@@ -13,6 +16,9 @@ SEXP zt_format_f64(SEXP x);
 static const R_CallMethodDef call_methods[] = {
   {"zt_parse_f64", (DL_FUNC) &zt_parse_f64, 1},
   {"zt_format_f64", (DL_FUNC) &zt_format_f64, 1},
+  {"zt_commit", (DL_FUNC) &zt_commit, 4},
+  {"zt_freeze", (DL_FUNC) &zt_freeze, 1},
+  {"zt_copy", (DL_FUNC) &zt_copy, 1},
   {NULL, NULL, 0}
 };
 
