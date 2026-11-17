@@ -86,6 +86,8 @@ setup whose quick profile runs in under five minutes.
 
 - `R CMD check` passes on the quick r-actions profile, and the pull
   request's quick run finishes in under five minutes.
+  Tuned 2026-11-17 in Stage 5: gctorture's `quick-step` is 2000, since at
+  500 the suite ran past the 10-minute budget (typing alone took 364 s).
 - `assurance.yml` is green on the pull request.
 - The three CI labels exist.
 
