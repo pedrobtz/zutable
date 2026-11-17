@@ -35,6 +35,9 @@ jobs:
     uses: pedrobtz/r-actions/.github/workflows/gctorture.yml@v1
     with:
       profile: ${{ (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && 'full' || 'quick' }}
+      # 2000, not the default 500 (2026-11-17): at 500 the suite took 580 s
+      # by Stage 5, typing alone 364 s; cost scales as about 1/step.
+      quick-step: 2000
       # Inverted, because `cond && 0 || 10` is always 10: an expression
       # treats 0 as false.
       test-timeout-minutes: ${{ (github.event_name != 'schedule' && github.event_name != 'workflow_dispatch') && 10 || 0 }}

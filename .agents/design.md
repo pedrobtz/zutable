@@ -1054,6 +1054,17 @@ overturn it.
   it is a value form (§5.5). Same-type signatures come before mixed ones,
   so a literal takes its column's own type. 2026-11-17, Stage 4.
 
+- **D52 (C).** An aggregate query's `by` keys are of an equatable type
+  (§7.1), a sibling's `int64` or `decimal` included. An element of
+  `select` that names a key again is that key, already first; any other
+  element is an aggregate or an expression of the keys, which takes its
+  group's value. `having` sees the result's columns, which win over the
+  input's, and may aggregate the input's. `order` in an aggregate query
+  names result columns only. A summary without `by` is one row even over
+  no rows, as in SQL; with `by`, no rows give no groups. `over()` is for a
+  query that is not an aggregate. NaN and NA are different groups; 0 and
+  -0 are one. 2026-11-17, Stage 5.
+
 ## 16. Order of work
 
 The order of work, pieces 1 to 8, became the stages of

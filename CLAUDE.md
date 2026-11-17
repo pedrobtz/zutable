@@ -100,7 +100,7 @@ emitters and vocabulary (design §14). Helpers: none yet. Runtime: none yet.
 Calls the shared r-actions workflows `r-cmd-check.yml` (profile `auto`, plus
 in the full profile a Windows R-devel row, `nosuggests` and `nold`; weekly
 on Mondays 02:41 UTC), `native-checks.yaml` (sanitizers with ASan,
-valgrind, lto, rchk, analyzers, cran-special), `gctorture.yaml` (wide step
+valgrind, lto, rchk, analyzers, cran-special), `gctorture.yaml` (step 2000
 on pull requests, step 20 daily and on dispatch), `alloc-failure.yaml`
 (weekly, through `tools/alloc-exercise.R`, which must reach every native
 routine), `coverage.yml` (badge on `gh-pages`) and `assurance.yml`

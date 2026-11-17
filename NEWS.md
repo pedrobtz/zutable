@@ -31,3 +31,8 @@
   data.table, and a position that mentions no column is a value form.
 * `explain()` prints the plan that made a table, one step per line;
   `dplyr::explain()` reaches it too.
+* `by`, `having` and the aggregates (`count()`, `sum()`, `mean()`,
+  `min()`, `max()`, `first()`, `last()`, `any()`, `all()`,
+  `count_distinct()`) make aggregate queries; groups come in order of
+  first appearance and `NA` is a group. `over(aggregate, by = )` computes
+  an aggregate per partition without collapsing rows.

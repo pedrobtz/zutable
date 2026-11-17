@@ -22,3 +22,13 @@ plan_exprs <- list(
   quote(!flag), quote(between(px, -1, 1)), quote(k %/% 2L), quote(1L),
   quote(date_trunc("month", day))
 )
+
+# A data frame sorted by every column, row names reset.
+sorted_frame <- function(x) {
+  x <- as.data.frame(x)
+  rownames(x) <- NULL
+  if (!nrow(x)) return(x)
+  d <- x[do.call(order, c(unname(as.list(x)), list(method = "radix"))), , drop = FALSE]
+  rownames(d) <- NULL
+  d
+}

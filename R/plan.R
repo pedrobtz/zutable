@@ -22,6 +22,9 @@ zt_resolve <- function(node, from) {
     node$from <- from
   } else if (identical(node$kind, "call")) {
     node$args <- lapply(node$args, zt_resolve, from = from)
+  } else if (identical(node$kind, "window")) {
+    node$agg <- zt_resolve(node$agg, from)
+    node$by <- lapply(node$by, zt_resolve, from = from)
   }
   node
 }
@@ -46,15 +49,20 @@ zt_plan_query <- function(x, q, env, call) {
     steps[[length(steps) + 1L]] <- zt_step("filter", cur,
                                            predicate = zt_resolve(pred, 0L))
   }
-  # select: the projection, with the input still in scope for order.
+  # select: the projection, or with `by`, `having` or an aggregate, the
+  # aggregation (§5.2, §5.3).
+  by <- if (is.null(q$by)) NULL else zt_parse_by(q$by, cur, env, call)
   sel <- if (is.null(q$select)) NULL else zt_parse_select(q$select, cur, env, call)
-  if (!is.null(sel)) {
-    if (any(vapply(sel, function(n) n$aggregate, NA))) {
-      zutable_abort("syntax", paste(
-        "an aggregate in `select` needs `by` or makes a one-row summary;",
-        "aggregate queries arrive with the next stage"
-      ), call = call)
-    }
+  aggregate <- !is.null(by) || !is.null(q$having) ||
+    any(vapply(sel, function(n) isTRUE(n$aggregate), NA))
+  if (aggregate) {
+    st <- zt_plan_aggregate(by, sel, q$having, cur, env, call)
+    st$by <- lapply(st$by, zt_resolve, from = length(steps))
+    st$exprs <- lapply(st$exprs, zt_resolve, from = length(steps))
+    steps[[length(steps) + 1L]] <- st
+    cur <- st$schema
+    in_schema <- cur
+  } else if (!is.null(sel)) {
     out <- new_schema(lapply(names(sel), function(n) {
       new_field(n, sel[[n]]$type, isTRUE(sel[[n]]$nullable))
     }))
@@ -69,7 +77,7 @@ zt_plan_query <- function(x, q, env, call) {
     zutable_abort("syntax", "`distinct` is TRUE or FALSE", call = call)
   }
   if (!is.null(q$order)) {
-    keys <- zt_parse_order(q$order, cur, in_schema, !is.null(sel),
+    keys <- zt_parse_order(q$order, cur, in_schema, !is.null(sel) || aggregate,
                            isTRUE(q$distinct), env, call)
     steps[[length(steps) + 1L]] <- zt_step("sort", cur, keys = keys)
   }
@@ -83,6 +91,135 @@ zt_plan_query <- function(x, q, env, call) {
   }
   structure(list(source = zt_plan_source(x), steps = steps, schema = cur),
             class = "zutable_plan")
+}
+
+# by = col, .(a, b), .(week = date_trunc("week", day)), or a character
+# vector of column names: a named list of typed key nodes.
+zt_parse_by <- function(e, schema, env, call) {
+  if (!zt_is_clause(e, names(schema))) {
+    v <- tryCatch(eval(e, env), error = function(err) NULL)
+    if (!is.character(v) || anyNA(v) || !length(v)) {
+      zutable_abort("syntax", paste(
+        "`by` is a column, .(a, b), .(name = expression), or a character",
+        "vector of column names"
+      ), call = call)
+    }
+    e <- as.call(c(as.name("."), lapply(v, as.name)))
+  }
+  items <- if (is.call(e) && identical(e[[1L]], as.name("."))) as.list(e)[-1L] else list(e)
+  nms <- names(items) %||% rep("", length(items))
+  out <- list()
+  for (k in seq_along(items)) {
+    it <- items[[k]]
+    nm <- nms[[k]]
+    if (!nzchar(nm)) {
+      if (is.symbol(it) && as.character(it) %in% names(schema)) {
+        nm <- as.character(it)
+      } else {
+        zutable_abort("syntax", sprintf(
+          "the computed key `%s` needs a name, as in by = .(name = %s)",
+          paste(deparse(it), collapse = " "), paste(deparse(it), collapse = " ")
+        ), call = call)
+      }
+    }
+    if (nm %in% names(out)) {
+      zutable_abort("schema", sprintf("`by` names `%s` twice", nm), call = call)
+    }
+    if (is.symbol(it) && !as.character(it) %in% names(schema)) {
+      zutable_abort("schema", sprintf("`by` column `%s` does not exist",
+                                      as.character(it)), call = call)
+    }
+    node <- zt_translate(it, schema, env, call)
+    if (isTRUE(node$aggregate) || zt_is_lit(node)) {
+      zutable_abort("type", sprintf(
+        "the key `%s` of `by` is an expression of the columns, not an aggregate",
+        nm
+      ), call = call)
+    }
+    if (!node$type$id %in% c(zt_equatable, "int64", "decimal")) {
+      zutable_abort("type", sprintf("cannot group by a value of type %s",
+                                    zt_format_type(node)), call = call)
+    }
+    out[[nm]] <- node
+  }
+  out
+}
+
+# The aggregation step: keys, then one aggregate (or key expression) per
+# result column, then `having`. Every column a select element mentions
+# outside an aggregate must be a key, as in SQL.
+zt_plan_aggregate <- function(by, sel, having, input, env, call) {
+  keys <- names(by)
+  exprs <- list()
+  for (nm in names(sel)) {
+    node <- sel[[nm]]
+    # A bare key named again is already in the result, first.
+    if (identical(node$kind, "col") && nm %in% keys && identical(node$name, nm)) next
+    if (nm %in% keys) {
+      zutable_abort("schema", sprintf(
+        "the result would have two columns named `%s`; it is a `by` key", nm
+      ), call = call)
+    }
+    if (identical(node$kind, "window")) {
+      zutable_abort("syntax", "over() is for a query without `by` or aggregates",
+                    call = call)
+    }
+    bad <- zt_ungrouped_columns(node, keys, by)
+    if (length(bad)) {
+      zutable_abort("type", sprintf(paste(
+        "in an aggregate query each column is an aggregate or a `by` key;",
+        "`%s` uses `%s` outside an aggregate"
+      ), nm, bad[[1L]]), call = call)
+    }
+    exprs[[nm]] <- node
+  }
+  fields <- c(
+    lapply(keys, function(k) new_field(k, by[[k]]$type, isTRUE(by[[k]]$nullable))),
+    lapply(names(exprs), function(n) new_field(n, exprs[[n]]$type,
+                                               isTRUE(exprs[[n]]$nullable)))
+  )
+  out <- new_schema(fields)
+  hv <- NULL
+  if (!is.null(having)) {
+    scope <- new_schema(c(out$fields, input$fields[setdiff(names(input), names(out))]))
+    hv <- zt_translate(having, scope, env, call)
+    if (!identical(hv$type$id, "bool")) {
+      zutable_abort("type", sprintf("`having` must be a condition (bool); it is %s",
+                                    zt_format_type(hv)), call = call)
+    }
+    bad <- setdiff(zt_ungrouped_columns(hv, names(out), NULL), names(out))
+    if (length(bad)) {
+      zutable_abort("type", sprintf(paste(
+        "`having` uses `%s` outside an aggregate; it may name the result's",
+        "columns, or aggregate the input's"
+      ), bad[[1L]]), call = call)
+    }
+  }
+  zt_step("aggregate", out, by = by, exprs = exprs, having = hv)
+}
+
+# Columns a node mentions outside any aggregate, other than the keys (a
+# key may be named, or its expression repeated).
+zt_ungrouped_columns <- function(node, keys, by) {
+  if (!is.null(by)) {
+    for (k in names(by)) {
+      if (identical(zt_strip_from(node), zt_strip_from(by[[k]]))) return(character())
+    }
+  }
+  switch(node$kind,
+    col = if (node$name %in% keys) character() else node$name,
+    call = if (identical(zt_vocab[[node$fn]]$kind, "aggregate")) character() else
+      unique(unlist(lapply(node$args, zt_ungrouped_columns, keys = keys, by = by))),
+    r = setdiff(node$columns, keys),
+    window = character(),
+    character()
+  )
+}
+
+zt_strip_from <- function(node) {
+  node$from <- NULL
+  if (identical(node$kind, "call")) node$args <- lapply(node$args, zt_strip_from)
+  node
 }
 
 zt_format_type <- function(node) {
@@ -194,6 +331,8 @@ zt_node_columns <- function(node) {
     col = node$name,
     call = unique(unlist(lapply(node$args, zt_node_columns))),
     r = node$columns,
+    window = unique(c(zt_node_columns(node$agg),
+                      unlist(lapply(node$by, zt_node_columns)))),
     character()
   )
 }
@@ -275,6 +414,18 @@ zt_explain_lines <- function(x) {
         if (identical(e$kind, "col") && identical(e$name, n)) t else
           paste0(t, " = ", zt_format_node(e))
       }, ""), collapse = ", ")),
+      aggregate = {
+        k <- if (length(st$by)) sprintf("by %s", paste(vapply(names(st$by), function(n) {
+          e <- st$by[[n]]
+          if (identical(e$kind, "col") && identical(e$name, n)) n else
+            paste0(n, " = ", zt_format_node(e))
+        }, ""), collapse = ", ")) else "all rows"
+        a <- vapply(names(st$exprs), function(n) {
+          paste0(format(st$schema$fields[[n]]), " = ", zt_format_node(st$exprs[[n]]))
+        }, "")
+        h <- if (!is.null(st$having)) c(sprintf("having  %s", zt_format_node(st$having)))
+        c(sprintf("aggregate %s: %s", k, paste(a, collapse = ", ")), h)
+      },
       distinct = "distinct",
       sort = sprintf("sort    %s", paste(vapply(st$keys, function(k) {
         paste0(zt_format_node(k$node), if (k$desc) " desc" else "")
@@ -307,6 +458,9 @@ zt_format_node <- function(node) {
       }
     },
     r = sprintf("r(%s)", paste(deparse(node$expr), collapse = " ")),
+    window = sprintf("over(%s%s)", zt_format_node(node$agg),
+                     if (length(node$by)) paste0(", by = ", paste(vapply(node$by,
+                       zt_format_node, ""), collapse = ", ")) else ""),
     call = {
       a <- vapply(node$args, zt_format_node, "")
       if (node$fn %in% zt_infix && length(a) == 2L) {
