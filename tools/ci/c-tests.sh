@@ -4,7 +4,7 @@
 set -eu
 cc=${CC:-cc}
 out=${OUT:-build/c-tests}
-zinc="-I$(Rscript -e 'cat(system.file("include", package = "zufast"))')"
+zinc="-I$(sh tools/ci/zufast-include.sh)"
 mkdir -p "$out"
 for t in tests/c/test-*.c; do
   name=$(basename "$t" .c)
