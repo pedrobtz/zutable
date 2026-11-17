@@ -7,6 +7,8 @@
   : Check a table against a schema
 - [`explain()`](https://pedrobtz.github.io/zutable/reference/explain.md)
   : Explain how a table is computed
+- [`grp()`](https://pedrobtz.github.io/zutable/reference/grp.md) : Group
+  rows by keys
 - [`join()`](https://pedrobtz.github.io/zutable/reference/join.md) :
   Join two tables
 - [`na()`](https://pedrobtz.github.io/zutable/reference/na.md) : A typed

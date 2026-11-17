@@ -80,3 +80,8 @@
   reports the kernel header’s version and the `zufast` headers the
   package was built against; the header `zutable.h` is installed for
   other packages to use through `LinkingTo`.
+- [`grp()`](https://pedrobtz.github.io/zutable/reference/grp.md) groups
+  rows by keys of any kind (integer, double, logical, character, factor,
+  `integer64`, raw), in first-appearance or key order; the bracket’s
+  `by` runs on it. It is a hash table of five bytes a slot, partitioned
+  to the cache above L3.
