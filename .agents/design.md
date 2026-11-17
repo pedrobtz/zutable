@@ -988,6 +988,19 @@ overturn it.
   vectors in their layouts. `na(timestamp("ns"))` waits on a
   missing-value constructor in `zutempo`. 2026-11-17, Stage 1.
 
+- **D42 (C).** A table's own metadata is the metadata of its schema, so
+  it has one home; the attributes of §9.1 are `schema` and `properties`.
+  2026-11-17, Stage 2.
+- **D43 (C).** Code in a namespace that does not import `zutable`, base
+  R's own above all, indexes a zutable as the data frame it is, as
+  data.table's `cedta()` arranges: one position selects columns, and
+  `$<-`, `[[<-` and `[<-` act on a plain data frame copy, which leaves the
+  caller's table untouched. The value forms of §5.5 are otherwise as
+  written, which is what makes `duplicated()`, and so `unique()`, work.
+  Renaming is refused in every context, since a rename changes the schema
+  whoever asks (`colnames<-` reaches `dimnames<-` from base). Logical
+  selections recycle as in base R. 2026-11-17, Stage 2.
+
 ## 16. Order of work
 
 The order of work, pieces 1 to 8, became the stages of

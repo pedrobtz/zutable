@@ -177,6 +177,10 @@ schema_of <- function(x, call = NULL) {
   if (inherits(x, "zutable_schema")) {
     return(x)
   }
+  if (is_zutable(x)) {
+    zt_validate(x, call)
+    return(attr(x, "schema", exact = TRUE))
+  }
   if (is.data.frame(x)) {
     return(infer_schema(x, call))
   }
