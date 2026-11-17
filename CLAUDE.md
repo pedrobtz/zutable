@@ -117,8 +117,13 @@ an order.
 
 ## Vendored native code
 
-Planned by design-kernel §4.3: fluxsort and crumsort (Unlicense) as
-controls, swenson/sort (MIT) for harness rungs, and ports to C of
-Vergesort (MIT), ska sort (Boost 1.0) and pdqsort (zlib) with their
-licence notices kept. Pinned versions and local patches: to fill in when
-each is vendored.
+Nothing is vendored as a file. Three sorts are ported to C from their C++
+originals, each in its own template under `inst/include/zutable/` with the
+original's notice and a list of what was altered, and in
+`inst/COPYRIGHTS` and `Authors@R`: pdqsort (zlib, orlp/pdqsort at
+`b1ef26a`) in `pdqsort.inc`, Vergesort (MIT, Morwenn/vergesort at `a1a5081`)
+in `vergesort.inc`, ska sort (Boost 1.0, skarupke/ska_sort at `2c14d4b`) in
+`skasort.inc`. `tools/ci/fetch-originals.sh` fetches the originals at those
+commits, checking SHA-256, for `tests/c/ports`; a port changes only with
+that test. fluxsort, crumsort and swenson/sort are not vendored (D41).
+

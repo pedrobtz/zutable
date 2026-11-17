@@ -1,9 +1,16 @@
 Package: zutable
 Title: Typed Tables Queried with SQL Clauses
 Version: 0.0.0.9000
-Authors@R: 
+Authors@R: c(
     person("Pedro", "Baltazar", , "pedrobtz@gmail.com",
-           role = c("aut", "cre", "cph"))
+           role = c("aut", "cre", "cph")),
+    person("Orson", "Peters", role = c("ctb", "cph"),
+           comment = "pdqsort, ported in inst/include/zutable/pdqsort.inc"),
+    person("Morwenn", role = c("ctb", "cph"),
+           comment = "Vergesort, ported in inst/include/zutable/vergesort.inc"),
+    person("Malte", "Skarupke", role = c("ctb", "cph"),
+           comment = "ska sort, ported in inst/include/zutable/skasort.inc")
+  )
 Description: A data frame that always knows its schema: the name, logical
     type and nullability of every column, with the types of 'Apache Arrow'.
     Queries are written in the bracket, with the clauses of SQL (structured
@@ -15,6 +22,8 @@ Description: A data frame that always knows its schema: the name, logical
     on a cache-conscious kernel whose header other packages can use through
     'LinkingTo'.
 License: MIT + file LICENSE
+Copyright: The ported sorts keep their authors' copyright and licences
+    (zlib, MIT, Boost Software License 1.0); see inst/COPYRIGHTS.
 Config/roxygen2/version: 8.1.1
 Encoding: UTF-8
 Language: en-GB
