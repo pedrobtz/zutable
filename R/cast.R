@@ -38,23 +38,22 @@ zt_cast_fail <- function(x, ok, from, to) {
   }
 }
 
-# Shortest decimal text that reads back as the same double, with the
-# spellings DuckDB uses for the non-finite values.
+# Shortest decimal text that reads back as the same double (Ryu, through
+# zufast), with the spellings DuckDB uses for the non-finite values (D49).
 zt_format_double <- function(x) {
-  out <- rep(NA_character_, length(x))
-  for (i in which(!zt_is_null(x))) {
-    v <- x[[i]]
-    out[[i]] <- if (is.nan(v)) "nan" else if (v == Inf) "inf" else
-      if (v == -Inf) "-inf" else {
-        s <- NULL
-        for (d in 15:17) {
-          s <- sprintf(paste0("%.", d, "g"), v)
-          if (as.double(s) == v) break
-        }
-        s
-      }
-  }
+  x <- as.double(x)
+  out <- .Call(zt_format_f64, x)
+  out[is.nan(x)] <- "nan"
+  out[x %in% Inf] <- "inf"
+  out[x %in% -Inf] <- "-inf"
+  out[zt_is_null(x)] <- NA_character_
   out
+}
+
+# A correctly rounded double for each string, or NA (zufast's fast_float);
+# R's as.double() is not correctly rounded on every platform.
+zt_parse_double <- function(x) {
+  .Call(zt_parse_f64, enc2utf8(trimws(as.character(x))))
 }
 
 zt_format_timestamp <- function(x, tz) {
@@ -97,8 +96,8 @@ zt_cast_value <- function(x, from, to) {
     },
     float64 = {
       if (f %in% c("bool", "int32")) return(as.double(x))
-      d <- suppressWarnings(as.double(trimws(x)))
-      zt_cast_fail(x, !is.na(d) | is.nan(d), from, to)
+      d <- zt_parse_double(x)
+      zt_cast_fail(x, !zt_is_null(d), from, to)
       d
     },
     string = switch(f,

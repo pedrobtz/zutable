@@ -37,6 +37,11 @@ jobs:
       # Quick on pull requests. Full on the weekly schedule, on a manual
       # dispatch, and on a pull request labelled `full-ci`.
       profile: auto
+      # CRAN's noSuggests and noLD flavours, in the full profile: nothing
+      # in Suggests installed, and no long double (the vocabulary's
+      # arithmetic must not depend on it).
+      nosuggests: true
+      nold: true
       # r-actions' default runners, plus Windows on R-devel: CRAN checks
       # Windows on R-devel and nothing else in CI does (the containers are
       # Linux). Runs in the full profile only.

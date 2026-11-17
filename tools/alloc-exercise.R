@@ -1,0 +1,11 @@
+# Exercised by alloc-failure.yaml: each allocation, R's included, is failed
+# in turn while this runs, and every failure must surface as R's
+# "cannot allocate" error, never a crash. It reaches each native routine.
+library(zutable)
+x <- c("0.1", "1e-300", "nan", NA, "x", "1.7976931348623157e+308")
+d <- zutable:::zt_parse_double(x)
+s <- zutable:::zt_format_double(c(0.1, 1 / 3, NaN, -Inf, NA, 1e21))
+s1 <- schema(a = float64)
+node <- zutable:::zt_translate(quote(cast(a, string)), s1, environment())
+zutable:::zt_eval(node, list(a = c(1.5, 2)), 2L)
+invisible(d)

@@ -237,6 +237,14 @@ SQL, and the three cannot disagree.
 [§7.2](design.md#72-typing), [§7.3](design.md#73-the-escape),
 [§4.3](design.md#43-strictness).
 
+**Deviation, 2026-11-17.** The full run found that R's `as.double()` is
+not correctly rounded on macOS arm64 (it read the largest double as
+`Inf`), so `cast()` between text and doubles uses zufast's parser and
+formatter: `LinkingTo: zufast` and the first C arrive here, not in
+Stage 9 and Stage 6, and with them the native checks, `gctorture` and
+`alloc-failure` of Stage 6's work list. Stage 6 keeps `zt_commit()` and
+its `full` tier.
+
 ## Stage 4 — Bracket and plans
 
 **Issue.** [#6](https://github.com/pedrobtz/zutable/issues/6), sub-issue of
@@ -350,8 +358,8 @@ run before merging`.
 - `copy()`, `freeze()`, `is_frozen()`, `frozen` in the print header.
 - `:=` on anything lazy is not reachable yet; its error lands with the
   lazy class.
-- The native-checks caller (sanitizers, valgrind, rchk, gctorture,
-  analyzers) and `alloc-failure.yml`, now that there is C to run them on.
+- `tools/alloc-exercise.R` extended to reach `zt_commit()` (the checks
+  themselves were wired in Stage 3, 2026-11-17).
 
 **Tests.**
 
@@ -380,7 +388,7 @@ run before merging`.
 - `.agents/assurance.md` has the materialised table's row under Objects
   (sequences in `test-update-sequences.R`; fork n/a: holds no OS
   resource; unwind in `test-update.R`; owner n/a: columns are owned by
-  R), and the native-checks rows marked `done`.
+  R).
 - A full-profile run is green on the pull request, and a dispatched
   step-20 gctorture run is green on its last commit.
 
@@ -471,7 +479,8 @@ kernel code is built on it. Starts the kernel clock.
 
 **Work.**
 
-- `LinkingTo: zufast`, `Remotes: pedrobtz/zufast@main`.
+- `Remotes: pedrobtz/zufast@main` if the kernel needs more than the CRAN
+  release (`LinkingTo: zufast` arrived in Stage 3, 2026-11-17).
 - The `inst/include/zutable/` skeleton and `check-headers` (own
   workflow): every header compiles alone under `-Wall -Wextra -pedantic`
   as C11 and as C++17, and under `ZT_STANDALONE` without R.

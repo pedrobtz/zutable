@@ -77,3 +77,19 @@ test_that("the special forms agree with DuckDB", {
                 info = paste(deparse(e), res$sql, sep = "\n"))
   }
 })
+
+test_that("text to double agrees with DuckDB's correctly rounded parser", {
+  skip_if_not_installed("duckdb")
+  skip_if_not_installed("DBI")
+  con <- DBI::dbConnect(duckdb::duckdb())
+  withr::defer(DBI::dbDisconnect(con, shutdown = TRUE))
+  withr::local_seed(20261119)
+  v <- c(stats::runif(300, -1e6, 1e6), 10^stats::runif(300, -300, 300),
+         2^-1074, (2 - 2^-52) * 2^1023)
+  text <- c(sprintf("%.17g", v), sprintf("%.6e", v), "0.1", "1e-320", "123456789012345678901234567890")
+  got <- zt_parse_double(text)
+  df <- data.frame(s = text)
+  duckdb::duckdb_register(con, "t", df)
+  want <- DBI::dbGetQuery(con, "SELECT CAST(s AS DOUBLE) AS d FROM t")$d
+  expect_identical(got, want)
+})
