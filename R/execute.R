@@ -102,13 +102,25 @@ zt_order_index <- function(vals, types, desc) {
 # --- grouping ---------------------------------------------------------------
 
 # Group identifiers in order of first appearance, NA a group of its own
-# (design §5.3, D26). Keys are coded one by one with match(), which tells NA
-# from NaN and -0 from nothing, and combined pairwise so the codes never
-# exceed the row count.
+# (design §5.3, D26), through the kernel's grp() (Stage 10). The reference
+# version below codes keys one by one with match(), which tells NA from NaN
+# and -0 from nothing, and combines them pairwise so the codes never exceed
+# the row count.
 zt_group_ids <- function(keys, n) {
   if (!length(keys)) {
     return(list(id = rep(1L, n), n_groups = 1L))
   }
+  if (!identical(getOption("zutable.executor", "kernel"), "reference")) {
+    g <- zt_grp_native(keys, n)
+    return(list(id = g$id, n_groups = g$n))
+  }
+  zt_group_ids_ref(keys, n)
+}
+
+# The reference executor's grouping, over match(): it ran until the kernel
+# landed and stays as its oracle (D29); option zutable.executor =
+# "reference" selects it.
+zt_group_ids_ref <- function(keys, n) {
   code <- NULL
   for (k in keys) {
     v <- if (is.factor(k)) as.character(k) else k

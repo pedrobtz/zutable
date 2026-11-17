@@ -99,3 +99,31 @@ them. Three notes:
 
 The spike is not the kernel: it carries none of R's costs (result vectors,
 `NA` handling), so its gap to collapse is a bound, not a claim.
+
+## Kernel: groups (Stage 10, 2026-11-17)
+
+`ZT_BENCH_SECTIONS=groups tools/run-benchmarks 1e7`, `zutable::grp()`
+beside the incumbents; it agreed with every one of them before it was
+timed. Measured again warm, alternating with `collapse::GRP()`, five each:
+0.198 s against 0.065 s at 1e3 groups, 0.331 against 0.180 at 1e5, 1.168
+against 0.412 at 1e7.
+
+| Target (design-kernel 9.3) | zutable::grp | Best incumbent | Met |
+| --- | ---: | ---: | --- |
+| groups, one integer key, 1e3 distinct | 0.382 | 0.063 (collapse::GRP) | no |
+| groups, one integer key, 1e5 distinct | 0.589 | 0.180 (collapse::GRP) | no |
+| groups, one key, 1e7 distinct | 1.971 | 0.373 (vctrs::vec_group_id) | no |
+| groups, two keys | 0.944 | 0.225 (collapse::GRP) | no |
+| groups, sort = TRUE, 1e5 distinct | 0.768 | 0.302 (collapse::GRP(sort = TRUE)) | no |
+| groups, 9.1 market-data input | 1.092 | 0.211 (collapse::GRP) | no |
+
+**Every groups target is missed so far**, by 2x to 5x; section 9.3 records
+it and the release does not wait on it. The kernel is correct first: it
+agrees with base R, collapse and itself across both paths. Where the time
+goes, at 1e7 rows and 1e3 groups (0.20 s): the grouping loop 0.09 s, a
+separate hashing pass 0.04, sizes, starts and order 0.04, the 1-based copy
+0.02, preparing the key 0.02. The known next steps, for the tuning stage:
+a fused hash-and-insert loop specialised for one fixed-width key (the
+generic loop compares keys through a switch on every probe), the 1-based
+identifiers written in the order pass, and order computed only when it is
+used.

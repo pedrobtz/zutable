@@ -7,7 +7,7 @@ set -eu
 out=build/mutation
 mkdir -p "$out"
 cc=${MULL_CC:?MULL_CC is set by the r-actions mutation workflow}
-zinc="-I$(Rscript -e 'cat(system.file("include", package = "zufast"))')"
+zinc="-I$(sh tools/ci/zufast-include.sh)"
 for t in tests/c/test-*.c; do
   name=$(basename "$t" .c)
   $cc -std=c11 -g -Iinst/include $zinc -c "$t" -o "$out/$name.o"

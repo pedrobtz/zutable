@@ -71,4 +71,4 @@ One row per limit the package enforces. "Straddled by" is the test of
 | --- | --- | --- |
 | `POSIXct` instants as `timestamp("us")` | seconds from 1970, ±2³³ | tests/testthat/test-types.R: the 2^33-second limit is straddled on both sides |
 | `int32` arithmetic | value, ±(2³¹ − 1) | tests/testthat/test-vocabulary.R: int32 arithmetic is straddled at the overflow limit |
-| Key and table length | rows, 2³¹ − 1 | gap #12 |
+| Key and table length | rows, 2³¹ − 1 | tests/c/test-groups.c: table capacities for 2³¹ − 2, 2³¹ − 1 and around 7/8 of 2³¹; tests/testthat/test-grp.R: a key of 2³¹ rows is a `zutable_length_error` |

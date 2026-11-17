@@ -64,3 +64,38 @@ ergo_trades <- function() {
     stringsAsFactors = FALSE
   )
 }
+
+# grp() identifiers by the reference: first appearance, composite keys
+# through interaction() recoded to first appearance.
+grp_ref <- function(...) {
+  keys <- list(...)
+  if (length(keys) == 1L) return(match(keys[[1L]], unique(keys[[1L]])))
+  f <- interaction(lapply(keys, function(k) factor(k, levels = unique(k), exclude = NULL)),
+                   drop = TRUE, lex.order = TRUE)
+  match(as.integer(f), unique(as.integer(f)))
+}
+
+# Sample key vectors of every kind for the property tests.
+grp_sample <- function(kind, n) {
+  pick <- function(pool) pool[sample.int(length(pool), n, replace = TRUE)]
+  switch(kind,
+    int = pick(c(-3L, 0L, 1L, 7L, .Machine$integer.max, NA)),
+    dbl = pick(c(-0, 0, 1.5, -2, Inf, -Inf, NaN, NA, 1e300)),
+    lgl = pick(c(TRUE, FALSE, NA)),
+    chr = {
+      x <- pick(c("a", "B", "", "café", NA, "x y"))
+      lat <- x == "café" & !is.na(x)
+      lat[seq_along(lat) %% 2 == 0] <- FALSE
+      x[lat & !is.na(lat)] <- iconv(x[lat & !is.na(lat)], "UTF-8", "latin1")
+      x
+    },
+    fct = factor(pick(c("lo", "hi", NA)), levels = c("lo", "hi")),
+    raw = pick(list(as.raw(1:2), raw(), NULL, as.raw(255)))
+  )
+}
+
+# Runs code under one executor, "kernel" or "reference" (D29).
+with_executor <- function(which, code) {
+  withr::local_options(zutable.executor = which)
+  force(code)
+}

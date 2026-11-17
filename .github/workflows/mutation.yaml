@@ -21,6 +21,6 @@ jobs:
     uses: pedrobtz/r-actions/.github/workflows/mutation.yml@v1
     with:
       build: sh tools/ci/mutation-build.sh
-      tests: build/mutation/test-header
+      tests: build/mutation/test-header build/mutation/test-groups
       include: |
         .*/inst/include/zutable/.*\.h
