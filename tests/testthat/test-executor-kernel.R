@@ -1,11 +1,6 @@
 # The kernel against the reference executor it replaces (D29): every
 # aggregate query gives the same result through grp() as through match().
 
-with_executor <- function(which, code) {
-  withr::local_options(zutable.executor = which)
-  force(code)
-}
-
 test_that("aggregate queries agree, kernel and reference", {
   withr::local_seed(47)
   df <- bracket_frame(500L)

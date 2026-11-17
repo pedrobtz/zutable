@@ -93,3 +93,9 @@ grp_sample <- function(kind, n) {
     raw = pick(list(as.raw(1:2), raw(), NULL, as.raw(255)))
   )
 }
+
+# Runs code under one executor, "kernel" or "reference" (D29).
+with_executor <- function(which, code) {
+  withr::local_options(zutable.executor = which)
+  force(code)
+}
