@@ -1,9 +1,9 @@
 # Query a zutable with SQL's clauses
 
 The bracket takes SQL's clauses as named arguments over bare column
-names: `where`, `select`, `order`, `limit` and `distinct`, run in SQL's
-logical order whatever order they are written in. The first two
-positions are `where` and `select`, as in data.table:
+names: `where`, `select`, `by`, `having`, `order`, `limit` and
+`distinct`, run in SQL's logical order whatever order they are written
+in. The first two positions are `where` and `select`, as in data.table:
 `x[px > 0, .(id, notional = px * qty)]`. A bracket always returns a
 table, and its schema is known, and every type error raised, before any
 data is read.
@@ -45,13 +45,25 @@ data is read.
   Columns of the result: `.(...)` (or, as a value form, a character,
   integer or logical vector).
 
-- by, update, having:
+- by:
 
-  Clauses that later stages of the package add.
+  Groups: a column, `.(a, b)`, `.(name = expression)` or a character
+  vector of column names. `NA` is a group, and groups come in order of
+  first appearance, `by` columns first in the result.
 
 - ...:
 
   Not used.
+
+- update:
+
+  An update: `col := value` or a block of them; see
+  [zutable-update](https://pedrobtz.github.io/zutable/reference/zutable-update.md).
+
+- having:
+
+  A condition on the groups, naming result columns or aggregating input
+  ones.
 
 - order:
 
@@ -84,6 +96,13 @@ A zutable.
   is stable, and `NA` sorts last.
 
 - `limit` is a row count, applied after `order`.
+
+- With `by`, or an aggregate in `select`, the query aggregates: each
+  element of `select` is an aggregate or an expression of the `by` keys.
+  Without `by` it is a one-row summary. `having` filters groups.
+
+- `over(aggregate, by = keys)` computes an aggregate per partition
+  without collapsing rows, for a `select` that keeps `.all`.
 
 - A name that is not a column is a variable of the caller, and enters as
   a constant; `..name` forces the variable when a column has the same

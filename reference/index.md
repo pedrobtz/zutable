@@ -26,6 +26,10 @@
   [`` `[[<-`( ``*`<zutable>`*`)`](https://pedrobtz.github.io/zutable/reference/zutable-indexing.md)
   [`` `[<-`( ``*`<zutable>`*`)`](https://pedrobtz.github.io/zutable/reference/zutable-indexing.md)
   : Replace values in a zutable
+- [`copy()`](https://pedrobtz.github.io/zutable/reference/zutable-update.md)
+  [`freeze()`](https://pedrobtz.github.io/zutable/reference/zutable-update.md)
+  [`is_frozen()`](https://pedrobtz.github.io/zutable/reference/zutable-update.md)
+  : Update columns in place
 - [`zutable()`](https://pedrobtz.github.io/zutable/reference/zutable.md)
   [`as_zutable()`](https://pedrobtz.github.io/zutable/reference/zutable.md)
   [`is_zutable()`](https://pedrobtz.github.io/zutable/reference/zutable.md)

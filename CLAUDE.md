@@ -81,8 +81,11 @@ These are fixed by the design before any code exists:
   the column set and types; `names<-` and assigning `NULL` are errors.
 - **`zt_commit()` swaps column pointers and never writes into a
   vector**, so a vector shared with another object is never corrupted
-  and `copy()` duplicates only the list. It also enforces `freeze()` and
-  clears column properties.
+  and
+  [`copy()`](https://pedrobtz.github.io/zutable/reference/zutable-update.md)
+  duplicates only the list. It also enforces
+  [`freeze()`](https://pedrobtz.github.io/zutable/reference/zutable-update.md)
+  and clears column properties.
 - **Every operator has a reference implementation in R over base**,
   written first and kept as the oracle for the kernel (D29). Do not
   delete it when the C version lands.
@@ -106,12 +109,14 @@ yet.
 Calls the shared r-actions workflows `r-cmd-check.yml` (profile `auto`,
 plus in the full profile a Windows R-devel row, `nosuggests` and `nold`;
 weekly on Mondays 02:41 UTC), `native-checks.yaml` (sanitizers with
-ASan, valgrind, lto, rchk, analyzers, cran-special), `gctorture.yaml`
-(step 2000 on pull requests, step 20 daily and on dispatch),
-`alloc-failure.yaml` (weekly, through `tools/alloc-exercise.R`, which
-must reach every native routine), `coverage.yml` (badge on `gh-pages`)
-and `assurance.yml` (`ungated-jobs: fail`), plus r-lib’s pkgdown
-workflow. Dispatch gctorture at step 20 on the branch
+ASan, valgrind, lto, rchk, analyzers, cran-special; valgrind reads
+`tools/valgrind.supp`, which suppresses only findings whose top frame is
+in DuckDB, the test oracle), `gctorture.yaml` (step 2000 on pull
+requests, step 20 daily and on dispatch), `alloc-failure.yaml` (weekly,
+through `tools/alloc-exercise.R`, which must reach every native
+routine), `coverage.yml` (badge on `gh-pages`) and `assurance.yml`
+(`ungated-jobs: fail`), plus r-lib’s pkgdown workflow. Dispatch
+gctorture at step 20 on the branch
 (`gh workflow run gctorture.yaml --ref <branch>`) before merging a
 change to `PROTECT`s. The kernel stages add `check-headers`, a consumer
 fixture and a fuzz target. Stages marked `full` in the roadmap: 3, 6,

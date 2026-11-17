@@ -59,21 +59,48 @@ type is an error, not a silent conversion.
 ``` r
 
 schema(trades[select = .(.all, value = px * qty)])
+#> <zutable_schema> 6 fields
+#>   id int32
+#>   day date
+#>   px float64
+#>   qty int32
+#>   notional float64
+#>   value float64
 trades[, { qty := px * 2 }]   # zutable_schema_error: qty is int32
+#> Error in `[.zutable`:
+#> ! column `qty` is int32; the update would make it float64
 ```
 
 ## Update in place, then freeze
 
 `:=` writes into existing columns in place, and never adds one. A block
-is checked as a whole and committed at once. `freeze()` marks where a
-table’s values are final.
+is checked as a whole and committed at once.
+[`freeze()`](https://pedrobtz.github.io/zutable/reference/zutable-update.md)
+marks where a table’s values are final.
 
 ``` r
 
 trades[, {
   notional := px * qty
 }]
+#> <zutable> 5 rows x 5 columns
+#>   id      day        px        qty     notional
+#>   <int32> <date>     <float64> <int32> <float64>
+#> 1 1       2026-01-01 10.5      100     1050
+#> 2 1       2026-01-02 11.0      50      550
+#> 3 2       2026-01-03 20.0      10      200
+#> 4 2       2026-01-04 19.5      30      585
+#> 5 3       2026-01-05 7.0       200     1400
 freeze(trades)
+trades
+#> <zutable> 5 rows x 5 columns, frozen
+#>   id      day        px        qty     notional
+#>   <int32> <date>     <float64> <int32> <float64>
+#> 1 1       2026-01-01 10.5      100     1050
+#> 2 1       2026-01-02 11.0      50      550
+#> 3 2       2026-01-03 20.0      10      200
+#> 4 2       2026-01-04 19.5      30      585
+#> 5 3       2026-01-05 7.0       200     1400
 ```
 
 ## One plan, several engines

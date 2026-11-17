@@ -62,3 +62,10 @@
   aggregate queries; groups come in order of first appearance and `NA`
   is a group. `over(aggregate, by = )` computes an aggregate per
   partition without collapsing rows.
+- `x[, col := value]` and blocks `x[, { a := ...; b <- ...; c := ... }]`
+  update existing columns in place, keeping their types, with `where`
+  and `by`; a block is typed as a whole and committed at once.
+  [`copy()`](https://pedrobtz.github.io/zutable/reference/zutable-update.md)
+  gives an independent table;
+  [`freeze()`](https://pedrobtz.github.io/zutable/reference/zutable-update.md)
+  marks a table so that nothing writes to it again.
