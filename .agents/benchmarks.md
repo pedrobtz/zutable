@@ -104,21 +104,31 @@ The spike is not the kernel: it carries none of R's costs (result vectors,
 
 `ZT_BENCH_SECTIONS=groups tools/run-benchmarks 1e7`, `zutable::grp()`
 beside the incumbents; it agreed with every one of them before it was
-timed. Measured again warm, alternating with `collapse::GRP()`, five each:
-0.198 s against 0.065 s at 1e3 groups, 0.331 against 0.180 at 1e5, 1.168
-against 0.412 at 1e7.
+timed.
+
+Corrected 2026-11-17, Stage 11: the table first recorded here was timed
+on a build compiled at `-O0`. `devtools::load_all()` compiles `src/` with
+debug flags, and `R CMD INSTALL` then reused those object files, so the
+installed `zutable.so` inlined nothing (Stage 11 found it profiling
+`key_order()`). These are the same rows from an install with
+`--preclean`, as `tools/run-benchmarks` now says to make; the warm
+re-measure the first text gave (0.198 s at 1e3 groups) was the optimised
+build all along. `grp(sort = TRUE)` here already sorts every row (D44,
+Stage 11).
 
 | Target (design-kernel 9.3) | zutable::grp | Best incumbent | Met |
 | --- | ---: | ---: | --- |
-| groups, one integer key, 1e3 distinct | 0.382 | 0.063 (collapse::GRP) | no |
-| groups, one integer key, 1e5 distinct | 0.589 | 0.180 (collapse::GRP) | no |
-| groups, one key, 1e7 distinct | 1.971 | 0.373 (vctrs::vec_group_id) | no |
-| groups, two keys | 0.944 | 0.225 (collapse::GRP) | no |
-| groups, sort = TRUE, 1e5 distinct | 0.768 | 0.302 (collapse::GRP(sort = TRUE)) | no |
-| groups, 9.1 market-data input | 1.092 | 0.211 (collapse::GRP) | no |
+| groups, one integer key, 1e3 distinct | 0.198 | 0.078 (collapse::GRP) | no |
+| groups, one integer key, 1e5 distinct | 0.406 | 0.229 (collapse::GRP) | no |
+| groups, one key, 1e7 distinct | 1.160 | 0.429 (vctrs::vec_group_id) | no |
+| groups, two keys | 0.575 | 0.238 (collapse::GRP) | no |
+| groups, sort = TRUE, 1e5 distinct | 0.551 | 0.354 (collapse::GRP(sort = TRUE)) | no |
+| groups, 9.1 market-data input, against collapse | 0.762 | 0.281 (collapse::GRP) | no |
+| groups, 9.1 market-data input, within 2x of duckdb | 0.762 | 0.780 (duckdb GROUP BY, one thread) | yes |
 
-**Every groups target is missed so far**, by 2x to 5x; section 9.3 records
-it and the release does not wait on it. The kernel is correct first: it
+**Every groups target against collapse and vctrs is missed so far**, by
+1.5x to 2.7x, and the one against duckdb is met; section 9.3 records it
+and the release does not wait on it. The kernel is correct first: it
 agrees with base R, collapse and itself across both paths. Where the time
 goes, at 1e7 rows and 1e3 groups (0.20 s): the grouping loop 0.09 s, a
 separate hashing pass 0.04, sizes, starts and order 0.04, the 1-based copy
@@ -127,3 +137,110 @@ a fused hash-and-insert loop specialised for one fixed-width key (the
 generic loop compares keys through a switch on every probe), the 1-based
 identifiers written in the order pass, and order computed only when it is
 used.
+
+## Kernel: sort (Stage 11, 2026-11-17)
+
+### The ladder and its regime map
+
+`tools/bench/sort-ladder.c` (its header has the build line), every rung
+of design-kernel 4.3 over n from 10 to 10^7, six shapes, and two record
+types: 8-byte words (a 32-bit key beside the row) and 16-byte records (a
+64-bit key and the row). Each cell is the median of five, each rung's
+output compared with pdqsort's before it is kept; all 768 timings, 84 cells, agreed.
+The rung that wins each cell, in ns a record where it helps:
+
+| 8-byte words | 10 | 100 | 1e3 | 1e4 | 1e5 | 1e6 | 1e7 |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| uniform | insertion | ska | vergesort+pdq | lsd8 | msd+lsd | msd+lsd | msd+lsd |
+| few (16 values) | insertion | counting | counting | counting | counting | counting | counting |
+| zipf | insertion | counting | counting | counting | counting | lsd11 | msd+lsd |
+| sorted | ska | insertion | vergesort+pdq | vergesort+pdq | vergesort+pdq | vergesort+pdq | vergesort+pdq |
+| reversed | insertion | counting | vergesort+pdq | vergesort+pdq | vergesort+pdq | vergesort+pdq | vergesort+pdq |
+| sorted + 1% | insertion | insertion | insertion | counting | counting | counting | vergesort+pdq |
+
+| 16-byte records | 10 | 100 | 1e3 | 1e4 | 1e5 | 1e6 | 1e7 |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| uniform | vergesort+pdq | ska | ska | lsd11 | ska | msd+lsd | msd+lsd |
+| few (16 values) | ska | counting | counting | lsd11 | counting | lsd11 | lsd11 |
+| zipf | pdqsort | counting | counting | counting | counting | lsd11 | msd+lsd |
+| sorted | insertion | insertion | vergesort+pdq | vergesort+pdq | vergesort+pdq | vergesort+pdq | vergesort+pdq |
+| reversed | vergesort+pdq | ska | vergesort+pdq | vergesort+pdq | vergesort+pdq | vergesort+pdq | vergesort+pdq |
+| sorted + 1% | ska | insertion | vergesort+pdq | vergesort+pdq | vergesort+pdq | vergesort+pdq | vergesort+pdq |
+
+The crossovers D40 reads off it: insertion sort wins below a few dozen
+records and loses by 100 (13.1 ns a word against pdqsort's 6.7), so the
+leaf is 24; counting sort wins wherever the codes span fewer values than
+the rows; LSD radix takes over from pdqsort between 10^3 and 10^4
+records; one MSD pass in front of LSD wins on uniform 8-byte words from
+10^5 and on uniform keys of both widths from 10^6, where it is kept;
+Vergesort's run detection wins every sorted and reversed input from 10^3
+on, and nearly sorted 16-byte records.
+
+The hybrid against the best rung of each cell, over all 84 cells: median
+1.05x the best, 80% of cells within 1.25x, 90% within 1.48x, the worst
+2.07x. The worst cells are Zipf keys at 10^4 and 10^5 (2.07x and 1.49x
+on 8-byte words, 1.52x and 1.58x on 16-byte records): their codes span
+about n values, past the 4096 that D40 caps counting sort at, and the
+ladder's uncapped counting rung wins there. D40's reason for the cap,
+that radix wins past 2^12 values at every n, holds for the uniform
+shapes it was read from but not for Zipf; the cap is kept until the
+tuning stage measures a cap that grows with n. From 10^6 records the
+hybrid is within 1.65x of the best everywhere and often ahead of every
+rung alone (0.66x of the best on 8-byte sorted input at 10^7, from
+Vergesort's run test before any pass). The cache-miss control: at 10^7
+uniform records LSD radix runs at 10.3 ns a word and 27.1 a 16-byte
+record, heapsort at 229 and 618, so the radix is 22x ahead and not
+wrong. Fluxsort, crumsort and swenson's sorts are not vendored (D41):
+the hybrid's numbers need no comparison sort to explain them.
+
+### Order from R
+
+`ZT_BENCH_SECTIONS=order tools/run-benchmarks 1e7`; `key_order()`
+agreed with every oracle before it was timed.
+
+| Target (design-kernel 9.3) | zutable::key_order | Incumbent | Met |
+| --- | ---: | ---: | --- |
+| order, integer, 1e7 rows: 1.5x faster than base radix | 0.251 | 0.339 (base radix) | no, 1.35x |
+| order, double, 1e7 rows: 1.5x faster than base radix | 0.503 | 0.396 (base radix) | no, 0.79x |
+| order, any input: parity with data.table, one thread | 0.251 / 0.503 | 0.994 / 1.309 (forderv) | yes, 4.0x and 2.6x |
+| order, n = 100, repeated 1e5 times: 2x faster than base | 0.718 | 2.366 (base order) | yes, 3.3x |
+| order, sorted input: O(n), parity with base radix | 0.034 | 0.000 (base radix) | no, see below |
+| order, reversed input: O(n), parity with base radix | 0.092 | 0.404 (base radix) | yes, 4.4x |
+| peak memory, sort: no more than base radix's | 38 MB | 38 MB | yes |
+
+Base radix answers sorted input in no time because the input came from
+`sort()`, whose result carries R's sortedness metadata; on a plain copy
+of the same values it takes 0.032 s, the kernel 0.034. The metadata path
+is `key_sort()`'s ALTREP class, Stage 12. Doubles are the gap: a double
+key is 64 bits (57 after range compression for `runif()`), so it takes
+16-byte records. Timed standalone at 10^7 on the same build flags, the
+sort is 0.35 s, the code book and the encoding 0.07, and the first touch
+of the 360 MB of scratch 0.16, which R's 0.50 s overlaps. The known next
+steps, for the tuning stage: a 12-byte record (the key and a 32-bit row)
+for 64-bit keys, and the radix's first histogram counted in the encoding
+pass.
+
+### Axis O: sorting every row against hashing
+
+`grp(sort = TRUE)` by hashing to first-appearance groups and sorting
+the distinct keys, against sorting every row and cutting the runs
+(`zutable/sort.h`, `zt_groups_by_sort`), one integer key, both from R,
+seconds a call (median of five; repeated below 10^6 rows):
+
+| Rows | 0.1% distinct | 0.3% | 1% | 3% | 10% | 100% |
+| ---: | --- | --- | --- | --- | --- | --- |
+| 1e3 | sort 4.0x | sort 6.5x | sort 8.5x | sort 9.0x | sort 10x | sort 8.3x |
+| 1e4 | sort 2.1x | sort 2.2x | sort 2.3x | sort 2.2x | sort 2.3x | sort 2.7x |
+| 1e5 | sort 1.07x | sort 1.12x | sort 1.14x | sort 1.17x | sort 1.35x | sort 2.0x |
+| 1e6 | hash 1.37x | hash 1.06x | sort 1.15x | sort 1.50x | sort 1.58x | sort 1.63x |
+| 1e7 | hash 1.33x | hash 1.25x | sort 1.04x | sort 1.80x | sort 2.32x | sort 2.85x |
+
+With 2 to 1000 distinct keys sorting still wins at 10^5 and 3 x 10^5
+rows (1.05x to 1.16x); at 10^6 it is even (0.83x to 1.04x) and at
+3 x 10^6 it loses (0.50x to 0.84x). So `grp(sort = TRUE)` sorts every row below 10^6 rows,
+and from there when Chao1 over 1024 sampled rows estimates distinct keys
+at 1% of the rows or more (D44). The R-level row of the harness
+("key_order() of every row, then runs", 0.711 s) cuts the runs in R and
+is kept as the route's first measurement; the C route is the
+`zutable::grp(sort = TRUE)` row, 0.551 s, against collapse's 0.354.
+

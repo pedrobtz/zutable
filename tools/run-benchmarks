@@ -10,6 +10,11 @@
 #
 # Usage: Rscript tools/run-benchmarks [n] [out]
 #   n    rows (default 1e7), out: a Markdown file (default stdout)
+#
+# Time an optimised install: `R CMD INSTALL --preclean .` first. Without
+# --preclean, R CMD INSTALL reuses object files devtools::load_all() left
+# in src/, which are compiled at -O0 (Stage 11 found the Stage 10 table
+# timed that way).
 args <- commandArgs(trailingOnly = TRUE)
 n <- if (length(args) >= 1L) as.numeric(args[[1L]]) else 1e7
 out <- if (length(args) >= 2L) args[[2L]] else ""

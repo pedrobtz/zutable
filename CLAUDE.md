@@ -55,7 +55,15 @@ release for its Arrow paths.
 
 ## Commands
 
-Only the shared commands so far.
+The shared commands, and for the kernel:
+
+```sh
+sh tools/ci/c-tests.sh                        # C tests without R, ports included
+R CMD INSTALL --preclean . && Rscript tools/run-benchmarks 1e7
+```
+
+Benchmark only after `--preclean`: `load_all()` leaves `-O0` objects in
+`src/` that a plain `R CMD INSTALL` reuses.
 
 ## Architecture
 
