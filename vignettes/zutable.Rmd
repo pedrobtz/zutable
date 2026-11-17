@@ -41,7 +41,7 @@ schema(trades)
 The bracket takes SQL's clauses as named arguments over bare column names,
 and runs them in SQL's logical order whatever order they are written in.
 
-```{r, eval = FALSE}
+```{r}
 # Open: `.()` against another spelling inside `select` (ergonomics tests)
 trades[where  = day >= "2026-01-02",
        select = .(vwap = sum(px * qty) / sum(qty), n = count()),

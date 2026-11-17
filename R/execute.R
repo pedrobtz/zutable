@@ -29,6 +29,12 @@ zt_execute <- function(x, plan, call) {
         input <- cols
         cols <- lapply(st$exprs, function(e) zt_recycle_n(zt_eval(e, input, n), n))
       },
+      aggregate = {
+        res <- zt_run_aggregate(st, cols, n)
+        cols <- res$cols
+        n <- res$n
+        input <- cols
+      },
       distinct = {
         keep <- which(!zt_duplicated_rows(cols, n))
         cols <- zt_take_rows(cols, keep)
@@ -91,4 +97,81 @@ zt_order_index <- function(vals, types, desc) {
   }
   if (!length(vals[[1L]])) return(integer())
   do.call(order, c(unname(keys), list(decreasing = dec, method = "radix")))
+}
+
+# --- grouping ---------------------------------------------------------------
+
+# Group identifiers in order of first appearance, NA a group of its own
+# (design §5.3, D26). Keys are coded one by one with match(), which tells NA
+# from NaN and -0 from nothing, and combined pairwise so the codes never
+# exceed the row count.
+zt_group_ids <- function(keys, n) {
+  if (!length(keys)) {
+    return(list(id = rep(1L, n), n_groups = 1L))
+  }
+  code <- NULL
+  for (k in keys) {
+    v <- if (is.factor(k)) as.character(k) else k
+    if (inherits(v, "POSIXct") || inherits(v, "Date")) v <- zt_strip(unclass(v))
+    ck <- match(v, unique(v))
+    if (is.null(code)) {
+      code <- ck
+    } else {
+      m <- max(ck, 1L)
+      combined <- if (as.double(max(code, 1L)) * m < 2^52) {
+        (as.double(code) - 1) * m + ck
+      } else {
+        paste(code, ck)
+      }
+      code <- match(combined, unique(combined))
+    }
+  }
+  list(id = code, n_groups = if (n) max(code) else 0L)
+}
+
+# The rows of each group, in group order.
+zt_group_rows <- function(g) {
+  if (!g$n_groups) return(list())
+  split(seq_along(g$id), factor(g$id, levels = seq_len(g$n_groups)))
+}
+
+# A vector of `type` of length n, all missing.
+zt_empty <- function(type, n) {
+  na <- na_of(type)
+  if (is.data.frame(na)) na[rep(1L, n), , drop = FALSE] else rep(na, length.out = n)
+}
+
+zt_run_aggregate <- function(st, cols, n) {
+  keys <- lapply(st$by, function(k) zt_recycle_n(zt_eval(k, cols, n), n))
+  g <- zt_group_ids(keys, n)
+  groups <- zt_group_rows(g)
+  # With no keys there is one group, possibly of no rows (a summary).
+  first <- if (length(keys)) vapply(groups, function(r) r[[1L]], 1L) else integer()
+  out <- lapply(keys, zt_take, idx = first)
+  # One value per group for each element, evaluated on the group's rows;
+  # an expression of the keys takes its value from the group's first row.
+  for (nm in names(st$exprs)) {
+    node <- st$exprs[[nm]]
+    res <- zt_empty(node$type, length(groups))
+    for (i in seq_along(groups)) {
+      rows <- groups[[i]]
+      v <- zt_eval(node, zt_take_rows(cols, rows), length(rows))
+      if (zt_nrow_of(v)) res[i] <- zt_take(v, 1L)
+    }
+    out[[nm]] <- res
+  }
+  m <- length(groups)
+  if (!is.null(st$having)) {
+    keep <- logical(m)
+    for (i in seq_len(m)) {
+      rows <- groups[[i]]
+      scope <- c(lapply(out, zt_take, idx = i),
+                 zt_take_rows(cols, rows)[setdiff(names(cols), names(out))])
+      keep[[i]] <- isTRUE(zt_eval(st$having, scope, length(rows))[1L])
+    }
+    out <- zt_take_rows(out, which(keep))
+    m <- sum(keep)
+  }
+  names(out) <- names(st$schema)
+  list(cols = out, n = m)
 }

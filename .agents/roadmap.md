@@ -28,7 +28,7 @@ fewer.
 | 2 | [Tables](#stage-2--tables) | quick | [#4](https://github.com/pedrobtz/zutable/issues/4) | [#28](https://github.com/pedrobtz/zutable/pull/28) | 2026-11-17 |
 | 3 | [Vocabulary and typing](#stage-3--vocabulary-and-typing) | full | [#5](https://github.com/pedrobtz/zutable/issues/5) | [#29](https://github.com/pedrobtz/zutable/pull/29) | 2026-11-17 |
 | 4 | [Bracket and plans](#stage-4--bracket-and-plans) | quick | [#6](https://github.com/pedrobtz/zutable/issues/6) | [#30](https://github.com/pedrobtz/zutable/pull/30) | 2026-11-17 |
-| 5 | [Aggregates](#stage-5--aggregates) | quick | [#7](https://github.com/pedrobtz/zutable/issues/7) | | |
+| 5 | [Aggregates](#stage-5--aggregates) | quick | [#7](https://github.com/pedrobtz/zutable/issues/7) | | 2026-11-17 |
 | 6 | [Update in place](#stage-6--update-in-place) | full | [#8](https://github.com/pedrobtz/zutable/issues/8) | | |
 | 7 | [Joins and binding](#stage-7--joins-and-binding) | quick | [#9](https://github.com/pedrobtz/zutable/issues/9) | | |
 | 8 | [Ergonomics tests](#stage-8--ergonomics-tests) | quick | [#10](https://github.com/pedrobtz/zutable/issues/10) | | |

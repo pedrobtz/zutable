@@ -6,7 +6,8 @@
 #' Query a zutable with SQL's clauses
 #'
 #' The bracket takes SQL's clauses as named arguments over bare column
-#' names: `where`, `select`, `order`, `limit` and `distinct`, run in SQL's
+#' names: `where`, `select`, `by`, `having`, `order`, `limit` and
+#' `distinct`, run in SQL's
 #' logical order whatever order they are written in. The first two
 #' positions are `where` and `select`, as in data.table:
 #' `x[px > 0, .(id, notional = px * qty)]`. A bracket always returns a
@@ -20,6 +21,11 @@
 #'   It may name result columns and, unless `distinct`, input columns. It
 #'   is stable, and `NA` sorts last.
 #' * `limit` is a row count, applied after `order`.
+#' * With `by`, or an aggregate in `select`, the query aggregates: each
+#'   element of `select` is an aggregate or an expression of the `by`
+#'   keys. Without `by` it is a one-row summary. `having` filters groups.
+#' * `over(aggregate, by = keys)` computes an aggregate per partition
+#'   without collapsing rows, for a `select` that keeps `.all`.
 #' * A name that is not a column is a variable of the caller, and enters
 #'   as a constant; `..name` forces the variable when a column has the same
 #'   name.
@@ -33,7 +39,12 @@
 #'   integer or logical vector).
 #' @param j,select Columns of the result: `.(...)` (or, as a value form, a
 #'   character, integer or logical vector).
-#' @param by,update,having Clauses that later stages of the package add.
+#' @param by Groups: a column, `.(a, b)`, `.(name = expression)` or a
+#'   character vector of column names. `NA` is a group, and groups come in
+#'   order of first appearance, `by` columns first in the result.
+#' @param having A condition on the groups, naming result columns or
+#'   aggregating input ones.
+#' @param update An update, which a later stage of the package adds.
 #' @param order Sort keys.
 #' @param limit A row count.
 #' @param distinct `TRUE` to keep one of each distinct result row.
@@ -118,7 +129,7 @@ zt_clause_names <- c("where", "select", "update", "by", "having", "order",
   q <- list(where = where_e, select = select_e, update = ex$update,
             by = ex$by, having = ex$having, order = ex$order,
             limit = ex$limit, distinct = distinct)
-  for (k in c("update", "by", "having")) {
+  for (k in c("update")) {
     if (!is.null(q[[k]])) {
       zutable_abort("syntax", sprintf(
         "the `%s` clause is not implemented yet", k

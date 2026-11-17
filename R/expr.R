@@ -94,7 +94,7 @@ zt_tr <- function(expr, ctx) {
 # the forms that are never constant (count(), .N, r()).
 zt_needs_data <- function(expr, ctx) {
   zt_mentions_column(expr, ctx$columns) ||
-    any(c(".N", "count", "r", "cast", "case") %in%
+    any(c(".N", "count", "r", "cast", "case", "over") %in%
           all.names(expr, functions = TRUE))
 }
 
@@ -343,8 +343,21 @@ zt_eval <- function(node, cols, n) {
       out <- entry$impl(vals, types, node$type, n)
       out
     },
-    r = zt_eval_r(node, cols, n)
+    r = zt_eval_r(node, cols, n),
+    window = zt_eval_window(node, cols, n)
   )
+}
+
+zt_eval_window <- function(node, cols, n) {
+  keys <- lapply(node$by, function(k) zt_recycle_n(zt_eval(k, cols, n), n))
+  g <- zt_group_ids(keys, n)
+  out <- zt_empty(node$type, n)
+  for (rows in zt_group_rows(g)) {
+    if (!length(rows)) next
+    v <- zt_eval(node$agg, zt_take_rows(cols, rows), length(rows))
+    out[rows] <- zt_take(v, rep(1L, length(rows)))
+  }
+  out
 }
 
 # Null elements: NA, but not NaN, for doubles (D47); NULL in lists.
@@ -380,6 +393,31 @@ zt_special_forms <- list(
     zt_type_cast(x, to, ctx)
   },
   case = function(expr, ctx) zt_type_case(expr, ctx),
+  over = function(expr, ctx) {
+    args <- as.list(expr)[-1L]
+    nms <- names(args) %||% rep("", length(args))
+    if (!length(args) || nzchar(nms[[1L]]) || any(!nms[-1L] %in% "by")) {
+      zutable_abort("syntax", "over() takes an aggregate and `by =`: over(sum(x), by = g)",
+                    call = ctx$call)
+    }
+    agg <- zt_tr(args[[1L]], ctx)
+    if (!isTRUE(agg$aggregate)) {
+      zutable_abort("type", "the first argument of over() is an aggregate",
+                    call = ctx$call)
+    }
+    by <- list()
+    if ("by" %in% nms) {
+      b <- args[["by"]]
+      items <- if (is.call(b) && identical(b[[1L]], as.name("."))) as.list(b)[-1L] else list(b)
+      by <- lapply(items, zt_tr, ctx = ctx)
+      if (any(vapply(by, function(n) isTRUE(n$aggregate) || zt_is_lit(n), NA))) {
+        zutable_abort("type", "the partition keys of over() are expressions of the columns",
+                      call = ctx$call)
+      }
+    }
+    zt_node("window", agg = agg, by = by, type = agg$type,
+            nullable = agg$nullable, aggregate = FALSE)
+  },
   `%in%` = function(expr, ctx) {
     args <- as.list(expr)[-1L]
     x <- zt_tr(args[[1L]], ctx)
