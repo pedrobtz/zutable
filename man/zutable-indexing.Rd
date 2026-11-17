@@ -2,14 +2,11 @@
 % Please edit documentation in R/replace.R
 \name{zutable-indexing}
 \alias{zutable-indexing}
-\alias{[.zutable}
 \alias{$<-.zutable}
 \alias{[[<-.zutable}
 \alias{[<-.zutable}
-\title{Index a zutable}
+\title{Replace values in a zutable}
 \usage{
-\method{[}{zutable}(x, i, j, ..., drop = FALSE)
-
 \method{$}{zutable}(x, name) <- value
 
 \method{[[}{zutable}(x, i, j) <- value
@@ -19,34 +16,26 @@
 \arguments{
 \item{x}{A zutable.}
 
-\item{i}{Rows: an integer or logical vector.}
-
-\item{j}{Columns: a character, integer or logical vector.}
-
-\item{...}{Not used.}
-
-\item{drop}{Ignored.}
-
 \item{name, value}{The column and its new values.}
+
+\item{i, j}{Rows and columns, as for a data frame.}
 }
 \value{
 A zutable.
 }
 \description{
-The value forms of the bracket keep base R's meaning: a first position
-that is an integer or logical vector selects rows, and a second position
-that is a character, integer or logical vector selects columns. A
-bracket always returns a table, so \code{x[, "score"]} is a one-column table;
-\code{x$score} and \code{x[["score"]]} give the vector. \code{drop} is accepted and
-ignored.
-}
-\details{
 Replacing values (\code{x$col <- v}, \code{x[["col"]] <- v}, \code{x[i, "col"] <- v})
 needs the column to exist and \code{v} to fit its type: exactly, or as a
 literal that is exactly representable there, such as \code{1} in an \code{int32}
-column. Renaming, and assigning \code{NULL}, are \code{zutable_schema_error}s.
+column. Renaming, and assigning \code{NULL}, are \code{zutable_schema_error}s, so
+no replacement changes a table's schema. Selecting rows and columns by
+value is the bracket's: see \link{zutable-bracket}.
 }
 \examples{
+x <- zutable(id = 1:3, score = c(1.5, 2, 2.5))
+x$id <- 7
+x[2, "score"] <- 0
+x
 x <- zutable(id = 1:3, score = c(1.5, 2, 2.5))
 x[2:3, ]
 x[, "score"]

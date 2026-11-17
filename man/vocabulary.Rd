@@ -28,13 +28,13 @@ the type of its context when it is exactly representable there, so
 
 Every function allowed in a clause, with the argument and result types it takes. T is one type throughout a signature.
 \describe{
-\item{\code{+}}{ Arithmetic. Types: (int32, int32) -> int32; (int32, float64) -> float64; (float64, int32) -> float64; (float64, float64) -> float64; (date, int32) -> date; (int32, date) -> date.}
-\item{\code{-}}{ Arithmetic. Types: (int32, int32) -> int32; (int32, float64) -> float64; (float64, int32) -> float64; (float64, float64) -> float64; (date, int32) -> date; (date, date) -> int32; (int32) -> int32; (float64) -> float64.}
-\item{\code{*}}{ Arithmetic. Types: (int32, int32) -> int32; (int32, float64) -> float64; (float64, int32) -> float64; (float64, float64) -> float64.}
-\item{\code{/}}{ Arithmetic; always float64. Types: (int32, int32) -> float64; (int32, float64) -> float64; (float64, int32) -> float64; (float64, float64) -> float64.}
-\item{\code{\%/\%}}{ Floor division; a zero int32 divisor gives NA. Types: (int32, int32) -> int32; (int32, float64) -> float64; (float64, int32) -> float64; (float64, float64) -> float64.}
-\item{\code{\%\%}}{ Modulo with the divisor's sign. Types: (int32, int32) -> int32; (int32, float64) -> float64; (float64, int32) -> float64; (float64, float64) -> float64.}
-\item{\code{^}}{ Power, as R's ^; always float64. Types: (int32, int32) -> float64; (int32, float64) -> float64; (float64, int32) -> float64; (float64, float64) -> float64.}
+\item{\code{+}}{ Arithmetic. Types: (int32, int32) -> int32; (float64, float64) -> float64; (int32, float64) -> float64; (float64, int32) -> float64; (date, int32) -> date; (int32, date) -> date.}
+\item{\code{-}}{ Arithmetic. Types: (int32, int32) -> int32; (float64, float64) -> float64; (int32, float64) -> float64; (float64, int32) -> float64; (date, int32) -> date; (date, date) -> int32; (int32) -> int32; (float64) -> float64.}
+\item{\code{*}}{ Arithmetic. Types: (int32, int32) -> int32; (float64, float64) -> float64; (int32, float64) -> float64; (float64, int32) -> float64.}
+\item{\code{/}}{ Arithmetic; always float64. Types: (int32, int32) -> float64; (float64, float64) -> float64; (int32, float64) -> float64; (float64, int32) -> float64.}
+\item{\code{\%/\%}}{ Floor division; a zero int32 divisor gives NA. Types: (int32, int32) -> int32; (float64, float64) -> float64; (int32, float64) -> float64; (float64, int32) -> float64.}
+\item{\code{\%\%}}{ Modulo with the divisor's sign. Types: (int32, int32) -> int32; (float64, float64) -> float64; (int32, float64) -> float64; (float64, int32) -> float64.}
+\item{\code{^}}{ Power, as R's ^; always float64. Types: (int32, int32) -> float64; (float64, float64) -> float64; (int32, float64) -> float64; (float64, int32) -> float64.}
 \item{\code{abs}}{ Types: (int32) -> int32; (float64) -> float64.}
 \item{\code{sqrt}}{ Types: (int32) -> float64; (float64) -> float64.}
 \item{\code{exp}}{ Types: (int32) -> float64; (float64) -> float64.}
@@ -42,12 +42,12 @@ Every function allowed in a clause, with the argument and result types it takes.
 \item{\code{round}}{ Rounding half to even, as R. Types: (int32) -> int32; (float64) -> float64; (int32, int32) -> int32; (float64, int32) -> float64.}
 \item{\code{floor}}{ Types: (int32) -> int32; (float64) -> float64.}
 \item{\code{ceiling}}{ Types: (int32) -> int32; (float64) -> float64.}
-\item{\code{==}}{ Comparison. Types: (int32, float64) -> bool; (float64, int32) -> bool; (T, T) -> bool; (timestamp, timestamp) -> bool.}
-\item{\code{!=}}{ Comparison. Types: (int32, float64) -> bool; (float64, int32) -> bool; (T, T) -> bool; (timestamp, timestamp) -> bool.}
-\item{\code{<}}{ Comparison. Types: (int32, float64) -> bool; (float64, int32) -> bool; (T, T) -> bool; (timestamp, timestamp) -> bool.}
-\item{\code{<=}}{ Comparison. Types: (int32, float64) -> bool; (float64, int32) -> bool; (T, T) -> bool; (timestamp, timestamp) -> bool.}
-\item{\code{>}}{ Comparison. Types: (int32, float64) -> bool; (float64, int32) -> bool; (T, T) -> bool; (timestamp, timestamp) -> bool.}
-\item{\code{>=}}{ Comparison. Types: (int32, float64) -> bool; (float64, int32) -> bool; (T, T) -> bool; (timestamp, timestamp) -> bool.}
+\item{\code{==}}{ Comparison. Types: (T, T) -> bool; (int32, float64) -> bool; (float64, int32) -> bool; (timestamp, timestamp) -> bool.}
+\item{\code{!=}}{ Comparison. Types: (T, T) -> bool; (int32, float64) -> bool; (float64, int32) -> bool; (timestamp, timestamp) -> bool.}
+\item{\code{<}}{ Comparison. Types: (T, T) -> bool; (int32, float64) -> bool; (float64, int32) -> bool; (timestamp, timestamp) -> bool.}
+\item{\code{<=}}{ Comparison. Types: (T, T) -> bool; (int32, float64) -> bool; (float64, int32) -> bool; (timestamp, timestamp) -> bool.}
+\item{\code{>}}{ Comparison. Types: (T, T) -> bool; (int32, float64) -> bool; (float64, int32) -> bool; (timestamp, timestamp) -> bool.}
+\item{\code{>=}}{ Comparison. Types: (T, T) -> bool; (int32, float64) -> bool; (float64, int32) -> bool; (timestamp, timestamp) -> bool.}
 \item{\code{between}}{ Lo <= x <= hi. Types: (T, T, T) -> bool; (int32, float64, float64) -> bool; (float64, int32, int32) -> bool.}
 \item{\code{&}}{ Three-valued and. Types: (bool, bool) -> bool.}
 \item{\code{|}}{ Three-valued or. Types: (bool, bool) -> bool.}

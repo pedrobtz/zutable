@@ -27,7 +27,7 @@ fewer.
 | 1 | [Types and schema](#stage-1--types-and-schema) | quick | [#3](https://github.com/pedrobtz/zutable/issues/3) | [#27](https://github.com/pedrobtz/zutable/pull/27) | 2026-11-17 |
 | 2 | [Tables](#stage-2--tables) | quick | [#4](https://github.com/pedrobtz/zutable/issues/4) | [#28](https://github.com/pedrobtz/zutable/pull/28) | 2026-11-17 |
 | 3 | [Vocabulary and typing](#stage-3--vocabulary-and-typing) | full | [#5](https://github.com/pedrobtz/zutable/issues/5) | [#29](https://github.com/pedrobtz/zutable/pull/29) | 2026-11-17 |
-| 4 | [Bracket and plans](#stage-4--bracket-and-plans) | quick | [#6](https://github.com/pedrobtz/zutable/issues/6) | | |
+| 4 | [Bracket and plans](#stage-4--bracket-and-plans) | quick | [#6](https://github.com/pedrobtz/zutable/issues/6) | | 2026-11-17 |
 | 5 | [Aggregates](#stage-5--aggregates) | quick | [#7](https://github.com/pedrobtz/zutable/issues/7) | | |
 | 6 | [Update in place](#stage-6--update-in-place) | full | [#8](https://github.com/pedrobtz/zutable/issues/8) | | |
 | 7 | [Joins and binding](#stage-7--joins-and-binding) | quick | [#9](https://github.com/pedrobtz/zutable/issues/9) | | |
@@ -938,9 +938,6 @@ CRAN review.
 
 ## Blocking open questions
 
-- [§19 Q4](design.md#19-open-questions-and-the-ergonomics-tests) blocks
-  Stage 4 and Stage 6: whether `explain()` and `copy()` register methods
-  on dplyr's and data.table's generics.
 - [design-kernel §15 Q6](design-kernel.md#15-open-questions) blocks
   Stage 10: how axis D estimates cardinality.
 - [§19 Q7](design.md#19-open-questions-and-the-ergonomics-tests) blocks

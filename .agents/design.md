@@ -1036,6 +1036,24 @@ overturn it.
   unless it is `cast()`, `case()`, `count()` or `r()`. 2026-11-17,
   Stage 3.
 
+- **D50 (C).** `explain()` and, with the lazy class, `collect()` are
+  zutable's own S3 generics, and their zutable methods are also
+  registered on dplyr's generics whenever dplyr is loaded, so the call
+  works whichever package was attached last (dbplyr's and vctrs' pattern).
+  `data.table::copy()` is not a generic and already returns an
+  independent copy of a zutable, so `copy()` registers nothing. Answers
+  Q4; 2026-11-17, Stage 4.
+- **D51 (C).** Each result carries its plan record in a `plan`
+  attribute: the source, with the record of a chained bracket's input as
+  its parent, and the steps with their schemas and resolved expressions.
+  Environments are stripped from it, so it holds no table alive (§8.5
+  rule 5), and a value written outside the plan adds its column to the
+  record's `unknown` (rule 6). `explain()` prints it. A position of the
+  bracket is a clause when it is `.()`, a block, or mentions a column
+  (outside function position and the right of `$` and `@`); otherwise
+  it is a value form (§5.5). Same-type signatures come before mixed ones,
+  so a literal takes its column's own type. 2026-11-17, Stage 4.
+
 ## 16. Order of work
 
 The order of work, pieces 1 to 8, became the stages of
@@ -1169,9 +1187,7 @@ same day. Numbers are `Rdatatable/data.table` issues.
   an error. Until it is answered, `schema()` refuses the unsigned
   type names with a `zutable_type_error`.
 - **Q3.** Answered on 2026-11-16 by D33: a parameter of `join()`.
-- **Q4.** `collect()`, `explain()` and `copy()` share names with dplyr
-  and data.table. Whether to register methods on their generics when
-  those packages are loaded.
+- **Q4.** Answered on 2026-11-17 by D50.
 - **Q5.** Whether a stale `unique` property after a class round trip
   (§9.2) needs a guard, and what it costs.
 - **Q6.** Answered on 2026-11-16 by D35: 0.1.0 includes the kernel for

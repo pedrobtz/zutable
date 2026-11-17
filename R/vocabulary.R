@@ -102,9 +102,9 @@ zt_compare <- function(op, a, b, ta, tb) {
 
 zt_cmp_entry <- function(op, sql_op, types) {
   sigs <- list(
+    sig(c("T", "T"), "bool", T = types),
     sig(c("int32", "float64"), "bool"),
     sig(c("float64", "int32"), "bool"),
-    sig(c("T", "T"), "bool", T = types),
     sig(c("timestamp", "timestamp"), "bool", check = zt_same_zoning)
   )
   vocab_entry(
@@ -128,9 +128,9 @@ zt_arith_entry <- function(op) {
   f <- match.fun(op)
   sigs <- list(
     sig(c("int32", "int32"), "int32"),
+    sig(c("float64", "float64"), "float64"),
     sig(c("int32", "float64"), "float64"),
-    sig(c("float64", "int32"), "float64"),
-    sig(c("float64", "float64"), "float64")
+    sig(c("float64", "int32"), "float64")
   )
   if (op == "+") {
     sigs <- c(sigs, list(sig(c("date", "int32"), "date"),
@@ -301,9 +301,9 @@ zt_vocab_list <- list(
   zt_arith_entry("-"),
   zt_arith_entry("*"),
   vocab_entry("/", list(sig(c("int32", "int32"), "float64"),
+                        sig(c("float64", "float64"), "float64"),
                         sig(c("int32", "float64"), "float64"),
-                        sig(c("float64", "int32"), "float64"),
-                        sig(c("float64", "float64"), "float64")),
+                        sig(c("float64", "int32"), "float64")),
     impl = function(v, t, r, n) {
       a <- as.double(v[[1L]])
       b <- as.double(v[[2L]])
@@ -314,9 +314,9 @@ zt_vocab_list <- list(
     },
     doc = "arithmetic; always float64"),
   vocab_entry("%/%", list(sig(c("int32", "int32"), "int32"),
+                          sig(c("float64", "float64"), "float64"),
                           sig(c("int32", "float64"), "float64"),
-                          sig(c("float64", "int32"), "float64"),
-                          sig(c("float64", "float64"), "float64")),
+                          sig(c("float64", "int32"), "float64")),
     impl = function(v, t, r, n) {
       if (r$id == "int32") return(suppressWarnings(v[[1L]] %/% v[[2L]]))
       # floor(x / y), not R's own %/%, which differs for infinite operands
@@ -335,9 +335,9 @@ zt_vocab_list <- list(
     },
     nullable = "always", doc = "floor division; a zero int32 divisor gives NA"),
   vocab_entry("%%", list(sig(c("int32", "int32"), "int32"),
+                         sig(c("float64", "float64"), "float64"),
                          sig(c("int32", "float64"), "float64"),
-                         sig(c("float64", "int32"), "float64"),
-                         sig(c("float64", "float64"), "float64")),
+                         sig(c("float64", "int32"), "float64")),
     impl = function(v, t, r, n) {
       if (r$id == "int32") return(suppressWarnings(v[[1L]] %% v[[2L]]))
       # x - y * floor(x / y), not R's own %%, which differs for infinite
@@ -358,9 +358,9 @@ zt_vocab_list <- list(
     },
     nullable = "always", doc = "modulo with the divisor's sign"),
   vocab_entry("^", list(sig(c("int32", "int32"), "float64"),
+                        sig(c("float64", "float64"), "float64"),
                         sig(c("int32", "float64"), "float64"),
-                        sig(c("float64", "int32"), "float64"),
-                        sig(c("float64", "float64"), "float64")),
+                        sig(c("float64", "int32"), "float64")),
     impl = function(v, t, r, n) {
       a <- as.double(v[[1L]])
       b <- as.double(v[[2L]])
@@ -370,13 +370,15 @@ zt_vocab_list <- list(
       out
     },
     sql = function(a, t, r) {
-      # R's power, which differs from IEEE 754's pow() for a negative base
-      # with an infinite exponent (NaN, not 1 or Inf) and for a zero base
-      # with a negative exponent (Inf, whatever the zero's sign).
+      # R's power, which differs from IEEE 754's pow() for a negative base,
+      # infinite ones included, with an infinite or fractional exponent
+      # (NaN), and for a zero base with a negative exponent (Inf, whatever
+      # the zero's sign).
       x <- sprintf("CAST(%s AS DOUBLE)", a[[1L]])
       y <- sprintf("CAST(%s AS DOUBLE)", a[[2L]])
       sprintf(paste0("(CASE WHEN %1$s = 0 AND %2$s < 0 THEN CAST('inf' AS DOUBLE)",
-                     " WHEN %1$s < 0 AND isinf(%2$s) THEN CAST('nan' AS DOUBLE)",
+                     " WHEN %1$s < 0 AND (isinf(%2$s) OR %2$s <> floor(%2$s))",
+                     " THEN CAST('nan' AS DOUBLE)",
                      " ELSE pow(%1$s, %2$s) END)"), x, y)
     },
     doc = "power, as R's ^; always float64"),
