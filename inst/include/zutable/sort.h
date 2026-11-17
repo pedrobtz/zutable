@@ -30,12 +30,21 @@
  *       both, with mem of zt_sort_scratch_bytes(n), enough for any order.
  *   zt_rank(cols, ncol, n, na_last, ties, cb, out, mem, ord)
  *       ranks, 1-based, in out; ord is n rows of scratch.
+ *   zt_groups_sort_pays(k, n)
+ *       whether grp(sort = TRUE) should sort every row rather than hash
+ *       (design-kernel 4.2, axis O): fixed-width keys, and fewer than a
+ *       million rows or distinct keys, by Chao1 over sampled rows, at
+ *       least 1% of them.
+ *   zt_groups_by_sort(k, n, sc, cb, order, ids, first, starts, mem)
+ *       the groups in key order by sorting every row; -1 when NA and NaN
+ *       tie in a run, which only hashing tells apart.
  */
 #ifndef ZUTABLE_SORT_H
 #define ZUTABLE_SORT_H
 
 #include "config.h"
 #include "key.h"
+#include "partition.h"
 #include "sortrec.h"
 #include "pdqsort.h"
 #include "vergesort.h"
@@ -447,5 +456,99 @@ ZT_INLINE void zt_rank(const zt_sort_col *cols, int ncol, zt_row n, int na_last,
   }
 }
 
+/* ---- groups by sorting ------------------------------------------------- */
+
+/* Sorting every row and cutting the runs gives grp(sort = TRUE)'s groups
+   without hashing; it wins once the distinct keys are a large enough
+   share of the rows (design-kernel 4.2, axis O; D44). The thresholds are
+   read off .agents/benchmarks.md. */
+#ifndef ZT_GROUPS_HASH_MIN
+#define ZT_GROUPS_HASH_MIN 1000000 /* rows; the sort wins below, always */
+#endif
+#ifndef ZT_GROUPS_SORT_SHARE
+#define ZT_GROUPS_SORT_SHARE 0.01  /* estimated distinct keys per row */
+#endif
+
+/* The rule, for n rows and an estimate of distinct keys. */
+ZT_INLINE int zt_groups_sort_rule(zt_row n, double distinct) {
+  return n < ZT_GROUPS_HASH_MIN || distinct >= ZT_GROUPS_SORT_SHARE * (double) n;
+}
+
+/* Whether every column of k is fixed width, so the sort can order it. */
+ZT_INLINE int zt_key_fixed_width(const zt_key *k) {
+  for (int c = 0; c < k->ncol; c++) {
+    zt_kind kind = k->cols[c].kind;
+    if (kind == ZT_KIND_STR || kind == ZT_KIND_BYTES) return 0;
+  }
+  return k->ncol > 0;
+}
+
+/* The estimate of distinct keys among n rows, by Chao1 over the hashes of
+   up to ZT_SAMPLE strided rows (the same estimator as the partitioner's,
+   without hashing every row). */
+ZT_INLINE double zt_key_estimate_distinct(const zt_key *k, zt_row n) {
+  if (n <= 0 || k->ncol == 0) return 0;
+  uint64_t s[ZT_SAMPLE];
+  int m = n < ZT_SAMPLE ? (int) n : ZT_SAMPLE;
+  for (int i = 0; i < m; i++) {
+    zt_row r = (zt_row) ((int64_t) i * n / m);
+    uint64_t h = zt_hash_cell(&k->cols[0], r);
+    for (int c = 1; c < k->ncol; c++) h = zt_hash_combine(h, zt_hash_cell(&k->cols[c], r));
+    s[i] = h;
+  }
+  return zt_distinct_from_sample(s, m, n);
+}
+
+ZT_INLINE int zt_groups_sort_pays(const zt_key *k, zt_row n) {
+  if (!zt_key_fixed_width(k)) return 0;
+  if (n < ZT_GROUPS_HASH_MIN) return 1;
+  return zt_groups_sort_rule(n, zt_key_estimate_distinct(k, n));
+}
+
+/* Rows i and j, of different groups, tie in the order: every column is
+   equal but for doubles that are both missing, an NA beside a NaN. */
+ZT_INLINE int zt_rows_split_missing(const zt_key *k, zt_row i, zt_row j) {
+  for (int c = 0; c < k->ncol; c++) {
+    if (zt_cell_eq(&k->cols[c], i, j)) continue;
+    if (k->cols[c].kind != ZT_KIND_F64) return 0;
+    double a = ((const double *) k->cols[c].data)[i];
+    double b = ((const double *) k->cols[c].data)[j];
+    if (!(a != a && b != b)) return 0;
+  }
+  return 1;
+}
+
+/* grp(sort = TRUE) by sorting every row: in key order, missing last, each
+   group's rows in row order. Fills order (the stable permutation, 0-based,
+   which puts each group's rows together), ids (0-based, by row), first
+   (each group's first row) and starts (each group's first position in
+   order), and returns the number of groups. sc and cb hold k->ncol sort
+   columns and code books; mem holds zt_sort_scratch_bytes(n). Returns -1,
+   having written partial results, when the keys are not fixed width or a
+   run of tied codes holds an NA beside a NaN, which are different groups
+   (6.1) but equal in the order (6.3): the caller then hashes. */
+ZT_INLINE zt_row zt_groups_by_sort(const zt_key *k, zt_row n, zt_sort_col *sc,
+                                   zt_codebook *cb, zt_row *order, zt_row *ids,
+                                   zt_row *first, zt_row *starts, void *mem) {
+  if (!zt_key_fixed_width(k)) return -1;
+  for (int c = 0; c < k->ncol; c++) {
+    sc[c].kind = k->cols[c].kind;
+    sc[c].data = k->cols[c].data;
+    sc[c].decreasing = 0;
+  }
+  (void) zt_order(sc, k->ncol, n, 1, cb, order, mem);
+  zt_row ng = 0;
+  for (zt_row j = 0; j < n; j++) {
+    zt_row r = order[j];
+    if (j == 0 || !zt_key_eq(k, order[j - 1], r)) {
+      if (j > 0 && zt_rows_split_missing(k, order[j - 1], r)) return -1;
+      first[ng] = r;
+      starts[ng] = j;
+      ng++;
+    }
+    ids[r] = ng - 1;
+  }
+  return ng;
+}
 
 #endif /* ZUTABLE_SORT_H */

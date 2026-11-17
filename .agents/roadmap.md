@@ -611,6 +611,10 @@ executor's `order` runs on them.
 - Executor differential: every ordered query gives the same result
   through the kernel as through the reference executor, in
   `test-executor-kernel.R`.
+- `grp(sort = TRUE)` by sorting every row against the hash route and
+  base R, its fallback for `NA` beside `NaN`, and its rule straddled, in
+  `test-grp-sort.R` and `tests/c/` (added 2026-11-17 with axis O's
+  answer, D44).
 
 **Exit criteria.**
 

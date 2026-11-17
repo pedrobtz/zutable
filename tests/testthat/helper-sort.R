@@ -58,3 +58,20 @@ kinds <- c(
   "reversed"
 )
 
+# The hash route's sorted groups: grp() with the sort route turned off.
+grp_hash_sorted <- function(keys) {
+  n <- length(keys[[1L]])
+  g <- zt_grp_native(keys, n)
+  out <- list(
+    id = g$id,
+    n = g$n,
+    sizes = g$sizes,
+    starts = g$starts,
+    order = g$order,
+    keys = lapply(keys, zt_take, idx = g$first)
+  )
+  if (g$n > 1L) {
+    out <- zt_grp_sorted(out, n)
+  }
+  out
+}

@@ -59,3 +59,6 @@
   kernel's hybrid sort: Vergesort's run detection in front of counting
   sort, pdqsort, LSD radix and ska sort, chosen by size and key width.
   The bracket's `order` and `grp(sort = TRUE)` run on it.
+* `grp(sort = TRUE)` sorts every row instead of hashing when that is
+  faster: below a million rows, and above when about 1% of the rows or
+  more are distinct keys. The result is the same either way.

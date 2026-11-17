@@ -30,6 +30,10 @@ grp <- function(..., sort = FALSE) {
     zutable_abort("type", "`sort` is TRUE or FALSE", call = call)
   }
   n <- if (length(keys)) length(keys[[1L]]) else 0L
+  if (isTRUE(sort)) {
+    g <- zt_grp_sort_route(keys, n)
+    if (!is.null(g)) return(g)
+  }
   g <- zt_grp_native(keys, n)
   out <- list(id = g$id, n = g$n, sizes = g$sizes, starts = g$starts,
               order = g$order,
@@ -39,15 +43,35 @@ grp <- function(..., sort = FALSE) {
 }
 
 zt_grp_native <- function(keys, n, force_bits = NA_integer_) {
-  i64 <- vapply(keys, function(k) inherits(k, "integer64"), NA)
-  native <- lapply(keys, function(k) {
+  .Call(zt_grp, zt_native_keys(keys), zt_i64_keys(keys), as.double(n),
+        as.integer(force_bits))
+}
+
+# grp(sort = TRUE) by sorting every row and cutting the runs, when the keys
+# are fixed width and the rule of D44 says it beats hashing (design-kernel
+# 4.2, axis O); NULL to hash instead. force = TRUE sorts whenever the keys
+# allow it (a test hook).
+zt_grp_sort_route <- function(keys, n, force = FALSE) {
+  if (!length(keys) || any(vapply(keys, function(k) is.character(k) || is.list(k), NA))) {
+    return(NULL)
+  }
+  g <- .Call(zt_grp_sort, zt_native_keys(keys), zt_i64_keys(keys), as.double(n),
+             isTRUE(force))
+  if (is.null(g)) return(NULL)
+  list(id = g$id, n = g$n, sizes = g$sizes, starts = g$starts, order = g$order,
+       keys = lapply(keys, zt_take, idx = g$first))
+}
+
+zt_i64_keys <- function(keys) vapply(keys, function(k) inherits(k, "integer64"), NA)
+
+zt_native_keys <- function(keys) {
+  lapply(keys, function(k) {
     if (is.factor(k)) return(as.integer(unclass(k)))
     if (is.raw(k)) return(as.integer(k))
     if (is.list(k)) return(k)
     attributes(k) <- NULL
     k
   })
-  .Call(zt_grp, native, i64, as.double(n), as.integer(force_bits))
 }
 
 # The key columns of grp()'s arguments: vectors, data frames and lists of
@@ -86,8 +110,9 @@ zt_key_columns <- function(args, call) {
 }
 
 # Renumber groups in the keys' sort order, NA last (design-kernel 6.2): the
-# kernel's sort over the distinct keys. NA and NaN are separate groups that
-# tie in the order, so they keep first appearance.
+# kernel's sort over the distinct keys, for the keys and sizes the sort
+# route (zt_grp_sort_route) leaves to hashing. NA and NaN are separate
+# groups that tie in the order, so they keep first appearance.
 zt_grp_sorted <- function(g, n) {
   k <- zt_sort_keys(g$keys, FALSE, sys.call())
   if (k$base) k <- zt_base_codes(k)

@@ -572,6 +572,8 @@ What each row rests on:
   the distinct keys with axis K or N, and relabelling through a lookup
   gives the same sorted identifiers and the same order permutation. The
   crossover is by distinct keys as a fraction of rows and is recorded.
+  (Decided 2026-11-17, Stage 11: D44, sorting below 10^6 rows and from
+  1% distinct keys above.)
 
 **The SIMD rule**, taken from `zufast` §19.3 and binding here: the
 scalar path is written first and is the reference; a vector path is
@@ -1352,7 +1354,9 @@ Marked **(M)** when the maintainer decided it in conversation and
   stable. The hybrid (`hybrid.inc`) is Vergesort in front and, between
   runs, insertion sort below 24, counting sort when the codes span fewer
   values than there are rows and fewer than 4096 (its counts in L1;
-  past 2^12 values radix wins at every n), pdqsort below 1000, LSD radix with 8-bit
+  past 2^12 values radix wins at every n on the uniform shapes, not on
+  Zipf at 10^4 and 10^5, where the cap costs up to 2x: kept until the
+  tuning stage, benchmarks 2026-11-17), pdqsort below 1000, LSD radix with 8-bit
   digits (11-bit for keys of 17 to 22 bits, or 17 to 19 from 10^6 rows)
   up to 32 bits, ska sort
   above, and one MSD pass then LSD from 10^6 rows: each threshold read
@@ -1380,6 +1384,16 @@ Marked **(M)** when the maintainer decided it in conversation and
   Under `"dense"`, which has no base equivalent, the rows of one missing
   key share a rank, as `grp(sort = TRUE)` would number them.
   2026-11-17, Stage 11.
+- **D44 (C).** Axis O's answer: `grp(sort = TRUE)` over fixed-width keys
+  sorts every row and cuts the runs (`zt_groups_by_sort`) below 10^6
+  rows, where it won at every share of distinct keys measured, and from
+  10^6 rows when Chao1 over 1024 sampled rows puts the distinct keys at
+  1% of the rows or more; otherwise, and for strings and raw lists, it
+  hashes and sorts the distinct keys. The sort ties `NA` and `NaN`, which
+  are different groups (§6.1), so a run where they meet falls back to
+  hashing. Measured from R at 10^3 to 10^7 rows (benchmarks, Stage 11):
+  sorting wins by 1.05x to 10x below 10^6 rows, and by up to 2.85x at
+  10^7 rows when every row is distinct. 2026-11-17, Stage 11.
 
 ## 14. Later versions, in the order they are expected
 

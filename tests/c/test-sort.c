@@ -338,6 +338,66 @@ static void test_codebook(void) {
   CHECK(cb.width == 64 && cb.na_code == cb.range + 1);
 }
 
+/* grp(sort = TRUE)'s route (D44): the rule straddled at both thresholds,
+   and the groups by sorting against a brute-force count of distinct keys
+   below each row's. */
+static void test_groups_by_sort(void) {
+  zt_row big = ZT_GROUPS_HASH_MIN;
+  CHECK(zt_groups_sort_rule(big - 1, 0));
+  CHECK(!zt_groups_sort_rule(big, 0));
+  CHECK(!zt_groups_sort_rule(big + 1, 0));
+  CHECK(!zt_groups_sort_rule(big, 0.01 * big - 1));
+  CHECK(zt_groups_sort_rule(big, 0.01 * big));
+  CHECK(zt_groups_sort_rule(big, 0.01 * big + 1));
+  enum { N = 3000 };
+  static int32_t x[N];
+  static double y[N];
+  static zt_row order[N], ids[N], first[N], starts[N];
+  uint64_t r = 7;
+  for (int i = 0; i < N; i++) {
+    r = r * 6364136223846793005ull + 1442695040888963407ull;
+    x[i] = (int32_t) (r >> 33) % 40 - 20;
+    if (x[i] == 0) x[i] = INT32_MIN;
+    y[i] = (r >> 20) % 3 == 0 ? -0.0 : (double) ((r >> 40) % 5);
+  }
+  zt_column cols[2] = {{ZT_KIND_INT32, x}, {ZT_KIND_F64, y}};
+  zt_key k = {cols, 2};
+  zt_sort_col sc[2];
+  zt_codebook cb[2];
+  void *mem = malloc(zt_sort_scratch_bytes(N));
+  zt_row ng = zt_groups_by_sort(&k, N, sc, cb, order, ids, first, starts, mem);
+  CHECK(ng > 0);
+  /* Brute force: a group's id is the number of distinct keys below it,
+     the missing x last; -0 is 0. */
+  static int64_t dx[N];
+  static double dy[N];
+  int nd = 0;
+  for (int i = 0; i < N; i++) {
+    int64_t xi = x[i] == INT32_MIN ? INT64_MAX : x[i];
+    int seen = 0;
+    for (int d = 0; d < nd && !seen; d++) seen = dx[d] == xi && dy[d] == y[i];
+    if (!seen) { dx[nd] = xi; dy[nd] = y[i]; nd++; }
+  }
+  CHECK(ng == nd);
+  for (int i = 0; i < N; i++) {
+    int64_t xi = x[i] == INT32_MIN ? INT64_MAX : x[i];
+    int below = 0;
+    for (int d = 0; d < nd; d++) below += dx[d] < xi || (dx[d] == xi && dy[d] < y[i]);
+    CHECK(ids[i] == below);
+  }
+  for (zt_row g = 0; g < ng; g++) CHECK(ids[order[starts[g]]] == g && order[starts[g]] == first[g]);
+  for (int j = 1; j < N; j++) CHECK(ids[order[j]] >= ids[order[j - 1]]);
+  for (int j = 1; j < N; j++) if (ids[order[j]] == ids[order[j - 1]]) CHECK(order[j] > order[j - 1]);
+  /* NA beside NaN in one run: -1. */
+  static double z[4];
+  z[0] = 1; z[1] = NAN; z[3] = 2;
+  uint64_t na = UINT64_C(0x7ff00000000007a2);
+  memcpy(&z[2], &na, sizeof na);
+  zt_column zc = {ZT_KIND_F64, z};
+  zt_key kz = {&zc, 1};
+  CHECK(zt_groups_by_sort(&kz, 4, sc, cb, order, ids, first, starts, mem) == -1);
+  free(mem);
+}
 
 int main(void) {
   test_rungs();
@@ -346,6 +406,7 @@ int main(void) {
   test_dense_limit();
   test_fast_paths();
   test_codebook();
+  test_groups_by_sort();
   if (failures) { fprintf(stderr, "%d check(s) failed\n", failures); return 1; }
   printf("test-sort: ok\n");
   return 0;

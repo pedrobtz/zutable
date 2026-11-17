@@ -21,15 +21,10 @@
 #endif
 #define ZT_SAMPLE 1024
 
-/* Chao1's estimate of the number of distinct hashes among n, from up to
-   ZT_SAMPLE strided samples, scaled to the population. `scratch` holds
-   2 * ZT_SAMPLE uint64_t. */
-ZT_INLINE double zt_estimate_distinct(const uint64_t *h, zt_row n,
-                                      uint64_t *scratch) {
-  if (n <= 0) return 0;
-  int m = n < ZT_SAMPLE ? (int) n : ZT_SAMPLE;
-  uint64_t *s = scratch;
-  for (int i = 0; i < m; i++) s[i] = h[(int64_t) i * n / m];
+/* Chao1 over the hashes of m rows sampled from n (m <= ZT_SAMPLE; all n
+   when m == n), scaled to the population. Sorts s in place. */
+ZT_INLINE double zt_distinct_from_sample(uint64_t *s, int m, zt_row n) {
+  if (m <= 0) return 0;
   /* Insertion sort, m <= 1024: counts of each value in the sample. */
   for (int i = 1; i < m; i++) {
     uint64_t v = s[i];
@@ -53,6 +48,18 @@ ZT_INLINE double zt_estimate_distinct(const uint64_t *h, zt_row n,
   if (f1 == m) return (double) n;
   double scaled = chao * (double) n / (double) m;
   return chao > scaled ? scaled : (chao > (double) n ? (double) n : chao);
+}
+
+/* Chao1's estimate of the number of distinct hashes among n, from up to
+   ZT_SAMPLE strided samples, scaled to the population. `scratch` holds
+   2 * ZT_SAMPLE uint64_t. */
+ZT_INLINE double zt_estimate_distinct(const uint64_t *h, zt_row n,
+                                      uint64_t *scratch) {
+  if (n <= 0) return 0;
+  int m = n < ZT_SAMPLE ? (int) n : ZT_SAMPLE;
+  uint64_t *s = scratch;
+  for (int i = 0; i < m; i++) s[i] = h[(int64_t) i * n / m];
+  return zt_distinct_from_sample(s, m, n);
 }
 
 /* Partition bits for `groups` estimated keys: 0 while one table of five
