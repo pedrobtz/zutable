@@ -55,6 +55,17 @@ test_that("a failing third statement leaves the first two unapplied", {
   expect_identical(plain(z), plain(before))
 })
 
+test_that("a column refused by the final check leaves the earlier ones unapplied", {
+  # The not_null check runs on every new column after all statements and
+  # before the commit, so `a` must not be written when `b` is refused.
+  z <- as_zutable(data.frame(a = 1:3, b = 1:3),
+                  schema(a = int32, b = not_null(int32)))
+  before <- copy(z)
+  expect_error(z[, { a := a + 1L; b := NA_integer_ }],
+               class = "zutable_value_error")
+  expect_identical(plain(z), plain(before))
+})
+
 test_that("where writes only the matching rows; aggregates see those rows", {
   z <- zutable(g = c("a", "b", "a", "b"), x = c(1, 2, 3, 4), y = NA_real_)
   z[g == "a", y := x / sum(x)]
