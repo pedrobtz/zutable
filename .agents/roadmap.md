@@ -520,6 +520,10 @@ kernel code is built on it. Starts the kernel clock.
   or, below that, design-kernel §1.3 and axis L rewritten before Stage 10
   starts.
 - `check-headers` and the mutation workflow run green.
+  Deviation 2026-11-17: the mutation workflow runs on a schedule and by
+  dispatch only, and GitHub dispatches only workflows already on the
+  default branch, so its first run is dispatched on the merge commit;
+  what it finds is fixed in Stage 10.
 - The kernel clock's first date is filled in above.
 - `R CMD check` passes on the quick profile.
 
