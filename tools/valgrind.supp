@@ -1,0 +1,17 @@
+# Valgrind suppressions for the valgrind job (native-checks.yaml).
+#
+# Only findings whose top frame is inside DuckDB's own library. DuckDB is a
+# test oracle in Suggests, not code zutable ships or calls from C, so a
+# finding there says nothing about zutable; one in zutable.so is never
+# matched, because its top frame is not duckdb.so.
+#
+# 2026-11-17: duckdb 2.0.0, Expression::Deserialize reads an uninitialised
+# value while WindowSelfJoinOptimizer deep-copies a plan, reached by the
+# over() comparisons (window queries) in test-over.R and
+# test-aggregate-duckdb.R.
+{
+   duckdb-cond-in-duckdb
+   Memcheck:Cond
+   obj:*/duckdb/libs/duckdb.so
+   ...
+}

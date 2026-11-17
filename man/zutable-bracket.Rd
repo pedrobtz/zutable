@@ -30,9 +30,17 @@ integer or logical vector).}
 \item{j, select}{Columns of the result: \code{.(...)} (or, as a value form, a
 character, integer or logical vector).}
 
-\item{by, update, having}{Clauses that later stages of the package add.}
+\item{by}{Groups: a column, \code{.(a, b)}, \code{.(name = expression)} or a
+character vector of column names. \code{NA} is a group, and groups come in
+order of first appearance, \code{by} columns first in the result.}
 
 \item{...}{Not used.}
+
+\item{update}{An update: \code{col := value} or a block of them; see
+\link{zutable-update}.}
+
+\item{having}{A condition on the groups, naming result columns or
+aggregating input ones.}
 
 \item{order}{Sort keys.}
 
@@ -47,7 +55,8 @@ A zutable.
 }
 \description{
 The bracket takes SQL's clauses as named arguments over bare column
-names: \code{where}, \code{select}, \code{order}, \code{limit} and \code{distinct}, run in SQL's
+names: \code{where}, \code{select}, \code{by}, \code{having}, \code{order}, \code{limit} and
+\code{distinct}, run in SQL's
 logical order whatever order they are written in. The first two
 positions are \code{where} and \code{select}, as in data.table:
 \code{x[px > 0, .(id, notional = px * qty)]}. A bracket always returns a
@@ -63,6 +72,11 @@ computed element needs a name.
 It may name result columns and, unless \code{distinct}, input columns. It
 is stable, and \code{NA} sorts last.
 \item \code{limit} is a row count, applied after \code{order}.
+\item With \code{by}, or an aggregate in \code{select}, the query aggregates: each
+element of \code{select} is an aggregate or an expression of the \code{by}
+keys. Without \code{by} it is a one-row summary. \code{having} filters groups.
+\item \code{over(aggregate, by = keys)} computes an aggregate per partition
+without collapsing rows, for a \code{select} that keeps \code{.all}.
 \item A name that is not a column is a variable of the caller, and enters
 as a constant; \code{..name} forces the variable when a column has the same
 name.

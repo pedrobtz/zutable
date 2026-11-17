@@ -294,12 +294,15 @@ as.data.frame.zutable <- function(x, ...) {
 
 #' @export
 print.zutable <- function(x, n = 10L, ...) {
+  frames <- sys.nframe()
+  if (zt_take_print_skip(x, frames)) return(invisible(x))
   zt_validate(x)
   s <- attr(x, "schema")
   rows <- .row_names_info(x, 2L)
-  cat(sprintf("<zutable> %d row%s x %d column%s\n", rows,
+  cat(sprintf("<zutable> %d row%s x %d column%s%s\n", rows,
               if (rows == 1L) "" else "s", length(s),
-              if (length(s) == 1L) "" else "s"))
+              if (length(s) == 1L) "" else "s",
+              if (is_frozen(x)) ", frozen" else ""))
   if (!length(s)) return(invisible(x))
   show <- min(rows, n)
   idx <- seq_len(show)

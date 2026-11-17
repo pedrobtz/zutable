@@ -426,6 +426,14 @@ zt_explain_lines <- function(x) {
         h <- if (!is.null(st$having)) c(sprintf("having  %s", zt_format_node(st$having)))
         c(sprintf("aggregate %s: %s", k, paste(a, collapse = ", ")), h)
       },
+      update = {
+        sets <- vapply(st$stmts, function(t) {
+          paste0(t$name, if (t$kind == "set") " := " else " <- ", zt_format_node(t$node))
+        }, "")
+        c(sprintf("update  %s", paste(sets, collapse = "; ")),
+          if (!is.null(st$where)) sprintf("  where %s", zt_format_node(st$where)),
+          if (length(st$by)) sprintf("  by %s", paste(names(st$by), collapse = ", ")))
+      },
       distinct = "distinct",
       sort = sprintf("sort    %s", paste(vapply(st$keys, function(k) {
         paste0(zt_format_node(k$node), if (k$desc) " desc" else "")

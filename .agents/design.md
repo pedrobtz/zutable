@@ -1065,6 +1065,16 @@ overturn it.
   query that is not an aggregate. NaN and NA are different groups; 0 and
   -0 are one. 2026-11-17, Stage 5.
 
+- **D53 (C).** An update takes `where` and `by` only; `order`, `limit`,
+  `having`, `distinct` and `select` beside it are syntax errors. A local
+  of a block may not take a column's name. A block in the second position
+  with no `:=` and a last statement `.(...)` is a select whose locals are
+  computed row by row. An update appends an `update` step to the table's
+  plan record, in place with the commit. Since the primitive `[` makes
+  its result visible, an update arms a one-shot flag, as data.table does,
+  so that the autoprint of `x[, a := 1]` at top level prints nothing; an
+  explicit `print()` still prints. 2026-11-17, Stage 6.
+
 ## 16. Order of work
 
 The order of work, pieces 1 to 8, became the stages of

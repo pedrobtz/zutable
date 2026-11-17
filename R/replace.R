@@ -243,6 +243,7 @@ zt_set_column <- function(x, pos, value) {
     x <- zt_plain(x)
     return(NextMethod())
   }
+  zt_check_not_frozen(x, call)
   zt_validate(x, call)
   pos <- zt_column_position(x, name, call)
   f <- attr(x, "schema")$fields[[pos]]
@@ -257,6 +258,7 @@ zt_set_column <- function(x, pos, value) {
     x <- zt_plain(x)
     return(NextMethod())
   }
+  zt_check_not_frozen(x, call)
   zt_validate(x, call)
   if (!missing(j)) {
     # x[[i, j]] <- v: one cell.
@@ -276,6 +278,7 @@ zt_set_column <- function(x, pos, value) {
     x <- zt_plain(x)
     return(NextMethod())
   }
+  zt_check_not_frozen(x, call)
   zt_validate(x, call)
   n <- .row_names_info(x, 2L)
   if (nargs() < 4L) {

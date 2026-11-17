@@ -57,7 +57,7 @@ cannot apply.
 <!-- markdownlint-disable MD013 -->
 | Object | Sequences | Fork | Unwind | Owner |
 | --- | --- | --- | --- | --- |
-| Materialised `zutable`, updated in place by `zt_commit()` | gap #8 | n/a: holds no OS resource; a forked child gets its own copy-on-write pages | gap #8 | n/a: every column is an R vector owned by R |
+| Materialised `zutable`, updated in place by `zt_commit()` | aliases, a vector shared with a plain data frame, `copy()`, base replacements, updates after queries and chains, an error mid-block then more updates: tests/testthat/test-update-sequences.R; every write route on a frozen table and its alias: tests/testthat/test-freeze.R | n/a: holds no OS resource; a forked child gets its own copy-on-write pages | a failing third statement leaves the first two unapplied (value and schema errors): tests/testthat/test-update.R | n/a: every column is an R vector owned by R |
 | Sorted values from `key_sort()` (ALTREP) | gap #14 | n/a: holds no OS resource | gap #14 | gap #14 |
 <!-- markdownlint-enable MD013 -->
 
