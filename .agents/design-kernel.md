@@ -776,8 +776,8 @@ g$keys      # list of key columns, one row per group, in id order
 o <- key_order(key1, key2, ..., decreasing = FALSE, na.last = TRUE,
                collate = FALSE)     # stable permutation
 s <- key_sort(x, decreasing = FALSE, na.last = TRUE, collate = FALSE)
-r <- key_rank(key1, key2, ..., ties = "min", na.last = TRUE,
-              collate = FALSE)
+r <- key_rank(key1, key2, ..., ties = "min", decreasing = FALSE,
+              na.last = TRUE, collate = FALSE)  # na.last also "keep" (D43)
 
 m <- grp_match(x, y)               # integer, like match(), several keys
 j <- grp_join(x, y, by = NULL, type = "inner", multiple = "all")
@@ -874,11 +874,15 @@ defined, and the tests hold them to it:
 The sort is stable: equal keys keep row order, so `key_order()` of a
 constant vector is `seq_len(n)`. `na.last = TRUE` places `NA` and `NaN`
 last, `FALSE` first, `NA` drops them from the permutation, as `order()`
-does. For doubles `NA` sorts before `NaN` when both are present, as base
-radix does. `decreasing` reverses the key's order but not the stability.
-Several keys sort by the first, then the second within ties, each with
-its own direction; the kernel does this as one radix over the normalised
-key of §4.3, with a per-key direction as a byte inversion at encoding.
+does. `NA` and `NaN` are equal in the order, keeping row order between
+them, as base R's order and sort have them under every method (corrected
+2026-11-17, Stage 11: the 2026-10-20 text had `NA` before `NaN`, which
+base R never does); they stay different keys for grouping (§6.1).
+`decreasing` reverses the key's order but not the stability. Several
+keys sort by the first, then the second within ties, each with its own
+direction; the kernel packs their codes into one normalised key when
+they fit in 64 bits, reversed per key for `decreasing`, and sorts wider
+keys in chunks of at most 64 bits, last chunk first (D40).
 
 **Strings.** Byte order is what base radix gives and what data.table and
 `collapse` give, and most callers never notice, because keys are codes,
@@ -1337,6 +1341,45 @@ Marked **(M)** when the maintainer decided it in conversation and
 - **D38 (C).** `kit` has no `group()`; the §9.3 rows that named it
   compare with `match(x, kit::funique(x))`, kit's hashing route to group
   identifiers. Found writing the harness, 2026-11-17, Stage 9.
+- **D40 (C).** The normalised key, as built (`zutable/sort.h`): each
+  key's value becomes its ordinal, shifted to start at 0 over the
+  column's range (so a narrow key takes few bits and the radix skips
+  what it does not use), reversed for `decreasing`, with one slot for
+  missing values at the end `na.last` names. Codes of several keys are
+  packed, last key lowest, into a 32-bit key beside the row in one
+  64-bit word, or a 64-bit key beside it in 16 bytes; keys wider than
+  64 bits together are sorted in chunks, last chunk first, each pass
+  stable. The hybrid (`hybrid.inc`) is Vergesort in front and, between
+  runs, insertion sort below 24, counting sort when the codes span fewer
+  values than there are rows and fewer than 4096 (its counts in L1;
+  past 2^12 values radix wins at every n), pdqsort below 1000, LSD radix with 8-bit
+  digits (11-bit for keys of 17 to 22 bits, or 17 to 19 from 10^6 rows)
+  up to 32 bits, ska sort
+  above, and one MSD pass then LSD from 10^6 rows: each threshold read
+  off the regime map in `.agents/benchmarks.md`. 2026-11-17, Stage 11.
+- **D41 (C).** The ladder's controls are the heapsort that pdqsort
+  already carries and the ported originals; fluxsort, crumsort and
+  swenson's `sort.h` are not vendored. §4.3 admits the vendored sorts
+  only if the hybrid's numbers against base radix and data.table need
+  explaining, and they do not (benchmarks, Stage 11); the ports carry
+  their licences in their files and `inst/COPYRIGHTS`, and
+  `tests/c/ports` holds each to its original at a pinned commit:
+  pdqsort to the same comparisons, input by input, Vergesort and ska
+  sort to the same output. 2026-11-17, Stage 11.
+- **D42 (C).** Until the string sort (Stage 12), `key_order()` and
+  `key_rank()` take character and raw-list keys through base R: each
+  string key becomes its rank in base radix order of the UTF-8 text
+  (byte order, as §6.3 says), each raw list its rank as hexadecimal
+  text, and the kernel sorts the codes. Neither function has `collate`
+  yet; Stage 12 adds it with `stringi`. The executor sorts on the kernel
+  unless a key is a string. 2026-11-17, Stage 11.
+- **D43 (C).** `key_rank()` follows `rank()` for missing values: under
+  `"min"` and `"first"` each row with a missing key takes a rank of its
+  own, in order, as `rank()` ranks `NA`; `na.last = NA` drops those rows
+  and `"keep"` gives them `NA`, the others ranked among themselves.
+  Under `"dense"`, which has no base equivalent, the rows of one missing
+  key share a rank, as `grp(sort = TRUE)` would number them.
+  2026-11-17, Stage 11.
 
 ## 14. Later versions, in the order they are expected
 

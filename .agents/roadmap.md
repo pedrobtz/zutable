@@ -617,6 +617,12 @@ executor's `order` runs on them.
 - Every `**Tests.**` line exists, compares against its named oracle, and
   was seen to fail.
 - `.agents/benchmarks.md` holds the regime map and axis O's result.
+  Deviation 2026-11-17: the ladder ran n from 10 to 10^7, not 10^8, on an
+  8 GB machine (the harness holds four arrays of each record type, 9.6 GB
+  at 10^8), and over
+  key-index records only: sorting plain values is `key_sort()`, Stage 12,
+  which adds that rung. Fluxsort, crumsort and swenson/sort were not
+  vendored (design-kernel D41).
 - A full-profile run is green on the pull request.
 
 **Design.** [design-kernel §4.3](design-kernel.md#43-the-sort-ladder-and-what-is-vendored),

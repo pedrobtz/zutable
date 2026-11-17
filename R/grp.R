@@ -85,16 +85,13 @@ zt_key_columns <- function(args, call) {
   cols
 }
 
-# Renumber groups in the keys' sort order, NA last (design-kernel 6.2).
-# Base R's radix order sorts the distinct keys until the kernel's sort.
+# Renumber groups in the keys' sort order, NA last (design-kernel 6.2): the
+# kernel's sort over the distinct keys. NA and NaN are separate groups that
+# tie in the order, so they keep first appearance.
 zt_grp_sorted <- function(g, n) {
-  ord_keys <- lapply(g$keys, function(k) {
-    if (is.factor(k)) as.integer(k) else if (is.list(k)) {
-      vapply(k, function(e) if (is.null(e)) NA_character_ else
-        paste(as.character(e), collapse = ""), "")
-    } else k
-  })
-  o <- do.call(order, c(unname(ord_keys), list(method = "radix", na.last = TRUE)))
+  k <- zt_sort_keys(g$keys, FALSE, sys.call())
+  if (k$base) k <- zt_base_codes(k)
+  o <- .Call(zt_key_order, k$keys, k$i64, k$dec, 1L)
   newid <- integer(g$n)
   newid[o] <- seq_len(g$n)
   id <- newid[g$id]

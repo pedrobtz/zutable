@@ -99,6 +99,15 @@ tg <- "groups, sort = TRUE, 1e5 distinct"
 sorted_ids <- function(id) id[order(k5, method = "radix")][!duplicated(k5[order(k5, method = "radix")])]
 record(tg, "collapse::GRP(sort = TRUE)", "int", function() collapse::GRP(k5, sort = TRUE)$group.id, sorted_ids)
 if (has_zutable) record(tg, "zutable::grp(sort = TRUE)", "int", function() zutable::grp(k5, sort = TRUE)$id, sorted_ids)
+# Axis O (design-kernel 4.2): sort every row, then cut the runs, against
+# grp(sort = TRUE), which hashes and sorts only the distinct keys.
+if (has_zutable) record(tg, "axis O: key_order() of every row, then runs", "int", function() {
+  o <- zutable::key_order(k5)
+  xs <- k5[o]
+  id <- integer(length(o))
+  id[o] <- cumsum(c(TRUE, xs[-1L] != xs[-length(xs)]))
+  id
+}, sorted_ids)
 agree(tg)
 # The 9.1 shape: a skewed symbol of about 1e4 values and an hour bucket.
 syms <- paste0("S", seq_len(1e4))
@@ -127,21 +136,29 @@ sorted_canon <- function(x) function(o) x[o]
 tg <- "order, integer, 1e7 rows"
 record(tg, "base order(method = 'radix')", "int", function() order(iv, method = "radix"), sorted_canon(iv))
 record(tg, "data.table:::forderv", "int", function() data.table:::forderv(iv), sorted_canon(iv))
+if (has_zutable) record(tg, "zutable::key_order", "int", function() zutable::key_order(iv), sorted_canon(iv))
 agree(tg)
 tg <- "order, double, 1e7 rows"
 record(tg, "base order(method = 'radix')", "dbl", function() order(dv, method = "radix"), sorted_canon(dv))
 record(tg, "data.table:::forderv", "dbl", function() data.table:::forderv(dv), sorted_canon(dv))
+if (has_zutable) record(tg, "zutable::key_order", "dbl", function() zutable::key_order(dv), sorted_canon(dv))
 agree(tg)
 tg <- "order, n = 100, repeated 1e5 times"
 small <- lapply(seq_len(1e5), function(i) stats::runif(100))
-record(tg, "base order()", "dbl", function() lapply(small, order),
-       function(os) sum(vapply(seq_along(os), function(i) small[[i]][os[[i]]][[1L]], 0)))
+small_canon <- function(os) sum(vapply(seq_along(os), function(i) small[[i]][os[[i]]][[1L]], 0))
+record(tg, "base order()", "dbl", function() lapply(small, order), small_canon)
+if (has_zutable) record(tg, "zutable::key_order", "dbl", function() lapply(small, zutable::key_order), small_canon)
+agree(tg)
 tg <- "order, sorted input"
 sv <- sort(dv)
 record(tg, "base order(method = 'radix')", "dbl", function() order(sv, method = "radix"), sorted_canon(sv))
+if (has_zutable) record(tg, "zutable::key_order", "dbl", function() zutable::key_order(sv), sorted_canon(sv))
+agree(tg)
 tg <- "order, reversed input"
 rv <- rev(sv)
 record(tg, "base order(method = 'radix')", "dbl", function() order(rv, method = "radix"), sorted_canon(rv))
+if (has_zutable) record(tg, "zutable::key_order", "dbl", function() zutable::key_order(rv), sorted_canon(rv))
+agree(tg)
 tg <- "sort of values, double, 1e7 rows"
 record(tg, "base sort(method = 'radix')", "dbl", function() sort(dv, method = "radix"), identity)
 c5 <- paste0("id", sample.int(1e5))[sample.int(1e5, n, replace = TRUE)]
