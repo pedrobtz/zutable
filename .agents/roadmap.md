@@ -31,7 +31,7 @@ fewer.
 | 5 | [Aggregates](#stage-5--aggregates) | quick | [#7](https://github.com/pedrobtz/zutable/issues/7) | [#31](https://github.com/pedrobtz/zutable/pull/31) | 2026-11-17 |
 | 6 | [Update in place](#stage-6--update-in-place) | full | [#8](https://github.com/pedrobtz/zutable/issues/8) | [#32](https://github.com/pedrobtz/zutable/pull/32) | 2026-11-17 |
 | 7 | [Joins and binding](#stage-7--joins-and-binding) | quick | [#9](https://github.com/pedrobtz/zutable/issues/9) | [#33](https://github.com/pedrobtz/zutable/pull/33) | 2026-11-17 |
-| 8 | [Ergonomics tests](#stage-8--ergonomics-tests) | quick | [#10](https://github.com/pedrobtz/zutable/issues/10) | | 2026-11-17 |
+| 8 | [Ergonomics tests](#stage-8--ergonomics-tests) | quick | [#10](https://github.com/pedrobtz/zutable/issues/10) | [#34](https://github.com/pedrobtz/zutable/pull/34) | 2026-11-17 |
 | 9 | [Kernel foundation and spike](#stage-9--kernel-foundation-and-spike) | quick | [#11](https://github.com/pedrobtz/zutable/issues/11) | | |
 | 10 | [Kernel groups](#stage-10--kernel-groups) | full | [#12](https://github.com/pedrobtz/zutable/issues/12) | | |
 | 11 | [Kernel sort](#stage-11--kernel-sort) | full | [#13](https://github.com/pedrobtz/zutable/issues/13) | | |
