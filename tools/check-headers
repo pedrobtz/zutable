@@ -1,0 +1,34 @@
+#!/bin/sh
+# Every header under inst/include compiles alone, with no other header
+# before it, under -Wall -Wextra -pedantic -Werror, as C11 and as C++17,
+# both standalone (ZT_STANDALONE, no R) and against R's headers. And the
+# header's version is the package's (design-kernel section 8, R10.4).
+# Run from the package root: sh tools/check-headers
+set -eu
+cc=${CC:-cc}
+cxx=${CXX:-c++}
+tmp=$(mktemp -d)
+trap 'rm -rf "$tmp"' EXIT
+rinc=$(R CMD config --cppflags 2>/dev/null || true)
+# zufast's headers, which the key model includes (LinkingTo: zufast).
+zinc="-I$(Rscript -e 'cat(system.file("include", package = "zufast"))')"
+fail=0
+for h in $(cd inst/include && find . -name '*.h' | sed 's|^\./||' | sort); do
+  printf '#include <%s>\nint zt_header_check_tu;\n' "$h" > "$tmp/tu.c"
+  cp "$tmp/tu.c" "$tmp/tu.cpp"
+  for mode in standalone r; do
+    if [ "$mode" = standalone ]; then def="-DZT_STANDALONE"; inc="$zinc"; else def=""; inc="$rinc $zinc"; fi
+    $cc -std=c11 -Wall -Wextra -pedantic -Werror $def -Iinst/include $inc \
+      -fsyntax-only "$tmp/tu.c" || { echo "FAIL: $h as C11 ($mode)"; fail=1; }
+    $cxx -std=c++17 -Wall -Wextra -pedantic -Werror $def -Iinst/include $inc \
+      -fsyntax-only "$tmp/tu.cpp" || { echo "FAIL: $h as C++17 ($mode)"; fail=1; }
+  done
+  echo "ok: $h"
+done
+want=$(sed -n 's/^Version: *//p' DESCRIPTION)
+got=$(sed -n 's/^#define ZUTABLE_VERSION "\(.*\)"$/\1/p' inst/include/zutable/version.h)
+if [ "$want" != "$got" ]; then
+  echo "FAIL: zutable/version.h says $got, DESCRIPTION $want"
+  fail=1
+fi
+exit $fail

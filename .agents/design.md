@@ -1095,6 +1095,13 @@ overturn it.
   the column, so types stay static (it does not reopen D5: bare names
   remain the way to write a column). 2026-11-17, Stage 8.
 
+- **D56 (C).** The kernel's header is `inst/include/zutable.h`, an
+  umbrella that includes `inst/include/zutable/<layer>.h` (`config`,
+  `version`, then `key`, `table`, `partition`, `groups`, `sort`, `join`,
+  `reduce` as their stages land); each compiles alone, which settles the
+  two spellings design-kernel §2 and §4 gave. Its version is the
+  package's, which `tools/check-headers` checks. 2026-11-17, Stage 9.
+
 ## 16. Order of work
 
 The order of work, pieces 1 to 8, became the stages of

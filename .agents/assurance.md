@@ -38,14 +38,15 @@ call to r-actions.
 | gctorture     | done    | gctorture.yaml     |
 | analyzers     | done    | native-checks.yaml |
 | alloc-failure | done    | alloc-failure.yaml |
-| mutation      | gap #11 |                    |
+| mutation      | done    | mutation.yaml      |
 
 Stage 3 (#5) wired the native checks and `alloc-failure` on 2026-11-17,
 ahead of the roadmap's Stage 6: `cast()` between text and doubles needs
 zufast's correctly rounded parser and shortest formatter, the package's
 first C (src/numbers.c). `tools/alloc-exercise.R` reaches both routines.
-Stage 9 (#11) wires `mutation` over the kernel's C test binary, the first
-C that builds without R.
+Stage 9 (#11) wired `mutation` on 2026-11-17 over the kernel's C tests
+(tests/c), the first C that builds without R; `platforms.yaml` builds and
+runs them on every OS, under ASan and UBSan on Linux.
 
 ## Objects
 
