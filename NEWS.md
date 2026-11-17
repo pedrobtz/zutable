@@ -41,3 +41,7 @@
   `by`; a block is typed as a whole and committed at once. `copy()` gives
   an independent table; `freeze()` marks a table so that nothing writes
   to it again.
+* `join()` matches two tables on keys of the same type (inner, left,
+  right, full, semi and anti), with `multiple` for fan-out, `na_equal`
+  for missing keys and `suffix` for clashing names; `rbind()` stacks
+  tables of identical schemas.
