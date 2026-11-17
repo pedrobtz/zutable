@@ -47,6 +47,8 @@ jobs:
     uses: pedrobtz/r-actions/.github/workflows/valgrind.yml@v1
     with:
       profile: auto
+      # Findings inside DuckDB, the test oracle, only; see the file.
+      suppressions: tools/valgrind.supp
 
   lto:
     if: >-
