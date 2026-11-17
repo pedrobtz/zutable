@@ -15,6 +15,9 @@
 
 #include "zutable/config.h"
 #include "zutable/version.h"
-
+#include "zutable/key.h"
+#include "zutable/table.h"
+#include "zutable/partition.h"
+#include "zutable/groups.h"
 
 #endif /* ZUTABLE_H */

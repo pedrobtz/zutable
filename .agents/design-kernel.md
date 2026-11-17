@@ -1327,6 +1327,13 @@ Marked **(M)** when the maintainer decided it in conversation and
   distinct count of the sample would miss. Answers Q6, on the
   maintainer's instruction to decide open questions by an expert
   recommendation; 2026-11-17, Stage 9.
+- **D39 (C).** A table starts at twice the Chao1 estimate of its keys
+  (or of its partition's share) and doubles when it reaches 7/8, rehashing
+  from the hashes it already has; `zt_groups_one()` stops before the
+  insert that would pass the limit and the caller grows the table. Its
+  capacity is 64-bit, up to 2^32 slots, so a table holds the 2^31 - 1 keys
+  a column can have (a 32-bit capacity held only 7/8 of 2^31, found by the
+  limit test). 2026-11-17, Stage 10.
 - **D38 (C).** `kit` has no `group()`; the §9.3 rows that named it
   compare with `match(x, kit::funique(x))`, kit's hashing route to group
   identifiers. Found writing the harness, 2026-11-17, Stage 9.

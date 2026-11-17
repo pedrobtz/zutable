@@ -14,6 +14,11 @@ args <- commandArgs(trailingOnly = TRUE)
 n <- if (length(args) >= 1L) as.numeric(args[[1L]]) else 1e7
 out <- if (length(args) >= 2L) args[[2L]] else ""
 reps <- 5L
+# Sections to run: all, or a comma-separated subset in ZT_BENCH_SECTIONS
+# (groups, order, join, reduce).
+sections <- strsplit(Sys.getenv("ZT_BENCH_SECTIONS", "groups,order,join,reduce"), ",")[[1L]]
+want <- function(section) section %in% sections
+has_zutable <- requireNamespace("zutable", quietly = TRUE)
 suppressPackageStartupMessages({
   library(collapse)
   library(data.table)
@@ -66,6 +71,7 @@ k7 <- int_key(1e7)
 v <- stats::runif(n)
 
 # --- groups ------------------------------------------------------------------
+if (want("groups")) {
 for (spec in list(list("1e3", k3), list("1e5", k5))) {
   tg <- sprintf("groups, one integer key, %s distinct", spec[[1L]])
   x <- spec[[2L]]
@@ -73,22 +79,27 @@ for (spec in list(list("1e3", k3), list("1e5", k5))) {
   record(tg, "collapse::GRP", "int", function() collapse::GRP(x, sort = FALSE)$group.id, group_canon)
   record(tg, "vctrs::vec_group_id", "int", function() vctrs::vec_group_id(x), group_canon)
   record(tg, "base: match(x, unique(x))", "int", function() match(x, unique(x)), group_canon)
+  if (has_zutable) record(tg, "zutable::grp", "int", function() zutable::grp(x)$id, group_canon)
   agree(tg)
 }
 tg <- "groups, one key, 1e7 distinct"
 if (has_kit) record(tg, "kit: match(x, funique(x))", "int", function() match(k7, kit::funique(k7)), group_canon)
 record(tg, "collapse::GRP", "int", function() collapse::GRP(k7, sort = FALSE)$group.id, group_canon)
 record(tg, "vctrs::vec_group_id", "int", function() vctrs::vec_group_id(k7), group_canon)
+if (has_zutable) record(tg, "zutable::grp", "int", function() zutable::grp(k7)$id, group_canon)
 agree(tg)
 a2 <- int_key(1e3)
 b2 <- int_key(1e2)
 tg <- "groups, two keys"
 record(tg, "collapse::GRP", "int x int", function() collapse::GRP(list(a2, b2), sort = FALSE)$group.id, group_canon)
 record(tg, "vctrs::vec_group_id", "int x int", function() vctrs::vec_group_id(data.frame(a2, b2)), group_canon)
+if (has_zutable) record(tg, "zutable::grp", "int x int", function() zutable::grp(a2, b2)$id, group_canon)
 agree(tg)
 tg <- "groups, sort = TRUE, 1e5 distinct"
-record(tg, "collapse::GRP(sort = TRUE)", "int", function() collapse::GRP(k5, sort = TRUE)$group.id,
-       function(id) id[order(k5, method = "radix")][!duplicated(k5[order(k5, method = "radix")])])
+sorted_ids <- function(id) id[order(k5, method = "radix")][!duplicated(k5[order(k5, method = "radix")])]
+record(tg, "collapse::GRP(sort = TRUE)", "int", function() collapse::GRP(k5, sort = TRUE)$group.id, sorted_ids)
+if (has_zutable) record(tg, "zutable::grp(sort = TRUE)", "int", function() zutable::grp(k5, sort = TRUE)$id, sorted_ids)
+agree(tg)
 # The 9.1 shape: a skewed symbol of about 1e4 values and an hour bucket.
 syms <- paste0("S", seq_len(1e4))
 sym <- syms[pmin(1e4, ceiling(stats::rexp(n, 1 / 800)))]
@@ -96,6 +107,7 @@ hour <- sample.int(24L, n, replace = TRUE)
 px <- stats::runif(n, 10, 500)
 tg <- "groups, 9.1 market-data input"
 record(tg, "collapse::GRP", "chr x int", function() collapse::GRP(list(sym, hour), sort = FALSE)$group.id, group_canon)
+if (has_zutable) record(tg, "zutable::grp", "chr x int", function() zutable::grp(sym, hour)$id, group_canon)
 if (requireNamespace("duckdb", quietly = TRUE)) {
   con <- DBI::dbConnect(duckdb::duckdb())
   DBI::dbExecute(con, "SET threads = 1")
@@ -105,8 +117,10 @@ if (requireNamespace("duckdb", quietly = TRUE)) {
   }, function(sz) sort(as.integer(sz)), settings = "threads = 1")
 }
 agree(tg)
+}
 
 # --- order ---------------------------------------------------------------------
+if (want("order")) {
 dv <- stats::runif(n)
 iv <- sample.int(.Machine$integer.max, n, replace = TRUE)
 sorted_canon <- function(x) function(o) x[o]
@@ -145,8 +159,10 @@ record(tg, "stringi::stri_order", "chr", function() stringi::stri_order(words), 
        settings = "locale en")
 record(tg, "base sort()", "chr", function() order(words), function(o) length(o),
        settings = "session collation")
+}
 
 # --- join and match ------------------------------------------------------------
+if (want("join")) {
 yk <- sample.int(.Machine$integer.max, 1e6)
 xk <- yk[sample.int(1e6, n, replace = TRUE)]
 dx <- data.table(k = xk, i = seq_len(n))
@@ -169,8 +185,10 @@ i64x <- bit64::as.integer64(xk)
 i64y <- bit64::as.integer64(yk)
 tg <- "match, integer64"
 record(tg, "bit64::match.integer64", "i64", function() bit64:::match.integer64(i64x, i64y), identity)
+}
 
 # --- reduce --------------------------------------------------------------------
+if (want("reduce")) {
 for (spec in list(list("1e3", k3), list("1e5", k5), list("1e7", k7))) {
   tg <- sprintf("reduce, sum, %s groups", spec[[1L]])
   g <- collapse::GRP(spec[[2L]], sort = TRUE)
@@ -186,6 +204,7 @@ record(tg, "four collapse f*() calls", "dbl", function() list(collapse::fsum(vs[
   collapse::fmin(vs[[3L]], g5), collapse::fmax(vs[[4L]], g5)), function(l) round(unlist(l), 6))
 tg <- "reduce, broadcast = 'subtract'"
 record(tg, "collapse::fwithin", "dbl", function() collapse::fwithin(v, g5), function(s) round(sum(s), 4))
+}
 
 # --- report --------------------------------------------------------------------
 tab <- do.call(rbind, lapply(rows, function(r) r[, c("target", "oracle", "input", "seconds", "mb", "settings")]))
