@@ -32,8 +32,12 @@ library(zutable)
   : Check a table against a schema
 - [`explain()`](https://pedrobtz.github.io/zutable/reference/explain.md)
   : Explain how a table is computed
+- [`join()`](https://pedrobtz.github.io/zutable/reference/join.md) :
+  Join two tables
 - [`na()`](https://pedrobtz.github.io/zutable/reference/na.md) : A typed
   missing value
+- [`rbind(`*`<zutable>`*`)`](https://pedrobtz.github.io/zutable/reference/rbind.zutable.md)
+  : Bind the rows of zutables
 - [`register_extension_type()`](https://pedrobtz.github.io/zutable/reference/register_extension_type.md)
   : Register an R vector class as an extension type
 - [`schema()`](https://pedrobtz.github.io/zutable/reference/schema.md)

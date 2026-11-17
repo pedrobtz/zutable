@@ -69,3 +69,9 @@
   gives an independent table;
   [`freeze()`](https://pedrobtz.github.io/zutable/reference/zutable-update.md)
   marks a table so that nothing writes to it again.
+- [`join()`](https://pedrobtz.github.io/zutable/reference/join.md)
+  matches two tables on keys of the same type (inner, left, right, full,
+  semi and anti), with `multiple` for fan-out, `na_equal` for missing
+  keys and `suffix` for clashing names;
+  [`rbind()`](https://rdrr.io/r/base/cbind.html) stacks tables of
+  identical schemas.
