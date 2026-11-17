@@ -42,6 +42,8 @@ jobs:
       # arithmetic must not depend on it).
       nosuggests: true
       nold: true
+      # duckdb from r-universe's R-devel binaries, not 45 minutes of source.
+      pre-install: Rscript tools/ci-binaries.R
       # r-actions' default runners, plus Windows on R-devel: CRAN checks
       # Windows on R-devel and nothing else in CI does (the containers are
       # Linux). Runs in the full profile only.

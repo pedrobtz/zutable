@@ -34,6 +34,8 @@ jobs:
     with:
       asan: true
       profile: auto
+      # duckdb from r-universe's R-devel binaries (tools/ci-binaries.R).
+      pre-install: Rscript tools/ci-binaries.R
 
   valgrind:
     if: >-
