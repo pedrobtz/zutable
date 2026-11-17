@@ -20,3 +20,8 @@
   `subset()`, `split()` and `unique()` return zutables. No replacement
   changes a table's schema: a value must fit its column's type, and
   renaming or removing a column is an error.
+* Expressions are written in a closed, typed vocabulary of SQL-named
+  functions with R synonyms (`?vocabulary`): arithmetic, comparison,
+  logic, strings, patterns, dates, `cast()`, `case()`, aggregates, and
+  `r()` to run arbitrary R. Every expression is typed before any data is
+  read, and every function gives the same result locally and in DuckDB.

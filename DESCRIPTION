@@ -21,7 +21,9 @@ Language: en-GB
 Roxygen: list(markdown = TRUE)
 Suggests: 
     bit64,
+    DBI,
     decimal,
+    duckdb,
     knitr,
     rmarkdown,
     testthat (>= 3.0.0),
