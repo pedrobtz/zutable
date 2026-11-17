@@ -76,3 +76,7 @@
   [`rbind()`](https://rdrr.io/r/base/cbind.html) stacks tables of
   identical schemas.
 - `.col(name)` refers to a column whose name is held in a variable.
+- [`zutable_info()`](https://pedrobtz.github.io/zutable/reference/zutable_info.md)
+  reports the kernel header’s version and the `zufast` headers the
+  package was built against; the header `zutable.h` is installed for
+  other packages to use through `LinkingTo`.

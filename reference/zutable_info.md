@@ -1,7 +1,8 @@
 # Information about the zutable build
 
-Reports the package version. Later versions add the version of the
-`zufast` headers the kernel was built against and its build flags.
+Reports the package version, the version of the kernel header the shared
+object was built with, and the version of the `zufast` headers it was
+compiled against.
 
 ## Usage
 
@@ -11,8 +12,9 @@ zutable_info()
 
 ## Value
 
-A named list with element `version`, a
-[package_version](https://rdrr.io/r/base/numeric_version.html).
+A named list: `version`, a
+[package_version](https://rdrr.io/r/base/numeric_version.html); `header`
+and `zufast`, version strings.
 
 ## Examples
 
@@ -20,5 +22,11 @@ A named list with element `version`, a
 zutable_info()
 #> $version
 #> [1] ‘0.0.0.9000’
+#> 
+#> $header
+#> [1] "0.0.0.9000"
+#> 
+#> $zufast
+#> [1] "0.1.0"
 #> 
 ```
