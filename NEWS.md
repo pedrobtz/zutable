@@ -46,3 +46,6 @@
   for missing keys and `suffix` for clashing names; `rbind()` stacks
   tables of identical schemas.
 * `.col(name)` refers to a column whose name is held in a variable.
+* `zutable_info()` reports the kernel header's version and the `zufast`
+  headers the package was built against; the header `zutable.h` is
+  installed for other packages to use through `LinkingTo`.

@@ -473,8 +473,12 @@ What each row rests on:
   length at a cost per insert. Unchained tables (Birler, Radke and
   Neumann, DaMoN 2024) store a directory of tagged pointers into a sorted
   tuple array and were measured faster than both for joins in that
-  paper. Whether an engine ships them is for the reading list of §11,
-  and they wait in §14.
+  paper. Whether an engine ships them was for the reading list of §11:
+  the paper is Birler, Schmidt, Fent and Neumann, "Simple, Efficient, and
+  Robust Hash Tables for Join Processing", DaMoN 2024; it credits HyPer
+  with the technique and extends it in the Umbra and CedarDB line, so
+  engines do ship them (read 2026-11-17). They still wait in §14: the
+  first release's table is the tagged one (D35 answered Q2).
 - **B.** xxh3 from `zufast` is the general hash for bytes and composite
   keys. For a single 32-bit or 64-bit integer, a multiply-shift mixer is
   a handful of instructions and is what every engine uses; Richter,
@@ -485,7 +489,7 @@ What each row rests on:
   Polychroniou and Ross (SIGMOD 2014) give the write-combining buffers
   that make partitioning run at bandwidth. Fan-out is bounded by TLB
   entries, so 256 is the usual answer.
-- **D.** Hash first-seen is `kit::group()`. Radix sort with run
+- **D.** Hash first-seen is kit's, through `kit::funique()` (D38). Radix sort with run
   detection is `data.table::forder()` and base R's radix order. `bit64`
   switches between them by cardinality. Müller, Sanders, Lacurie, Lehner
   and Färber (SIGMOD 2015, "Cache-efficient aggregation: hashing is
@@ -728,6 +732,34 @@ gain on both architectures CRAN checks, which on arm64 means 128-bit
 NEON, where the SIMD sorts lose most of their margin. The scalar hybrid
 is the reference; the regime map is what any later vendoring argues
 against.
+
+### 4.4 The reading list, read in Stage 9 (2026-11-17)
+
+What each source of the reading list changes, as §11 asked:
+
+- **DuckDB's sorts.** The 2021 post (["Fastest table sort in the
+  West"](https://duckdb.org/2021/08/27/external-sorting.html)) gives the
+  normalised key exactly as §4.3 takes it: integers big-endian with the
+  sign bit flipped, descending columns inverted, strings as a padded
+  prefix with a tie-break on the full string, NULL as an extra byte. The
+  ICDE 2023 paper used pdqsort when strings were present and radix
+  otherwise. The 2025 redesign (["Redesigning DuckDB's Sort,
+  Again"](https://duckdb.org/2025/09/24/sorting-again)) runs Vergesort,
+  then ska sort (MSD radix on the key's first 64 bits), then pdqsort, the
+  upstream C++ of each, and reports about 30% lower single-threaded
+  throughput for an in-place MSD over the old out-of-place LSD. Both
+  confirm §4.3's target shape and its reason to choose per call; nothing
+  changes but the citation.
+- **CAFS** (Shlyk, [arXiv:2605.25040](https://arxiv.org/abs/2605.25040)).
+  A frequency sort for low-cardinality integers whose hot loop is AVX2,
+  so x86-64 only, which D15 rules out of the scalar kernel; its regime is
+  the dense and sort-the-groups paths already here. Its cardinality
+  estimate is what this design lacked: Chao1 over 1024 strided samples
+  in a 40 KB table, which answers Q6 (D37).
+- **Vergesort, ska sort, pdqsort** (Morwenn/vergesort, skarupke/ska_sort,
+  orlp/pdqsort): the sources DuckDB itself takes, under the licences
+  §4.3's table states; Stage 11 ports them.
+- **Unchained tables**: see axis A above.
 
 ## 5. Public R API (first-release shape)
 
@@ -1064,8 +1096,8 @@ of §1.3 in C before the design is committed to it.
 
 | Operation | Target |
 | --- | --- |
-| groups, one integer key, 10³ or 10⁵ distinct | parity with `kit::group()` |
-| groups, one key, 10⁷ distinct | at least 2× faster than `kit` |
+| groups, one integer key, 10³ or 10⁵ distinct | parity with `match(x, kit::funique(x))` (D38) |
+| groups, one key, 10⁷ distinct | at least 2× faster than `kit` (D38) |
 | groups, two keys | at least 1.5× faster than `collapse::GRP()` |
 | groups, `sort = TRUE`, 10⁵ distinct | at least 2× faster than `GRP()` |
 | groups, any input | at least 2× faster than `vctrs::vec_group_id()` |
@@ -1289,6 +1321,15 @@ Marked **(M)** when the maintainer decided it in conversation and
 - **D36 (C).** The kernel is reached by translation. RFC 0074
   translates every `select`, so reductions always go through
   `grp_reduce()`. This answers Q9.
+- **D37 (C).** Axis D's cardinality estimate is Chao1 over 1024 strided
+  samples of the key, as CAFS reads it (§4.4): no `Suggests` on a
+  sibling, a fixed cost, and an estimate that sees the duplicates a plain
+  distinct count of the sample would miss. Answers Q6, on the
+  maintainer's instruction to decide open questions by an expert
+  recommendation; 2026-11-17, Stage 9.
+- **D38 (C).** `kit` has no `group()`; the §9.3 rows that named it
+  compare with `match(x, kit::funique(x))`, kit's hashing route to group
+  identifiers. Found writing the harness, 2026-11-17, Stage 9.
 
 ## 14. Later versions, in the order they are expected
 
@@ -1345,9 +1386,8 @@ Marked **(M)** when the maintainer decided it in conversation and
 - **Q5.** Which variant survives on each measured axis of §4.2, and
   where the crossovers lie (cardinality for axes D, L and O). Answered
   by `.agents/benchmarks.md` as each piece of §11 lands.
-- **Q6.** Whether the cardinality estimate for axis D is a row sample or
-  `data.sketches`' HyperLogLog, and whether the latter is worth a
-  `Suggests` on a sibling.
+- **Q6.** Answered on 2026-11-17 by D37: a row sample, read with the
+  Chao1 estimator.
 - **Q7.** Whether per-statistic wrappers, `grp_sum()` and so on, should
   exist beside `grp_reduce()` for discoverability, or whether the
   bracket is the only caller that matters and D21 stands.

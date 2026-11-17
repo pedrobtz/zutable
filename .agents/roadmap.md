@@ -15,7 +15,7 @@ moves one family of operators onto C, held to the reference executor's
 results.
 
 **Kernel clock** ([design-kernel §10](design-kernel.md#10-the-experiment-how-fast-can-a-kernel-be-built-from-the-blocks)).
-First kernel commit (Stage 9): —. Join working (Stage 13): —. Last kernel
+First kernel commit (Stage 9): 2026-11-17. Join working (Stage 13): —. Last kernel
 piece (Stage 15): —. Hypothesis: Stage 9 to Stage 13 in 14 calendar days or
 fewer.
 
@@ -32,7 +32,7 @@ fewer.
 | 6 | [Update in place](#stage-6--update-in-place) | full | [#8](https://github.com/pedrobtz/zutable/issues/8) | [#32](https://github.com/pedrobtz/zutable/pull/32) | 2026-11-17 |
 | 7 | [Joins and binding](#stage-7--joins-and-binding) | quick | [#9](https://github.com/pedrobtz/zutable/issues/9) | [#33](https://github.com/pedrobtz/zutable/pull/33) | 2026-11-17 |
 | 8 | [Ergonomics tests](#stage-8--ergonomics-tests) | quick | [#10](https://github.com/pedrobtz/zutable/issues/10) | [#34](https://github.com/pedrobtz/zutable/pull/34) | 2026-11-17 |
-| 9 | [Kernel foundation and spike](#stage-9--kernel-foundation-and-spike) | quick | [#11](https://github.com/pedrobtz/zutable/issues/11) | | |
+| 9 | [Kernel foundation and spike](#stage-9--kernel-foundation-and-spike) | quick | [#11](https://github.com/pedrobtz/zutable/issues/11) | [#35](https://github.com/pedrobtz/zutable/pull/35) | 2026-11-17 |
 | 10 | [Kernel groups](#stage-10--kernel-groups) | full | [#12](https://github.com/pedrobtz/zutable/issues/12) | | |
 | 11 | [Kernel sort](#stage-11--kernel-sort) | full | [#13](https://github.com/pedrobtz/zutable/issues/13) | | |
 | 12 | [Strings and sorted values](#stage-12--strings-and-sorted-values) | full | [#14](https://github.com/pedrobtz/zutable/issues/14) | | |
@@ -520,6 +520,10 @@ kernel code is built on it. Starts the kernel clock.
   or, below that, design-kernel §1.3 and axis L rewritten before Stage 10
   starts.
 - `check-headers` and the mutation workflow run green.
+  Deviation 2026-11-17: the mutation workflow runs on a schedule and by
+  dispatch only, and GitHub dispatches only workflows already on the
+  default branch, so its first run is dispatched on the merge commit;
+  what it finds is fixed in Stage 10.
 - The kernel clock's first date is filled in above.
 - `R CMD check` passes on the quick profile.
 
@@ -940,8 +944,6 @@ CRAN review.
 
 ## Blocking open questions
 
-- [design-kernel §15 Q6](design-kernel.md#15-open-questions) blocks
-  Stage 10: how axis D estimates cardinality.
 - [§19 Q7](design.md#19-open-questions-and-the-ergonomics-tests) blocks
   Stage 19: CRAN submission or GitHub release; the board's `CRAN intent`
   records it, assumed `Planned`.

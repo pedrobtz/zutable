@@ -7,11 +7,13 @@
 zutable_info()
 }
 \value{
-A named list with element \code{version}, a \link{package_version}.
+A named list: \code{version}, a \link{package_version}; \code{header} and
+\code{zufast}, version strings.
 }
 \description{
-Reports the package version. Later versions add the version of the
-\code{zufast} headers the kernel was built against and its build flags.
+Reports the package version, the version of the kernel header the
+shared object was built with, and the version of the \code{zufast} headers it
+was compiled against.
 }
 \examples{
 zutable_info()

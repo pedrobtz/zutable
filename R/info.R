@@ -1,12 +1,16 @@
 #' Information about the zutable build
 #'
-#' Reports the package version. Later versions add the version of the
-#' `zufast` headers the kernel was built against and its build flags.
+#' Reports the package version, the version of the kernel header the
+#' shared object was built with, and the version of the `zufast` headers it
+#' was compiled against.
 #'
-#' @return A named list with element `version`, a [package_version].
+#' @return A named list: `version`, a [package_version]; `header` and
+#'   `zufast`, version strings.
 #' @export
 #' @examples
 #' zutable_info()
 zutable_info <- function() {
-  list(version = utils::packageVersion("zutable"))
+  native <- .Call(zt_info)
+  list(version = utils::packageVersion("zutable"), header = native$header,
+       zufast = native$zufast)
 }
