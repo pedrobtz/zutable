@@ -26,7 +26,7 @@ fewer.
 | 0 | [Package identity](#stage-0--package-identity) | quick | [#2](https://github.com/pedrobtz/zutable/issues/2) | [#26](https://github.com/pedrobtz/zutable/pull/26) | 2026-11-17 |
 | 1 | [Types and schema](#stage-1--types-and-schema) | quick | [#3](https://github.com/pedrobtz/zutable/issues/3) | [#27](https://github.com/pedrobtz/zutable/pull/27) | 2026-11-17 |
 | 2 | [Tables](#stage-2--tables) | quick | [#4](https://github.com/pedrobtz/zutable/issues/4) | [#28](https://github.com/pedrobtz/zutable/pull/28) | 2026-11-17 |
-| 3 | [Vocabulary and typing](#stage-3--vocabulary-and-typing) | quick | [#5](https://github.com/pedrobtz/zutable/issues/5) | | |
+| 3 | [Vocabulary and typing](#stage-3--vocabulary-and-typing) | full | [#5](https://github.com/pedrobtz/zutable/issues/5) | [#29](https://github.com/pedrobtz/zutable/pull/29) | 2026-11-17 |
 | 4 | [Bracket and plans](#stage-4--bracket-and-plans) | quick | [#6](https://github.com/pedrobtz/zutable/issues/6) | | |
 | 5 | [Aggregates](#stage-5--aggregates) | quick | [#7](https://github.com/pedrobtz/zutable/issues/7) | | |
 | 6 | [Update in place](#stage-6--update-in-place) | full | [#8](https://github.com/pedrobtz/zutable/issues/8) | | |
@@ -237,6 +237,14 @@ SQL, and the three cannot disagree.
 [§7.2](design.md#72-typing), [§7.3](design.md#73-the-escape),
 [§4.3](design.md#43-strictness).
 
+**Deviation, 2026-11-17.** The full run found that R's `as.double()` is
+not correctly rounded on macOS arm64 (it read the largest double as
+`Inf`), so `cast()` between text and doubles uses zufast's parser and
+formatter: `LinkingTo: zufast` and the first C arrive here, not in
+Stage 9 and Stage 6, and with them the native checks, `gctorture` and
+`alloc-failure` of Stage 6's work list. Stage 6 keeps `zt_commit()` and
+its `full` tier.
+
 ## Stage 4 — Bracket and plans
 
 **Issue.** [#6](https://github.com/pedrobtz/zutable/issues/6), sub-issue of
@@ -350,8 +358,8 @@ run before merging`.
 - `copy()`, `freeze()`, `is_frozen()`, `frozen` in the print header.
 - `:=` on anything lazy is not reachable yet; its error lands with the
   lazy class.
-- The native-checks caller (sanitizers, valgrind, rchk, gctorture,
-  analyzers) and `alloc-failure.yml`, now that there is C to run them on.
+- `tools/alloc-exercise.R` extended to reach `zt_commit()` (the checks
+  themselves were wired in Stage 3, 2026-11-17).
 
 **Tests.**
 
@@ -380,7 +388,7 @@ run before merging`.
 - `.agents/assurance.md` has the materialised table's row under Objects
   (sequences in `test-update-sequences.R`; fork n/a: holds no OS
   resource; unwind in `test-update.R`; owner n/a: columns are owned by
-  R), and the native-checks rows marked `done`.
+  R).
 - A full-profile run is green on the pull request, and a dispatched
   step-20 gctorture run is green on its last commit.
 
@@ -471,7 +479,8 @@ kernel code is built on it. Starts the kernel clock.
 
 **Work.**
 
-- `LinkingTo: zufast`, `Remotes: pedrobtz/zufast@main`.
+- `Remotes: pedrobtz/zufast@main` if the kernel needs more than the CRAN
+  release (`LinkingTo: zufast` arrived in Stage 3, 2026-11-17).
 - The `inst/include/zutable/` skeleton and `check-headers` (own
   workflow): every header compiles alone under `-Wall -Wextra -pedantic`
   as C11 and as C++17, and under `ZT_STANDALONE` without R.

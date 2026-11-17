@@ -1001,6 +1001,41 @@ overturn it.
   whoever asks (`colnames<-` reaches `dimnames<-` from base). Logical
   selections recycle as in base R. 2026-11-17, Stage 2.
 
+- **D44 (C).** The first vocabulary covers `bool`, `int32`, `float64`,
+  `string`, `date`, `timestamp` and `enum`. `int64`, `decimal`, `binary`,
+  `list` and `struct` take only `is.na()`, `count()`, `coalesce()`,
+  `ifelse()`, `first()` and `last()` until their siblings can be tested
+  in CI; an `r_class()` column takes none (§4.1). Every row is run
+  against DuckDB through its SQL spelling (§14). 2026-11-17, Stage 3.
+- **D45 (C).** Strings compare by bytes, SQL's and C's order, in every
+  engine and whatever the session's collation. `upper()` and `lower()`
+  use R's `toupper()` and `tolower()`, which map non-ASCII letters as the
+  platform's locale does; ASCII agrees everywhere. 2026-11-17, Stage 3.
+- **D46 (C).** NA rules are SQL's: a missing operand gives a missing
+  result, so `NA^0` and `1^NA` are `NA` (R gives 1), and `paste0()` gives
+  `NA` when a part is `NA` (R writes `"NA"`); aggregates skip missing
+  values and give `NA` over none, so `sum()` of nothing is `NA`.
+  `ifelse()` keeps R's rule that an `NA` condition gives `NA`; `case()`
+  keeps SQL's, which skips it. 2026-11-17, Stage 3.
+- **D47 (C).** A `float64`'s missing value is `NA`; `NaN` is a value, as
+  in Arrow: `is.na()` is false for it, and it equals itself and sorts
+  above every number, as in DuckDB and PostgreSQL. R's `NA op NaN`, which
+  may give `NaN`, gives `NA`. 2026-11-17, Stage 3.
+- **D48 (C).** A `float64` `%/%` is `floor(x / y)` and `%%` is
+  `x - y * floor(x / y)`; R's own operators differ for infinite operands
+  (`-3 %/% Inf` is -1 in R). `^` is R's, which differs from IEEE 754's
+  `pow()` for a negative base with an infinite exponent and a zero base
+  with a negative exponent; the SQL spelling reproduces it. 2026-11-17,
+  Stage 3.
+- **D49 (C).** `substr(x, start, stop)` is R's, since a user writes R in
+  the bracket. The set of `%in%` is constants without `NA`. A string
+  literal adapts to a date or timestamp only in ISO 8601 form, read in
+  the column's zone. `cast()` to text writes a double's shortest
+  round-trip digits and `inf`, `-inf` and `nan`, as DuckDB does. A
+  sub-expression that mentions no column is folded in the caller's frame
+  unless it is `cast()`, `case()`, `count()` or `r()`. 2026-11-17,
+  Stage 3.
+
 ## 16. Order of work
 
 The order of work, pieces 1 to 8, became the stages of

@@ -4,9 +4,15 @@
 #include <R_ext/Rdynload.h>
 #include <R_ext/Visibility.h>
 
+SEXP zt_parse_f64(SEXP x);
+SEXP zt_format_f64(SEXP x);
+
 // Native routines are registered here as stages add them. Symbols are
-// hidden (Makevars) and only R_init_zutable is exported (design §3, R3).
+// hidden (Makevars) and only R_init_zutable is exported (design section 3,
+// R3).
 static const R_CallMethodDef call_methods[] = {
+  {"zt_parse_f64", (DL_FUNC) &zt_parse_f64, 1},
+  {"zt_format_f64", (DL_FUNC) &zt_format_f64, 1},
   {NULL, NULL, 0}
 };
 

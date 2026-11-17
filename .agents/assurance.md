@@ -30,19 +30,22 @@ spec: files are parsed by qio, zucsv and zuarrow, not here. -->
 check. Add `(own)` when that workflow is the package's own rather than a
 call to r-actions.
 
-| Check         | Status  | Where |
-| ------------- | ------- | ----- |
-| sanitizers    | gap #8  |       |
-| valgrind      | gap #8  |       |
-| rchk          | gap #8  |       |
-| gctorture     | gap #8  |       |
-| analyzers     | gap #8  |       |
-| alloc-failure | gap #8  |       |
-| mutation      | gap #11 |       |
+| Check         | Status  | Where              |
+| ------------- | ------- | ------------------ |
+| sanitizers    | done    | native-checks.yaml |
+| valgrind      | done    | native-checks.yaml |
+| rchk          | done    | native-checks.yaml |
+| gctorture     | done    | gctorture.yaml     |
+| analyzers     | done    | native-checks.yaml |
+| alloc-failure | done    | alloc-failure.yaml |
+| mutation      | gap #11 |                    |
 
-Stage 6 (#8) wires the native checks and `alloc-failure` with
-`zt_commit()`, the first C. Stage 9 (#11) wires `mutation` over the
-kernel's C test binary, the first C that builds without R.
+Stage 3 (#5) wired the native checks and `alloc-failure` on 2026-11-17,
+ahead of the roadmap's Stage 6: `cast()` between text and doubles needs
+zufast's correctly rounded parser and shortest formatter, the package's
+first C (src/numbers.c). `tools/alloc-exercise.R` reaches both routines.
+Stage 9 (#11) wires `mutation` over the kernel's C test binary, the first
+C that builds without R.
 
 ## Objects
 
@@ -66,5 +69,5 @@ One row per limit the package enforces. "Straddled by" is the test of
 | Limit | Unit | Straddled by |
 | --- | --- | --- |
 | `POSIXct` instants as `timestamp("us")` | seconds from 1970, ±2³³ | tests/testthat/test-types.R: the 2^33-second limit is straddled on both sides |
-| `int32` arithmetic | value, ±(2³¹ − 1) | gap #5 |
+| `int32` arithmetic | value, ±(2³¹ − 1) | tests/testthat/test-vocabulary.R: int32 arithmetic is straddled at the overflow limit |
 | Key and table length | rows, 2³¹ − 1 | gap #12 |
