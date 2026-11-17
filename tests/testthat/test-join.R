@@ -22,6 +22,34 @@ test_that("joins agree with merge() for every kind, NA keys both ways", {
   }
 })
 
+test_that("a two-key join agrees with merge() for every kind, NA keys both ways", {
+  withr::local_seed(33)
+  f <- join_frames()
+  x <- as_zutable(f$x)
+  y <- as_zutable(f$y)
+  # merge()'s `incomparables` works on one column only, so for
+  # na_equal = FALSE each missing key gets a sentinel no other row has.
+  unmatched <- function(d, k, s, tag, base) {
+    d[[k]][is.na(d[[k]])] <- base - which(is.na(d[[k]]))
+    d[[s]][is.na(d[[s]])] <- paste0(tag, which(is.na(d[[s]])))
+    d
+  }
+  for (na_equal in c(TRUE, FALSE)) {
+    fx <- if (na_equal) f$x else unmatched(f$x, "k", "s", "x", -1000L)
+    fy <- if (na_equal) f$y else unmatched(f$y, "k2", "s2", "y", -2000L)
+    for (how in c("inner", "left", "right", "full")) {
+      r <- join(x, y, on = .(k == k2, s == s2), how = how, na_equal = na_equal)
+      got <- data.frame(xi = r$xi, yi = r$yi)
+      got <- got[order(got$xi, got$yi, method = "radix", na.last = TRUE), , drop = FALSE]
+      rownames(got) <- NULL
+      want <- merge_pairs(fx, fy, c("k", "s"), c("k2", "s2"),
+                          how %in% c("left", "full"), how %in% c("right", "full"),
+                          na_equal = TRUE)
+      expect_identical(got, want, info = paste(how, na_equal))
+    }
+  }
+})
+
 test_that("rows come in x's order, then y's within a row of x", {
   withr::local_seed(32)
   f <- join_frames()
