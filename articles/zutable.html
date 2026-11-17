@@ -95,7 +95,13 @@ written in.</p>
 <span><span class="va">trades</span><span class="op">[</span>where  <span class="op">=</span> <span class="va">day</span> <span class="op">&gt;=</span> <span class="st">"2026-01-02"</span>,</span>
 <span>       select <span class="op">=</span> <span class="fu">.</span><span class="op">(</span>vwap <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="va">px</span> <span class="op">*</span> <span class="va">qty</span><span class="op">)</span> <span class="op">/</span> <span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="va">qty</span><span class="op">)</span>, n <span class="op">=</span> <span class="fu">count</span><span class="op">(</span><span class="op">)</span><span class="op">)</span>,</span>
 <span>       by     <span class="op">=</span> <span class="va">id</span>,</span>
-<span>       order  <span class="op">=</span> <span class="fu">desc</span><span class="op">(</span><span class="va">vwap</span><span class="op">)</span><span class="op">]</span></span></code></pre></div>
+<span>       order  <span class="op">=</span> <span class="fu">desc</span><span class="op">(</span><span class="va">vwap</span><span class="op">)</span><span class="op">]</span></span>
+<span><span class="co">#&gt; &lt;zutable&gt; 3 rows x 3 columns</span></span>
+<span><span class="co">#&gt;   id      vwap      n</span></span>
+<span><span class="co">#&gt;   &lt;int32&gt; &lt;float64&gt; &lt;not_null(int32)&gt;</span></span>
+<span><span class="co">#&gt; 1 2       19.625    2</span></span>
+<span><span class="co">#&gt; 2 1       11.000    1</span></span>
+<span><span class="co">#&gt; 3 3       7.000     1</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="schemas-are-known-before-data-is">Schemas are known before data is<a class="anchor" aria-label="anchor" href="#schemas-are-known-before-data-is"></a>

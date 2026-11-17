@@ -54,6 +54,8 @@
 <li>The bracket takes SQL’s clauses as named arguments: <code>where</code>, <code>select</code> (with <code>.all</code> and <code>-name</code>), <code>order</code> (with <code>desc()</code>), <code>limit</code> and <code>distinct</code>, run in SQL’s logical order. <code>x[cond, .(...)]</code> reads as in data.table, and a position that mentions no column is a value form.</li>
 <li>
 <code><a href="../reference/explain.html">explain()</a></code> prints the plan that made a table, one step per line; <code>dplyr::explain()</code> reaches it too.</li>
+<li>
+<code>by</code>, <code>having</code> and the aggregates (<code>count()</code>, <code><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum()</a></code>, <code><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean()</a></code>, <code><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">min()</a></code>, <code><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">max()</a></code>, <code>first()</code>, <code>last()</code>, <code><a href="https://rdrr.io/r/base/any.html" class="external-link">any()</a></code>, <code><a href="https://rdrr.io/r/base/all.html" class="external-link">all()</a></code>, <code>count_distinct()</code>) make aggregate queries; groups come in order of first appearance and <code>NA</code> is a group. <code>over(aggregate, by = )</code> computes an aggregate per partition without collapsing rows.</li>
 </ul></div>
   </main></div>
 

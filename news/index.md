@@ -52,3 +52,13 @@
 - [`explain()`](https://pedrobtz.github.io/zutable/reference/explain.md)
   prints the plan that made a table, one step per line;
   `dplyr::explain()` reaches it too.
+- `by`, `having` and the aggregates (`count()`,
+  [`sum()`](https://rdrr.io/r/base/sum.html),
+  [`mean()`](https://rdrr.io/r/base/mean.html),
+  [`min()`](https://rdrr.io/r/base/Extremes.html),
+  [`max()`](https://rdrr.io/r/base/Extremes.html), `first()`, `last()`,
+  [`any()`](https://rdrr.io/r/base/any.html),
+  [`all()`](https://rdrr.io/r/base/all.html), `count_distinct()`) make
+  aggregate queries; groups come in order of first appearance and `NA`
+  is a group. `over(aggregate, by = )` computes an aggregate per
+  partition without collapsing rows.

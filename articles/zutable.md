@@ -42,6 +42,12 @@ trades[where  = day >= "2026-01-02",
        select = .(vwap = sum(px * qty) / sum(qty), n = count()),
        by     = id,
        order  = desc(vwap)]
+#> <zutable> 3 rows x 3 columns
+#>   id      vwap      n
+#>   <int32> <float64> <not_null(int32)>
+#> 1 2       19.625    2
+#> 2 1       11.000    1
+#> 3 3       7.000     1
 ```
 
 ## Schemas are known before data is
