@@ -31,3 +31,27 @@ test_that("a name after $ is not a column", {
   df <- data.frame(px = c(20, 0))
   expect_identical(z[df$px > 10]$px, 5)
 })
+
+test_that(".col() is the column a variable names, in every clause", {
+  z <- zutable(a = 1:4, b = c(4, 3, 2, 1))
+  nm <- "b"
+  expect_identical(z[.col(nm) > 2]$a, 1:2)
+  expect_identical(z[, .(v = .col(nm) * 2)]$v, c(8, 6, 4, 2))
+  expect_identical(z[order = .col(nm)]$a, 4:1)
+  expect_identical(z[, .(s = sum(.col(nm))), by = .(k = .col("a"))]$s, c(4, 3, 2, 1))
+  # The column's type is known at plan time.
+  expect_identical(format(schema(z[, .(v = .col(nm))])), "v float64")
+  # A column that shares the variable's name does not change what it holds.
+  w <- zutable(nm = 1:2, b = c(5, 6))
+  expect_identical(w[, .(v = .col(nm))]$v, c(5, 6))
+})
+
+test_that(".col() refuses anything but one existing column name", {
+  z <- zutable(a = 1:2)
+  expect_error(z[.col("nope") > 1], class = "zutable_schema_error")
+  expect_error(z[.col(c("a", "a")) > 1], class = "zutable_syntax_error")
+  expect_error(z[.col(NA_character_) > 1], class = "zutable_syntax_error")
+  expect_error(z[.col(1L) > 1], class = "zutable_syntax_error")
+  expect_error(z[.col() > 1], class = "zutable_syntax_error")
+  expect_error(z[.col("a", "a") > 1], class = "zutable_syntax_error")
+})

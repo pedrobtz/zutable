@@ -80,7 +80,8 @@ test_that("8. distinct keys, ordered", {
 
 test_that("D28 is kept: an update in the first position is a syntax error", {
   t <- as_zutable(ergo_trades())
-  cnd <- expect_error(t[{ px := 1 }], class = "zutable_syntax_error")
-  expect_match(conditionMessage(cnd), "second position", fixed = TRUE)
+  expect_error(t[{ px := 1 }], class = "zutable_syntax_error")
+  # The message shows the supported spelling.
+  expect_snapshot(t[{ px := 1 }], error = TRUE)
   expect_error(t[px := 1], class = "zutable_syntax_error")
 })
