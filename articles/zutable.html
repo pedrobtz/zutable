@@ -123,11 +123,11 @@ one. A block is checked as a whole and committed at once.
 <h2 id="one-plan-several-engines">One plan, several engines<a class="anchor" aria-label="anchor" href="#one-plan-several-engines"></a>
 </h2>
 <p>A lazy table records steps instead of running them.
-<code>explain()</code> shows the plan with each step’s schema, and
+<code><a href="../reference/explain.html">explain()</a></code> shows the plan with each step’s schema, and
 <code>collect()</code> runs it locally or as SQL.</p>
 <div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">r</span> <span class="op">&lt;-</span> <span class="fu">lazy</span><span class="op">(</span><span class="va">trades</span><span class="op">)</span><span class="op">[</span>select <span class="op">=</span> <span class="fu">.</span><span class="op">(</span>n <span class="op">=</span> <span class="fu">count</span><span class="op">(</span><span class="op">)</span><span class="op">)</span>, by <span class="op">=</span> <span class="va">id</span><span class="op">]</span></span>
-<span><span class="fu">explain</span><span class="op">(</span><span class="va">r</span><span class="op">)</span></span>
+<span><span class="fu"><a href="../reference/explain.html">explain</a></span><span class="op">(</span><span class="va">r</span><span class="op">)</span></span>
 <span><span class="fu">collect</span><span class="op">(</span><span class="va">r</span><span class="op">)</span></span>
 <span><span class="fu">collect</span><span class="op">(</span><span class="va">r</span>, engine <span class="op">=</span> <span class="st">"duckdb"</span><span class="op">)</span></span></code></pre></div>
 </div>

@@ -72,9 +72,10 @@ freeze(trades)
 
 ## One plan, several engines
 
-A lazy table records steps instead of running them. `explain()` shows
-the plan with each step’s schema, and `collect()` runs it locally or as
-SQL.
+A lazy table records steps instead of running them.
+[`explain()`](https://pedrobtz.github.io/zutable/reference/explain.md)
+shows the plan with each step’s schema, and `collect()` runs it locally
+or as SQL.
 
 ``` r
 

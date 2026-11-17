@@ -68,25 +68,25 @@ the type of its context when it is exactly representable there, so
 
 
 <p>Every function allowed in a clause, with the argument and result types it takes. T is one type throughout a signature.</p><dl><dt><code>+</code></dt>
-<dd><p>Arithmetic. Types: (int32, int32) -&gt; int32; (int32, float64) -&gt; float64; (float64, int32) -&gt; float64; (float64, float64) -&gt; float64; (date, int32) -&gt; date; (int32, date) -&gt; date.</p></dd>
+<dd><p>Arithmetic. Types: (int32, int32) -&gt; int32; (float64, float64) -&gt; float64; (int32, float64) -&gt; float64; (float64, int32) -&gt; float64; (date, int32) -&gt; date; (int32, date) -&gt; date.</p></dd>
 
 <dt><code>-</code></dt>
-<dd><p>Arithmetic. Types: (int32, int32) -&gt; int32; (int32, float64) -&gt; float64; (float64, int32) -&gt; float64; (float64, float64) -&gt; float64; (date, int32) -&gt; date; (date, date) -&gt; int32; (int32) -&gt; int32; (float64) -&gt; float64.</p></dd>
+<dd><p>Arithmetic. Types: (int32, int32) -&gt; int32; (float64, float64) -&gt; float64; (int32, float64) -&gt; float64; (float64, int32) -&gt; float64; (date, int32) -&gt; date; (date, date) -&gt; int32; (int32) -&gt; int32; (float64) -&gt; float64.</p></dd>
 
 <dt><code>*</code></dt>
-<dd><p>Arithmetic. Types: (int32, int32) -&gt; int32; (int32, float64) -&gt; float64; (float64, int32) -&gt; float64; (float64, float64) -&gt; float64.</p></dd>
+<dd><p>Arithmetic. Types: (int32, int32) -&gt; int32; (float64, float64) -&gt; float64; (int32, float64) -&gt; float64; (float64, int32) -&gt; float64.</p></dd>
 
 <dt><code>/</code></dt>
-<dd><p>Arithmetic; always float64. Types: (int32, int32) -&gt; float64; (int32, float64) -&gt; float64; (float64, int32) -&gt; float64; (float64, float64) -&gt; float64.</p></dd>
+<dd><p>Arithmetic; always float64. Types: (int32, int32) -&gt; float64; (float64, float64) -&gt; float64; (int32, float64) -&gt; float64; (float64, int32) -&gt; float64.</p></dd>
 
 <dt><code>%/%</code></dt>
-<dd><p>Floor division; a zero int32 divisor gives NA. Types: (int32, int32) -&gt; int32; (int32, float64) -&gt; float64; (float64, int32) -&gt; float64; (float64, float64) -&gt; float64.</p></dd>
+<dd><p>Floor division; a zero int32 divisor gives NA. Types: (int32, int32) -&gt; int32; (float64, float64) -&gt; float64; (int32, float64) -&gt; float64; (float64, int32) -&gt; float64.</p></dd>
 
 <dt><code>%%</code></dt>
-<dd><p>Modulo with the divisor's sign. Types: (int32, int32) -&gt; int32; (int32, float64) -&gt; float64; (float64, int32) -&gt; float64; (float64, float64) -&gt; float64.</p></dd>
+<dd><p>Modulo with the divisor's sign. Types: (int32, int32) -&gt; int32; (float64, float64) -&gt; float64; (int32, float64) -&gt; float64; (float64, int32) -&gt; float64.</p></dd>
 
 <dt><code>^</code></dt>
-<dd><p>Power, as R's ^; always float64. Types: (int32, int32) -&gt; float64; (int32, float64) -&gt; float64; (float64, int32) -&gt; float64; (float64, float64) -&gt; float64.</p></dd>
+<dd><p>Power, as R's ^; always float64. Types: (int32, int32) -&gt; float64; (float64, float64) -&gt; float64; (int32, float64) -&gt; float64; (float64, int32) -&gt; float64.</p></dd>
 
 <dt><code>abs</code></dt>
 <dd><p>Types: (int32) -&gt; int32; (float64) -&gt; float64.</p></dd>
@@ -110,22 +110,22 @@ the type of its context when it is exactly representable there, so
 <dd><p>Types: (int32) -&gt; int32; (float64) -&gt; float64.</p></dd>
 
 <dt><code>==</code></dt>
-<dd><p>Comparison. Types: (int32, float64) -&gt; bool; (float64, int32) -&gt; bool; (T, T) -&gt; bool; (timestamp, timestamp) -&gt; bool.</p></dd>
+<dd><p>Comparison. Types: (T, T) -&gt; bool; (int32, float64) -&gt; bool; (float64, int32) -&gt; bool; (timestamp, timestamp) -&gt; bool.</p></dd>
 
 <dt><code>!=</code></dt>
-<dd><p>Comparison. Types: (int32, float64) -&gt; bool; (float64, int32) -&gt; bool; (T, T) -&gt; bool; (timestamp, timestamp) -&gt; bool.</p></dd>
+<dd><p>Comparison. Types: (T, T) -&gt; bool; (int32, float64) -&gt; bool; (float64, int32) -&gt; bool; (timestamp, timestamp) -&gt; bool.</p></dd>
 
 <dt><code>&lt;</code></dt>
-<dd><p>Comparison. Types: (int32, float64) -&gt; bool; (float64, int32) -&gt; bool; (T, T) -&gt; bool; (timestamp, timestamp) -&gt; bool.</p></dd>
+<dd><p>Comparison. Types: (T, T) -&gt; bool; (int32, float64) -&gt; bool; (float64, int32) -&gt; bool; (timestamp, timestamp) -&gt; bool.</p></dd>
 
 <dt><code>&lt;=</code></dt>
-<dd><p>Comparison. Types: (int32, float64) -&gt; bool; (float64, int32) -&gt; bool; (T, T) -&gt; bool; (timestamp, timestamp) -&gt; bool.</p></dd>
+<dd><p>Comparison. Types: (T, T) -&gt; bool; (int32, float64) -&gt; bool; (float64, int32) -&gt; bool; (timestamp, timestamp) -&gt; bool.</p></dd>
 
 <dt><code>&gt;</code></dt>
-<dd><p>Comparison. Types: (int32, float64) -&gt; bool; (float64, int32) -&gt; bool; (T, T) -&gt; bool; (timestamp, timestamp) -&gt; bool.</p></dd>
+<dd><p>Comparison. Types: (T, T) -&gt; bool; (int32, float64) -&gt; bool; (float64, int32) -&gt; bool; (timestamp, timestamp) -&gt; bool.</p></dd>
 
 <dt><code>&gt;=</code></dt>
-<dd><p>Comparison. Types: (int32, float64) -&gt; bool; (float64, int32) -&gt; bool; (T, T) -&gt; bool; (timestamp, timestamp) -&gt; bool.</p></dd>
+<dd><p>Comparison. Types: (T, T) -&gt; bool; (int32, float64) -&gt; bool; (float64, int32) -&gt; bool; (timestamp, timestamp) -&gt; bool.</p></dd>
 
 <dt><code>between</code></dt>
 <dd><p>Lo &lt;= x &lt;= hi. Types: (T, T, T) -&gt; bool; (int32, float64, float64) -&gt; bool; (float64, int32, int32) -&gt; bool.</p></dd>

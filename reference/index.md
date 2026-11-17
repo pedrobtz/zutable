@@ -5,6 +5,8 @@
 - [`conform()`](https://pedrobtz.github.io/zutable/reference/conform.md)
   [`metadata()`](https://pedrobtz.github.io/zutable/reference/conform.md)
   : Check a table against a schema
+- [`explain()`](https://pedrobtz.github.io/zutable/reference/explain.md)
+  : Explain how a table is computed
 - [`na()`](https://pedrobtz.github.io/zutable/reference/na.md) : A typed
   missing value
 - [`register_extension_type()`](https://pedrobtz.github.io/zutable/reference/register_extension_type.md)
@@ -18,11 +20,12 @@
   [`cast`](https://pedrobtz.github.io/zutable/reference/vocabulary.md)
   [`case`](https://pedrobtz.github.io/zutable/reference/vocabulary.md) :
   The expression vocabulary
-- [`` `[`( ``*`<zutable>`*`)`](https://pedrobtz.github.io/zutable/reference/zutable-indexing.md)
-  [`` `$<-`( ``*`<zutable>`*`)`](https://pedrobtz.github.io/zutable/reference/zutable-indexing.md)
+- [`` `[`( ``*`<zutable>`*`)`](https://pedrobtz.github.io/zutable/reference/zutable-bracket.md)
+  : Query a zutable with SQL's clauses
+- [`` `$<-`( ``*`<zutable>`*`)`](https://pedrobtz.github.io/zutable/reference/zutable-indexing.md)
   [`` `[[<-`( ``*`<zutable>`*`)`](https://pedrobtz.github.io/zutable/reference/zutable-indexing.md)
   [`` `[<-`( ``*`<zutable>`*`)`](https://pedrobtz.github.io/zutable/reference/zutable-indexing.md)
-  : Index a zutable
+  : Replace values in a zutable
 - [`zutable()`](https://pedrobtz.github.io/zutable/reference/zutable.md)
   [`as_zutable()`](https://pedrobtz.github.io/zutable/reference/zutable.md)
   [`is_zutable()`](https://pedrobtz.github.io/zutable/reference/zutable.md)

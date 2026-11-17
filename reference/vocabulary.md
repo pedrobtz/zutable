@@ -28,45 +28,45 @@ it takes. T is one type throughout a signature.
 
 - `+`:
 
-  Arithmetic. Types: (int32, int32) -\> int32; (int32, float64) -\>
-  float64; (float64, int32) -\> float64; (float64, float64) -\> float64;
+  Arithmetic. Types: (int32, int32) -\> int32; (float64, float64) -\>
+  float64; (int32, float64) -\> float64; (float64, int32) -\> float64;
   (date, int32) -\> date; (int32, date) -\> date.
 
 - `-`:
 
-  Arithmetic. Types: (int32, int32) -\> int32; (int32, float64) -\>
-  float64; (float64, int32) -\> float64; (float64, float64) -\> float64;
+  Arithmetic. Types: (int32, int32) -\> int32; (float64, float64) -\>
+  float64; (int32, float64) -\> float64; (float64, int32) -\> float64;
   (date, int32) -\> date; (date, date) -\> int32; (int32) -\> int32;
   (float64) -\> float64.
 
 - `*`:
 
-  Arithmetic. Types: (int32, int32) -\> int32; (int32, float64) -\>
-  float64; (float64, int32) -\> float64; (float64, float64) -\> float64.
+  Arithmetic. Types: (int32, int32) -\> int32; (float64, float64) -\>
+  float64; (int32, float64) -\> float64; (float64, int32) -\> float64.
 
 - `/`:
 
-  Arithmetic; always float64. Types: (int32, int32) -\> float64; (int32,
-  float64) -\> float64; (float64, int32) -\> float64; (float64, float64)
-  -\> float64.
+  Arithmetic; always float64. Types: (int32, int32) -\> float64;
+  (float64, float64) -\> float64; (int32, float64) -\> float64;
+  (float64, int32) -\> float64.
 
 - `%/%`:
 
   Floor division; a zero int32 divisor gives NA. Types: (int32, int32)
-  -\> int32; (int32, float64) -\> float64; (float64, int32) -\> float64;
-  (float64, float64) -\> float64.
+  -\> int32; (float64, float64) -\> float64; (int32, float64) -\>
+  float64; (float64, int32) -\> float64.
 
 - `%%`:
 
   Modulo with the divisor's sign. Types: (int32, int32) -\> int32;
-  (int32, float64) -\> float64; (float64, int32) -\> float64; (float64,
-  float64) -\> float64.
+  (float64, float64) -\> float64; (int32, float64) -\> float64;
+  (float64, int32) -\> float64.
 
 - `^`:
 
   Power, as R's ^; always float64. Types: (int32, int32) -\> float64;
-  (int32, float64) -\> float64; (float64, int32) -\> float64; (float64,
-  float64) -\> float64.
+  (float64, float64) -\> float64; (int32, float64) -\> float64;
+  (float64, int32) -\> float64.
 
 - `abs`:
 
@@ -99,33 +99,33 @@ it takes. T is one type throughout a signature.
 
 - `==`:
 
-  Comparison. Types: (int32, float64) -\> bool; (float64, int32) -\>
-  bool; (T, T) -\> bool; (timestamp, timestamp) -\> bool.
+  Comparison. Types: (T, T) -\> bool; (int32, float64) -\> bool;
+  (float64, int32) -\> bool; (timestamp, timestamp) -\> bool.
 
 - `!=`:
 
-  Comparison. Types: (int32, float64) -\> bool; (float64, int32) -\>
-  bool; (T, T) -\> bool; (timestamp, timestamp) -\> bool.
+  Comparison. Types: (T, T) -\> bool; (int32, float64) -\> bool;
+  (float64, int32) -\> bool; (timestamp, timestamp) -\> bool.
 
 - `<`:
 
-  Comparison. Types: (int32, float64) -\> bool; (float64, int32) -\>
-  bool; (T, T) -\> bool; (timestamp, timestamp) -\> bool.
+  Comparison. Types: (T, T) -\> bool; (int32, float64) -\> bool;
+  (float64, int32) -\> bool; (timestamp, timestamp) -\> bool.
 
 - `<=`:
 
-  Comparison. Types: (int32, float64) -\> bool; (float64, int32) -\>
-  bool; (T, T) -\> bool; (timestamp, timestamp) -\> bool.
+  Comparison. Types: (T, T) -\> bool; (int32, float64) -\> bool;
+  (float64, int32) -\> bool; (timestamp, timestamp) -\> bool.
 
 - `>`:
 
-  Comparison. Types: (int32, float64) -\> bool; (float64, int32) -\>
-  bool; (T, T) -\> bool; (timestamp, timestamp) -\> bool.
+  Comparison. Types: (T, T) -\> bool; (int32, float64) -\> bool;
+  (float64, int32) -\> bool; (timestamp, timestamp) -\> bool.
 
 - `>=`:
 
-  Comparison. Types: (int32, float64) -\> bool; (float64, int32) -\>
-  bool; (T, T) -\> bool; (timestamp, timestamp) -\> bool.
+  Comparison. Types: (T, T) -\> bool; (int32, float64) -\> bool;
+  (float64, int32) -\> bool; (timestamp, timestamp) -\> bool.
 
 - `between`:
 
