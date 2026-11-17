@@ -121,6 +121,25 @@ int main(void) {
       }
     }
   }
+  /* Byte strings compare by length, then bytes: a prefix is not equal, a
+     missing element (-1) is not the empty one (0). Called directly, since
+     through the table equality is reached only on equal hashes. */
+  {
+    static const uint8_t abc[] = {'a', 'b', 'c'};
+    static const uint8_t abd[] = {'a', 'b', 'd'};
+    zt_bytes b[] = {{abc, 2}, {abc, 3}, {NULL, -1}, {abc, 0}, {abd, 3},
+                    {abc, 3}, {NULL, -1}, {abd, 0}};
+    zt_column col = {ZT_KIND_BYTES, b};
+    zt_key k = {&col, 1};
+    CHECK(!zt_key_eq(&k, 0, 1));
+    CHECK(!zt_key_eq(&k, 1, 0));
+    CHECK(!zt_key_eq(&k, 2, 3));
+    CHECK(!zt_key_eq(&k, 3, 2));
+    CHECK(!zt_key_eq(&k, 1, 4));
+    CHECK(zt_key_eq(&k, 1, 5));
+    CHECK(zt_key_eq(&k, 2, 6));
+    CHECK(zt_key_eq(&k, 3, 7));
+  }
   /* -0 equals 0, NaNs fold, R's NA stays apart. */
   {
     uint64_t na = UINT64_C(0x7ff00000000007a2);
@@ -155,6 +174,13 @@ int main(void) {
     CHECK(e >= 45 && e <= 60);
     for (int i = 0; i < 500; i++) h[i] = zt_mix64((uint64_t) i);
     CHECK(zt_estimate_distinct(h, 500, scratch) == 500);
+    /* Chao1 by hand: n = 2048 is sampled at every second row; the sample
+       holds 100 singletons, 50 doubletons and one value 824 times, so
+       d = 151 and d + f1^2 / (2 f2) = 251, below n. */
+    for (int i = 0; i < 2048; i++) h[i] = 999;
+    for (int i = 0; i < 100; i++) h[2 * i] = (uint64_t) i;
+    for (int i = 0; i < 100; i++) h[2 * (100 + i)] = (uint64_t) (100 + i / 2);
+    CHECK(zt_estimate_distinct(h, 2048, scratch) == 251);
     CHECK(zt_partition_bits(1e3) == 0);
     CHECK(zt_partition_bits(1e7) > 0);
   }
