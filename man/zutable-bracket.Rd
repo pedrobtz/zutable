@@ -79,7 +79,7 @@ keys. Without \code{by} it is a one-row summary. \code{having} filters groups.
 without collapsing rows, for a \code{select} that keeps \code{.all}.
 \item A name that is not a column is a variable of the caller, and enters
 as a constant; \code{..name} forces the variable when a column has the same
-name.
+name. \code{.col(name)} is the column whose name a variable holds.
 }
 
 A position that mentions no column is a value form instead: an integer

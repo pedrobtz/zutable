@@ -28,7 +28,7 @@
 #'   without collapsing rows, for a `select` that keeps `.all`.
 #' * A name that is not a column is a variable of the caller, and enters
 #'   as a constant; `..name` forces the variable when a column has the same
-#'   name.
+#'   name. `.col(name)` is the column whose name a variable holds.
 #'
 #' A position that mentions no column is a value form instead: an integer
 #' or logical vector selects rows and a character, integer or logical
@@ -119,6 +119,15 @@ zt_clause_names <- c("where", "select", "update", "by", "having", "order",
       "x[...][...]"
     ), call = call)
   }
+  # D28 (kept by D55): the first position is `where`; an update or a
+  # block there is a syntax error that shows the supported spelling.
+  if (!is.null(ex$i) && is.call(ex$i) &&
+      (identical(ex$i[[1L]], as.name(":=")) || identical(ex$i[[1L]], as.name("{")))) {
+    zutable_abort("syntax", paste(
+      "an update goes in the second position: x[, col := value] or",
+      "x[cond, { a := ...; b := ... }]"
+    ), call = call)
+  }
   where_e <- ex$where %||% ex$i
   if (!is.null(where_e) && !zt_is_clause(where_e, cols)) {
     # A value form in the first position beside clauses.
@@ -170,7 +179,7 @@ zt_is_clause <- function(e, cols) {
   nms <- all.names(e)
   zt_mentions_column(e, cols) ||
     any(startsWith(nms, "..") & nchar(nms) > 2L) ||
-    any(c(".N", ".all") %in% nms)
+    any(c(".N", ".all", ".col") %in% nms)
 }
 
 # The value forms of §5.5, as Stage 2 gave them. `aware` is FALSE inside
