@@ -21,6 +21,12 @@ trades <- zutable(
   notional = NA_real_
 )
 schema(trades)
+#> <zutable_schema> 5 fields
+#>   id int32
+#>   day date
+#>   px float64
+#>   qty int32
+#>   notional float64
 ```
 
 ## Query with SQL’s clauses
