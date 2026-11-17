@@ -13,6 +13,11 @@
   [`field()`](https://pedrobtz.github.io/zutable/reference/schema.md)
   [`not_null()`](https://pedrobtz.github.io/zutable/reference/schema.md)
   : Fields and schemas
+- [`vocabulary`](https://pedrobtz.github.io/zutable/reference/vocabulary.md)
+  [`r`](https://pedrobtz.github.io/zutable/reference/vocabulary.md)
+  [`cast`](https://pedrobtz.github.io/zutable/reference/vocabulary.md)
+  [`case`](https://pedrobtz.github.io/zutable/reference/vocabulary.md) :
+  The expression vocabulary
 - [`` `[`( ``*`<zutable>`*`)`](https://pedrobtz.github.io/zutable/reference/zutable-indexing.md)
   [`` `$<-`( ``*`<zutable>`*`)`](https://pedrobtz.github.io/zutable/reference/zutable-indexing.md)
   [`` `[[<-`( ``*`<zutable>`*`)`](https://pedrobtz.github.io/zutable/reference/zutable-indexing.md)

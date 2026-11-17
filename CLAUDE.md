@@ -63,10 +63,12 @@ Only the shared commands so far.
 
 To be written as stages land; see `.agents/design.md`. The scaffold set
 up C through `use_c()`:
-[src/zutable.c](https://pedrobtz.github.io/zutable/src/zutable.c) is an
-empty unit and `R/zutable-package.R` registers the DLL. The kernel’s
-header goes under `inst/include/` and `src/` stays a thin R translation
-over it (design-kernel §4).
+[src/zutable.c](https://pedrobtz.github.io/zutable/src/zutable.c)
+registers the routines and
+[src/numbers.c](https://pedrobtz.github.io/zutable/src/numbers.c) wraps
+zufast’s number parsing and formatting (`LinkingTo: zufast`). The
+kernel’s header goes under `inst/include/` and `src/` stays a thin R
+translation over it (design-kernel §4).
 
 ## Invariants that are easy to break
 
@@ -102,12 +104,18 @@ yet.
 ## Continuous integration
 
 Calls the shared r-actions workflows `r-cmd-check.yml` (profile `auto`,
-plus a Windows R-devel row in the full profile, weekly on Mondays 02:41
-UTC), `coverage.yml` (badge on `gh-pages`) and `assurance.yml`
-(`ungated-jobs: fail`), plus r-lib’s pkgdown workflow. No
-package-specific workflows yet; the kernel stages add `check-headers`, a
-consumer fixture and a fuzz target. Stages marked `full` in the roadmap:
-3, 6, 10, 11, 12.
+plus in the full profile a Windows R-devel row, `nosuggests` and `nold`;
+weekly on Mondays 02:41 UTC), `native-checks.yaml` (sanitizers with
+ASan, valgrind, lto, rchk, analyzers, cran-special), `gctorture.yaml`
+(wide step on pull requests, step 20 daily and on dispatch),
+`alloc-failure.yaml` (weekly, through `tools/alloc-exercise.R`, which
+must reach every native routine), `coverage.yml` (badge on `gh-pages`)
+and `assurance.yml` (`ungated-jobs: fail`), plus r-lib’s pkgdown
+workflow. Dispatch gctorture at step 20 on the branch
+(`gh workflow run gctorture.yaml --ref <branch>`) before merging a
+change to `PROTECT`s. The kernel stages add `check-headers`, a consumer
+fixture and a fuzz target. Stages marked `full` in the roadmap: 3, 6,
+10, 11, 12.
 
 Tests run shuffled everywhere: `tests/testthat.R` and
 `tools/ci-run-tests.R` print their seed, and `ZUTABLE_TEST_SEED` replays

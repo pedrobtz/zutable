@@ -50,6 +50,7 @@
 <li>
 <code><a href="../reference/conform.html">conform()</a></code> checks a table against a schema and lists every mismatch; <code><a href="../reference/conform.html">metadata()</a></code> returns a table’s key-value pairs.</li>
 <li>Base R’s value forms (<code>x[i, ]</code>, <code>x[, j]</code>, <code>x$col</code>) work, so <code><a href="https://rdrr.io/r/utils/head.html" class="external-link">head()</a></code>, <code><a href="https://rdrr.io/r/base/subset.html" class="external-link">subset()</a></code>, <code><a href="https://rdrr.io/r/base/split.html" class="external-link">split()</a></code> and <code><a href="https://rdrr.io/r/base/unique.html" class="external-link">unique()</a></code> return zutables. No replacement changes a table’s schema: a value must fit its column’s type, and renaming or removing a column is an error.</li>
+<li>Expressions are written in a closed, typed vocabulary of SQL-named functions with R synonyms (<code><a href="../reference/vocabulary.html">?vocabulary</a></code>): arithmetic, comparison, logic, strings, patterns, dates, <code><a href="../reference/vocabulary.html">cast()</a></code>, <code><a href="../reference/vocabulary.html">case()</a></code>, aggregates, and <code><a href="../reference/vocabulary.html">r()</a></code> to run arbitrary R. Every expression is typed before any data is read, and every function gives the same result locally and in DuckDB.</li>
 </ul></div>
   </main></div>
 

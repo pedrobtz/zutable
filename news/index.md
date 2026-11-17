@@ -35,3 +35,13 @@
   [`unique()`](https://rdrr.io/r/base/unique.html) return zutables. No
   replacement changes a table’s schema: a value must fit its column’s
   type, and renaming or removing a column is an error.
+- Expressions are written in a closed, typed vocabulary of SQL-named
+  functions with R synonyms
+  ([`?vocabulary`](https://pedrobtz.github.io/zutable/reference/vocabulary.md)):
+  arithmetic, comparison, logic, strings, patterns, dates,
+  [`cast()`](https://pedrobtz.github.io/zutable/reference/vocabulary.md),
+  [`case()`](https://pedrobtz.github.io/zutable/reference/vocabulary.md),
+  aggregates, and
+  [`r()`](https://pedrobtz.github.io/zutable/reference/vocabulary.md) to
+  run arbitrary R. Every expression is typed before any data is read,
+  and every function gives the same result locally and in DuckDB.
