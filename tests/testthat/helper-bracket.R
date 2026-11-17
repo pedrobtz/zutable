@@ -32,3 +32,24 @@ sorted_frame <- function(x) {
   rownames(d) <- NULL
   d
 }
+
+# Two tables to join, with duplicated and missing keys on both sides.
+join_frames <- function(nx = 40L, ny = 30L) {
+  list(
+    x = data.frame(xi = seq_len(nx), k = sample(c(1:8, NA), nx, replace = TRUE),
+                   s = sample(c("a", "b", NA), nx, replace = TRUE),
+                   stringsAsFactors = FALSE),
+    y = data.frame(yi = seq_len(ny), k2 = sample(c(3:12, NA), ny, replace = TRUE),
+                   s2 = sample(c("a", "b", NA), ny, replace = TRUE),
+                   stringsAsFactors = FALSE)
+  )
+}
+
+# merge() as index pairs (xi, yi), sorted.
+merge_pairs <- function(x, y, by.x, by.y, all.x, all.y, na_equal) {
+  m <- merge(x, y, by.x = by.x, by.y = by.y, all.x = all.x, all.y = all.y,
+             sort = FALSE, incomparables = if (na_equal) NULL else NA)
+  p <- data.frame(xi = m$xi, yi = m$yi)
+  p[order(p$xi, p$yi, method = "radix", na.last = TRUE), , drop = FALSE] |>
+    (function(d) { rownames(d) <- NULL; d })()
+}

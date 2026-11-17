@@ -1075,6 +1075,16 @@ overturn it.
   so that the autoprint of `x[, a := 1]` at top level prints nothing; an
   explicit `print()` still prints. 2026-11-17, Stage 6.
 
+- **D54 (C).** A right join is the left join of `y` with `x`: rows in
+  `y`'s order, and `multiple` per row of `y`. A full join appends `y`'s
+  unmatched rows, in `y`'s order, to the left join. A key column keeps
+  `x`'s name and, for a row only `y` has, takes `y`'s value; it is
+  nullable when either side's key is. `semi` and `anti` return `x`'s
+  columns, and `multiple` does not apply to them. Keys are matched by
+  value, so NaN matches NaN and 0 matches -0, and with `na_equal = FALSE`
+  a row with any missing key matches nothing. `on` also takes a character
+  vector of shared names. 2026-11-17, Stage 7.
+
 ## 16. Order of work
 
 The order of work, pieces 1 to 8, became the stages of
