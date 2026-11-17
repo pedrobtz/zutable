@@ -94,7 +94,7 @@ zt_tr <- function(expr, ctx) {
 # the forms that are never constant (count(), .N, r()).
 zt_needs_data <- function(expr, ctx) {
   zt_mentions_column(expr, ctx$columns) ||
-    any(c(".N", "count", "r", "cast", "case", "over") %in%
+    any(c(".N", "count", "r", "cast", "case", "over", ".col") %in%
           all.names(expr, functions = TRUE))
 }
 
@@ -393,6 +393,24 @@ zt_special_forms <- list(
     zt_type_cast(x, to, ctx)
   },
   case = function(expr, ctx) zt_type_case(expr, ctx),
+  # .col(name): the column whose name a caller's string holds, resolved at
+  # plan time, so the type is still known before data is read (D55).
+  .col = function(expr, ctx) {
+    args <- as.list(expr)[-1L]
+    if (length(args) != 1L) {
+      zutable_abort("syntax", ".col() takes one column name", call = ctx$call)
+    }
+    name <- tryCatch(eval(args[[1L]], ctx$env), error = function(e) NULL)
+    if (!is.character(name) || length(name) != 1L || is.na(name)) {
+      zutable_abort("syntax", ".col() takes one string, the name of a column",
+                    call = ctx$call)
+    }
+    if (!name %in% ctx$columns) {
+      zutable_abort("schema", sprintf("column `%s` does not exist", name),
+                    call = ctx$call)
+    }
+    zt_col_node(ctx$schema$fields[[name]])
+  },
   over = function(expr, ctx) {
     args <- as.list(expr)[-1L]
     nms <- names(args) %||% rep("", length(args))

@@ -1085,6 +1085,16 @@ overturn it.
   a row with any missing key matches nothing. `on` also takes a character
   vector of shared names. 2026-11-17, Stage 7.
 
+- **D55 (C).** The ergonomics tests (§19, D15), on the maintainer's
+  instruction to decide open questions by an expert recommendation: `.()`
+  and `.all` are kept; blocks with locals make `let()` and `expr()`
+  unnecessary; there are no pipe verbs in 0.1.0, chained brackets being
+  the steps; D28 is kept, and an update or block in the first position is
+  a syntax error that shows the second-position spelling; a column named
+  by a variable is `.col(name)`, a reserved form resolved at plan time to
+  the column, so types stay static (it does not reopen D5: bare names
+  remain the way to write a column). 2026-11-17, Stage 8.
+
 ## 16. Order of work
 
 The order of work, pieces 1 to 8, became the stages of
@@ -1226,9 +1236,11 @@ same day. Numbers are `Rdatatable/data.table` issues.
 - **Q7.** Is 0.1.0 a CRAN submission or a GitHub release? The board's
   `CRAN intent` records the answer; this RFC assumes `Planned`.
 
-**Ergonomics tests (D15).** On the first working implementation, the
-maintainer writes a fixed set of real computations in each candidate
-spelling and chooses:
+**Ergonomics tests (D15).** Done on 2026-11-17, Stage 8: the
+computations and the comparison are in
+[ergonomics.md](ergonomics.md), and the choices are D55. On the first
+working implementation, a fixed set of real computations is written in
+each candidate spelling, choosing:
 
 - `.()` against another spelling inside `select`, and `.all` for the
   star;

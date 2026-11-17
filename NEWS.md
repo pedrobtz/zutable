@@ -45,3 +45,4 @@
   right, full, semi and anti), with `multiple` for fan-out, `na_equal`
   for missing keys and `suffix` for clashing names; `rbind()` stacks
   tables of identical schemas.
+* `.col(name)` refers to a column whose name is held in a variable.

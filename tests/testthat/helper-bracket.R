@@ -53,3 +53,14 @@ merge_pairs <- function(x, y, by.x, by.y, all.x, all.y, na_equal) {
   p[order(p$xi, p$yi, method = "radix", na.last = TRUE), , drop = FALSE] |>
     (function(d) { rownames(d) <- NULL; d })()
 }
+
+# The trades of the ergonomics computations.
+ergo_trades <- function() {
+  data.frame(
+    id = c(1L, 2L, 1L, 3L, 2L, 1L, 3L, 2L),
+    day = as.Date("2026-01-01") + c(0L, 1L, 1L, 2L, 3L, 30L, 31L, 40L),
+    px = c(10, 20, 11, 5, 21, 12, 6, 19),
+    qty = c(100L, 10L, 50L, 300L, 20L, 70L, 200L, 40L),
+    stringsAsFactors = FALSE
+  )
+}
