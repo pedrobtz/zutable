@@ -75,3 +75,4 @@
   keys and `suffix` for clashing names;
   [`rbind()`](https://rdrr.io/r/base/cbind.html) stacks tables of
   identical schemas.
+- `.col(name)` refers to a column whose name is held in a variable.

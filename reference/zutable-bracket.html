@@ -154,7 +154,7 @@ keys. Without <code>by</code> it is a one-row summary. <code>having</code> filte
 without collapsing rows, for a <code>select</code> that keeps <code>.all</code>.</p></li>
 <li><p>A name that is not a column is a variable of the caller, and enters
 as a constant; <code>..name</code> forces the variable when a column has the same
-name.</p></li>
+name. <code>.col(name)</code> is the column whose name a variable holds.</p></li>
 </ul><p>A position that mentions no column is a value form instead: an integer
 or logical vector selects rows and a character, integer or logical
 vector selects columns, as for a data frame.</p>

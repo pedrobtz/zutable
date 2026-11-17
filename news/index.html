@@ -60,6 +60,8 @@
 <code>x[, col := value]</code> and blocks <code>x[, { a := ...; b &lt;- ...; c := ... }]</code> update existing columns in place, keeping their types, with <code>where</code> and <code>by</code>; a block is typed as a whole and committed at once. <code><a href="../reference/zutable-update.html">copy()</a></code> gives an independent table; <code><a href="../reference/zutable-update.html">freeze()</a></code> marks a table so that nothing writes to it again.</li>
 <li>
 <code><a href="../reference/join.html">join()</a></code> matches two tables on keys of the same type (inner, left, right, full, semi and anti), with <code>multiple</code> for fan-out, <code>na_equal</code> for missing keys and <code>suffix</code> for clashing names; <code><a href="https://rdrr.io/r/base/cbind.html" class="external-link">rbind()</a></code> stacks tables of identical schemas.</li>
+<li>
+<code>.col(name)</code> refers to a column whose name is held in a variable.</li>
 </ul></div>
   </main></div>
 

@@ -106,7 +106,7 @@ A zutable.
 
 - A name that is not a column is a variable of the caller, and enters as
   a constant; `..name` forces the variable when a column has the same
-  name.
+  name. `.col(name)` is the column whose name a variable holds.
 
 A position that mentions no column is a value form instead: an integer
 or logical vector selects rows and a character, integer or logical
