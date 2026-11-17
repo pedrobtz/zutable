@@ -6,9 +6,11 @@
 # matched, because its top frame is not duckdb.so.
 #
 # 2026-11-17: duckdb 2.0.0, Expression::Deserialize reads an uninitialised
-# value while WindowSelfJoinOptimizer deep-copies a plan, reached by the
-# over() comparisons (window queries) in test-over.R and
-# test-aggregate-duckdb.R.
+# local while WindowSelfJoinOptimizer deep-copies a plan. It takes a window
+# query over a data frame registered with duckdb_register(), as the over()
+# comparison in test-aggregate-duckdb.R does; the result is correct.
+# Reported as https://github.com/duckdb/duckdb-r/issues/2998; drop this
+# entry once a fixed duckdb is on CRAN.
 {
    duckdb-cond-in-duckdb
    Memcheck:Cond
