@@ -36,6 +36,11 @@ jobs:
       profile: auto
       # duckdb from r-universe's R-devel binaries (tools/ci-binaries.R).
       pre-install: Rscript tools/ci-binaries.R
+      # 90, not the default 60 (2026-11-17): r-universe serves duckdb only as
+      # source under bin/linux, so a cold package cache (a new container
+      # image) builds it under UBSan, which took gcc past 60 minutes on #35.
+      # A warm cache restores it in seconds.
+      timeout-minutes: 90
 
   valgrind:
     if: >-

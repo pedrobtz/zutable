@@ -6,6 +6,9 @@
 # previous R minor, which R-devel loads in practice; if it ever does not,
 # requireNamespace() fails and the DuckDB oracle tests skip on that leg
 # (they run on every R-release leg). Never build duckdb from source here.
+# 2026-11-17: r-universe serves only the source tarball under bin/linux for
+# duckdb, so this finds nothing and the dependency install builds it; the
+# sanitizers caller allows 90 minutes for that cold build.
 if (R.version$status != "Under development (unstable)" ||
     Sys.info()[["sysname"]] != "Linux") quit(save = "no")
 os <- readLines("/etc/os-release")
