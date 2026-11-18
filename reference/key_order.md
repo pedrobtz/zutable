@@ -10,13 +10,14 @@ size and shape favour.
 ## Usage
 
 ``` r
-key_order(..., decreasing = FALSE, na.last = TRUE)
+key_order(..., decreasing = FALSE, na.last = TRUE, collate = FALSE)
 
 key_rank(
   ...,
   ties = c("min", "first", "dense"),
   decreasing = FALSE,
-  na.last = TRUE
+  na.last = TRUE,
+  collate = FALSE
 )
 ```
 
@@ -36,6 +37,14 @@ key_rank(
 
   `TRUE`, `FALSE` or `NA`; for `key_rank()` also `"keep"`, which ranks a
   row with a missing key `NA`.
+
+- collate:
+
+  `FALSE` sorts strings by bytes; `TRUE` in the order of the current
+  locale, as
+  [`stringi::stri_order()`](https://rdrr.io/pkg/stringi/man/stri_order.html)
+  does. `TRUE` needs the `stringi` package, and is a
+  `zutable_collate_error` without it.
 
 - ties:
 
@@ -58,7 +67,9 @@ The order is base R's: numbers ascending, `FALSE` before `TRUE`, factors
 by level, `-0` equal to `0`. `NA` and `NaN` are equal, and go last with
 `na.last = TRUE`, first with `FALSE`, and with `NA` their rows are left
 out. `decreasing` reverses a key's order but not the stability: equal
-keys keep row order. Strings sort by the bytes of their UTF-8 text.
+keys keep row order. Strings sort by the bytes of their UTF-8 text, or
+with `collate = TRUE` in the locale's order, through `stringi`'s
+collation keys, which are computed once per distinct string.
 
 ## Examples
 

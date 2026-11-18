@@ -64,7 +64,7 @@
 </div>
 <div class="section level2">
 <h2 id="architecture">Architecture<a class="anchor" aria-label="anchor" href="#architecture"></a></h2>
-<p>To be written as stages land; see <code>.agents/design.md</code>. The scaffold set up C through <code>use_c()</code>: <a href="src/zutable.c">src/zutable.c</a> registers the routines and <a href="src/numbers.c">src/numbers.c</a> wraps zufast’s number parsing and formatting (<code>LinkingTo: zufast</code>). The kernel’s header goes under <code>inst/include/</code> and <code>src/</code> stays a thin R translation over it (design-kernel §4).</p>
+<p>To be written as stages land; see <code>.agents/design.md</code>. The scaffold set up C through <code>use_c()</code>: <a href="src/zutable.c">src/zutable.c</a> registers the routines and <a href="src/numbers.c">src/numbers.c</a> wraps zufast’s number parsing and formatting (<code>LinkingTo: zufast</code>). <a href="src/altrep.c">src/altrep.c</a> is the sorted-values ALTREP class (D22, D46): its payload is copied before any write when shared, and every write drops its marks. The kernel’s header goes under <code>inst/include/</code> and <code>src/</code> stays a thin R translation over it (design-kernel §4).</p>
 </div>
 <div class="section level2">
 <h2 id="invariants-that-are-easy-to-break">Invariants that are easy to break<a class="anchor" aria-label="anchor" href="#invariants-that-are-easy-to-break"></a></h2>

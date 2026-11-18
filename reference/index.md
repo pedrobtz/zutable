@@ -14,6 +14,8 @@
 - [`key_order()`](https://pedrobtz.github.io/zutable/reference/key_order.md)
   [`key_rank()`](https://pedrobtz.github.io/zutable/reference/key_order.md)
   : Order and rank rows by keys
+- [`key_sort()`](https://pedrobtz.github.io/zutable/reference/key_sort.md)
+  : Sort values
 - [`na()`](https://pedrobtz.github.io/zutable/reference/na.md) : A typed
   missing value
 - [`rbind(`*`<zutable>`*`)`](https://pedrobtz.github.io/zutable/reference/rbind.zutable.md)
