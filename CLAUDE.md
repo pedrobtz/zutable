@@ -121,9 +121,10 @@ routine), `coverage.yml` (badge on `gh-pages`) and `assurance.yml`
 (`ungated-jobs: fail`), plus r-lib's pkgdown workflow. Dispatch gctorture
 at step 20 on the branch (`gh workflow run gctorture.yaml --ref <branch>`)
 before merging a change to `PROTECT`s. Step 20 sets `ZUTABLE_GCTORTURE=true`,
-under which the pure-R typing sweep, the many-size sort sweeps and the
-million-row tests do less (`tests/testthat/helper-0-torture.R`): the whole
-suite outgrew the 240-minute job by Stage 11. The kernel stages add
+under which the pure-R typing sweep, the many-size sort sweeps, the
+kernel join differential and the million-row tests do less
+(`tests/testthat/helper-0-torture.R`): the whole suite outgrew the
+240-minute job by Stage 11, and again by Stage 13. The kernel stages add
 `check-headers`, a consumer fixture and a fuzz target. Stages marked `full`
 in the roadmap: 3, 6, 10, 11, 12.
 

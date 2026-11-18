@@ -77,6 +77,11 @@ test_that("joins agree, kernel and reference, for every how, multiple and na_equ
       quote(.(day == day2)), quote(.(e == e2)), quote(.(k == k2, s == s2)),
       quote(.(x == x2, e == e2, b == b2))
     )
+    # Step 20 keeps one key of each native kind and the three-column one,
+    # which reach every C path; the rest repeat them (a Date is a double, a
+    # factor a string). In full this test took 41 of the 240 minutes there
+    # (2026-11-18).
+    if (under_torture()) ons <- ons[c(1L, 2L, 3L, 8L)]
     for (on in ons) {
       for (how in c("inner", "left", "right", "full", "semi", "anti")) {
         for (multiple in c("all", "first", "last")) {
