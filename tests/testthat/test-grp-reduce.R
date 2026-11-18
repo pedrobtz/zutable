@@ -167,3 +167,19 @@ test_that("refusals", {
   expect_error(grp_reduce(1:3, g, broadcast = "scale"), class = "zutable_syntax_error")
   expect_error(grp_reduce(1:3, mean, "sum"), class = "zutable_type_error")
 })
+
+test_that("the kernel's entry point refuses what R never sends it, without a crash", {
+  r <- function(...) .Call(zutable:::zt_reduce_r, ...)
+  ok <- list(1:3, 3L, list(c(1, 2, 3)), 0L, TRUE, TRUE)
+  expect_identical(do.call(r, ok), list(c(1, 2, 3)))
+  bad <- list(
+    list(c(1, 2, 3), 3L, list(1:3), 0L, TRUE, TRUE),      # ids not integer
+    list(1:3, NA_integer_, list(1:3), 0L, TRUE, TRUE),    # group count NA
+    list(1:3, 3L, list(1:3), c(0L, 1L), TRUE, TRUE),      # two statistics, one column
+    list(c(1L, 4L, 2L), 3L, list(1:3), 0L, TRUE, TRUE),   # id past the group count
+    list(1:3, 3L, list(1:3), 9L, TRUE, TRUE),             # unknown statistic
+    list(1:3, 3L, list(letters[1:3]), 0L, TRUE, TRUE),    # a character column
+    list(1:3, 3L, list(1:2), 0L, TRUE, TRUE)              # a column of the wrong length
+  )
+  for (b in bad) expect_error(do.call(r, b), "zt_reduce")
+})
