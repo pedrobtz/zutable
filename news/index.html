@@ -66,6 +66,10 @@
 <code><a href="../reference/zutable_info.html">zutable_info()</a></code> reports the kernel header’s version and the <code>zufast</code> headers the package was built against; the header <code>zutable.h</code> is installed for other packages to use through <code>LinkingTo</code>.</li>
 <li>
 <code><a href="../reference/grp.html">grp()</a></code> groups rows by keys of any kind (integer, double, logical, character, factor, <code>integer64</code>, raw), in first-appearance or key order; the bracket’s <code>by</code> runs on it. It is a hash table of five bytes a slot, partitioned to the cache above L3.</li>
+<li>
+<code><a href="../reference/key_order.html">key_order()</a></code> gives the stable permutation that sorts rows by one or more keys, and <code><a href="../reference/key_order.html">key_rank()</a></code> their ranks, as <code>order(method = "radix")</code> and <code><a href="https://rdrr.io/r/base/rank.html" class="external-link">rank()</a></code> do, with <code>decreasing</code> per key and <code>na.last</code>. They run the kernel’s hybrid sort: Vergesort’s run detection in front of counting sort, pdqsort, LSD radix and ska sort, chosen by size and key width. The bracket’s <code>order</code> and <code>grp(sort = TRUE)</code> run on it.</li>
+<li>
+<code>grp(sort = TRUE)</code> sorts every row instead of hashing when that is faster: below a million rows, and above when about 1% of the rows or more are distinct keys. The result is the same either way.</li>
 </ul></div>
   </main></div>
 

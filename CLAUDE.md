@@ -57,7 +57,15 @@ since 2026-11-16) and needs `zuarrow`’s release for its Arrow paths.
 
 ## Commands
 
-Only the shared commands so far.
+The shared commands, and for the kernel:
+
+``` sh
+sh tools/ci/c-tests.sh                        # C tests without R, ports included
+R CMD INSTALL --preclean . && Rscript tools/run-benchmarks 1e7
+```
+
+Benchmark only after `--preclean`: `load_all()` leaves `-O0` objects in
+`src/` that a plain `R CMD INSTALL` reuses.
 
 ## Architecture
 
@@ -118,9 +126,12 @@ routine), `coverage.yml` (badge on `gh-pages`) and `assurance.yml`
 (`ungated-jobs: fail`), plus r-lib’s pkgdown workflow. Dispatch
 gctorture at step 20 on the branch
 (`gh workflow run gctorture.yaml --ref <branch>`) before merging a
-change to `PROTECT`s. The kernel stages add `check-headers`, a consumer
-fixture and a fuzz target. Stages marked `full` in the roadmap: 3, 6,
-10, 11, 12.
+change to `PROTECT`s. Step 20 sets `ZUTABLE_GCTORTURE=true`, under which
+the pure-R typing sweep, the many-size sort sweeps and the million-row
+tests do less (`tests/testthat/helper-0-torture.R`): the whole suite
+outgrew the 240-minute job by Stage 11. The kernel stages add
+`check-headers`, a consumer fixture and a fuzz target. Stages marked
+`full` in the roadmap: 3, 6, 10, 11, 12.
 
 Tests run shuffled everywhere: `tests/testthat.R` and
 `tools/ci-run-tests.R` print their seed, and `ZUTABLE_TEST_SEED` replays
@@ -128,8 +139,13 @@ an order.
 
 ## Vendored native code
 
-Planned by design-kernel §4.3: fluxsort and crumsort (Unlicense) as
-controls, swenson/sort (MIT) for harness rungs, and ports to C of
-Vergesort (MIT), ska sort (Boost 1.0) and pdqsort (zlib) with their
-licence notices kept. Pinned versions and local patches: to fill in when
-each is vendored.
+Nothing is vendored as a file. Three sorts are ported to C from their
+C++ originals, each in its own template under `inst/include/zutable/`
+with the original’s notice and a list of what was altered, and in
+`inst/COPYRIGHTS` and `Authors@R`: pdqsort (zlib, orlp/pdqsort at
+`b1ef26a`) in `pdqsort.inc`, Vergesort (MIT, Morwenn/vergesort at
+`a1a5081`) in `vergesort.inc`, ska sort (Boost 1.0, skarupke/ska_sort at
+`2c14d4b`) in `skasort.inc`. `tools/ci/fetch-originals.sh` fetches the
+originals at those commits, checking SHA-256, for `tests/c/ports`; a
+port changes only with that test. fluxsort, crumsort and swenson/sort
+are not vendored (D41).

@@ -4,6 +4,15 @@
 
 - **Pedro Baltazar**. Author, maintainer, copyright holder.
 
+- **Orson Peters**. Contributor, copyright holder.  
+  pdqsort, ported in inst/include/zutable/pdqsort.inc
+
+- **Morwenn**. Contributor, copyright holder.  
+  Vergesort, ported in inst/include/zutable/vergesort.inc
+
+- **Malte Skarupke**. Contributor, copyright holder.  
+  ska sort, ported in inst/include/zutable/skasort.inc
+
 ## Citation
 
 Source:

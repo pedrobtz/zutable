@@ -28,3 +28,14 @@ Useful links:
 Authors:
 
 - Pedro Baltazar <pedrobtz@gmail.com> \[copyright holder\]
+
+Other contributors:
+
+- Orson Peters (pdqsort, ported in inst/include/zutable/pdqsort.inc)
+  \[contributor, copyright holder\]
+
+- Morwenn (Vergesort, ported in inst/include/zutable/vergesort.inc)
+  \[contributor, copyright holder\]
+
+- Malte Skarupke (ska sort, ported in inst/include/zutable/skasort.inc)
+  \[contributor, copyright holder\]

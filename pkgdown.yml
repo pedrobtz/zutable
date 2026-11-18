@@ -3,7 +3,7 @@ pkgdown: 2.2.1
 pkgdown_sha: ~
 articles:
   zutable: zutable.html
-last_built: 2026-11-17T16:48Z
+last_built: 2026-11-18T03:43Z
 urls:
   reference: https://pedrobtz.github.io/zutable/reference
   article: https://pedrobtz.github.io/zutable/articles

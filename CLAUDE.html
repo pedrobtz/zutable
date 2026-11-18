@@ -57,7 +57,10 @@
 </div>
 <div class="section level2">
 <h2 id="commands">Commands<a class="anchor" aria-label="anchor" href="#commands"></a></h2>
-<p>Only the shared commands so far.</p>
+<p>The shared commands, and for the kernel:</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a><span class="fu">sh</span> tools/ci/c-tests.sh                        <span class="co"># C tests without R, ports included</span></span>
+<span id="cb1-2"><a href="#cb1-2" tabindex="-1"></a><span class="ex">R</span> CMD INSTALL <span class="at">--preclean</span> . <span class="kw">&amp;&amp;</span> <span class="ex">Rscript</span> tools/run-benchmarks 1e7</span></code></pre></div>
+<p>Benchmark only after <code>--preclean</code>: <code>load_all()</code> leaves <code>-O0</code> objects in <code>src/</code> that a plain <code>R CMD INSTALL</code> reuses.</p>
 </div>
 <div class="section level2">
 <h2 id="architecture">Architecture<a class="anchor" aria-label="anchor" href="#architecture"></a></h2>
@@ -87,12 +90,12 @@
 </div>
 <div class="section level2">
 <h2 id="continuous-integration">Continuous integration<a class="anchor" aria-label="anchor" href="#continuous-integration"></a></h2>
-<p>Calls the shared r-actions workflows <code>r-cmd-check.yml</code> (profile <code>auto</code>, plus in the full profile a Windows R-devel row, <code>nosuggests</code> and <code>nold</code>; weekly on Mondays 02:41 UTC), <code>native-checks.yaml</code> (sanitizers with ASan, valgrind, lto, rchk, analyzers, cran-special; valgrind reads <code>tools/valgrind.supp</code>, which suppresses only findings whose top frame is in DuckDB, the test oracle), <code>gctorture.yaml</code> (step 2000 on pull requests, step 20 daily and on dispatch), <code>alloc-failure.yaml</code> (weekly, through <code>tools/alloc-exercise.R</code>, which must reach every native routine), <code>coverage.yml</code> (badge on <code>gh-pages</code>) and <code>assurance.yml</code> (<code>ungated-jobs: fail</code>), plus r-lib’s pkgdown workflow. Dispatch gctorture at step 20 on the branch (<code>gh workflow run gctorture.yaml --ref &lt;branch&gt;</code>) before merging a change to <code>PROTECT</code>s. The kernel stages add <code>check-headers</code>, a consumer fixture and a fuzz target. Stages marked <code>full</code> in the roadmap: 3, 6, 10, 11, 12.</p>
+<p>Calls the shared r-actions workflows <code>r-cmd-check.yml</code> (profile <code>auto</code>, plus in the full profile a Windows R-devel row, <code>nosuggests</code> and <code>nold</code>; weekly on Mondays 02:41 UTC), <code>native-checks.yaml</code> (sanitizers with ASan, valgrind, lto, rchk, analyzers, cran-special; valgrind reads <code>tools/valgrind.supp</code>, which suppresses only findings whose top frame is in DuckDB, the test oracle), <code>gctorture.yaml</code> (step 2000 on pull requests, step 20 daily and on dispatch), <code>alloc-failure.yaml</code> (weekly, through <code>tools/alloc-exercise.R</code>, which must reach every native routine), <code>coverage.yml</code> (badge on <code>gh-pages</code>) and <code>assurance.yml</code> (<code>ungated-jobs: fail</code>), plus r-lib’s pkgdown workflow. Dispatch gctorture at step 20 on the branch (<code>gh workflow run gctorture.yaml --ref &lt;branch&gt;</code>) before merging a change to <code>PROTECT</code>s. Step 20 sets <code>ZUTABLE_GCTORTURE=true</code>, under which the pure-R typing sweep, the many-size sort sweeps and the million-row tests do less (<code>tests/testthat/helper-0-torture.R</code>): the whole suite outgrew the 240-minute job by Stage 11. The kernel stages add <code>check-headers</code>, a consumer fixture and a fuzz target. Stages marked <code>full</code> in the roadmap: 3, 6, 10, 11, 12.</p>
 <p>Tests run shuffled everywhere: <code>tests/testthat.R</code> and <code>tools/ci-run-tests.R</code> print their seed, and <code>ZUTABLE_TEST_SEED</code> replays an order.</p>
 </div>
 <div class="section level2">
 <h2 id="vendored-native-code">Vendored native code<a class="anchor" aria-label="anchor" href="#vendored-native-code"></a></h2>
-<p>Planned by design-kernel §4.3: fluxsort and crumsort (Unlicense) as controls, swenson/sort (MIT) for harness rungs, and ports to C of Vergesort (MIT), ska sort (Boost 1.0) and pdqsort (zlib) with their licence notices kept. Pinned versions and local patches: to fill in when each is vendored.</p>
+<p>Nothing is vendored as a file. Three sorts are ported to C from their C++ originals, each in its own template under <code>inst/include/zutable/</code> with the original’s notice and a list of what was altered, and in <code>inst/COPYRIGHTS</code> and <code>Authors@R</code>: pdqsort (zlib, orlp/pdqsort at <code>b1ef26a</code>) in <code>pdqsort.inc</code>, Vergesort (MIT, Morwenn/vergesort at <code>a1a5081</code>) in <code>vergesort.inc</code>, ska sort (Boost 1.0, skarupke/ska_sort at <code>2c14d4b</code>) in <code>skasort.inc</code>. <code>tools/ci/fetch-originals.sh</code> fetches the originals at those commits, checking SHA-256, for <code>tests/c/ports</code>; a port changes only with that test. fluxsort, crumsort and swenson/sort are not vendored (D41).</p>
 </div>
 </div>
 
