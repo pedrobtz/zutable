@@ -563,6 +563,11 @@ What each row rests on:
   results with base are worth a lot to `zutable`'s tests and users; the
   cost of long double in a scatter loop is measured, and pairwise
   summation is the fallback if it is too high.
+  (Decided 2026-11-18, Stage 14: D49, long double, with double behind
+  `ZT_PRECISION=0`; it costs 2.3 to 2.6 times at 10³ groups, where the
+  accumulators sit in cache, and 7 to 16% from 10⁵ groups up, where memory
+  is the bound. Pairwise summation was not built: it matches base no
+  better than double does.)
 - **N.** Distinct strings are sorted, never rows (§4.1). Full
   comparison is `strcmp()` on each pair, which base radix does on the
   distinct set. The first eight bytes packed big-endian into a `uint64`
@@ -964,16 +969,24 @@ over the rows. The statistics and their result types:
 | `first`, `last` | integer | double | character | `tapply(.., head/tail)` |
 
 `count` is the group size and ignores `x`'s values; `nobs` is the count
-of non-missing values. Integer `sum` and `prod` return double always,
+of non-missing values. Character `min` and `max` compare bytes in UTF-8,
+as §6.3's order does, not the locale's collation, so their oracle is
+`sort(method = "radix")`, not `tapply(min)`. Integer `sum` and `prod` return double always,
 rather than integer with an overflow `NA` as base `sum()` does, because
 a type that depends on the values is what `zutable`'s lock forbids
 (D18). `na.rm = TRUE` is the default, as in `collapse`; with
 `na.rm = FALSE` a group with any `NA` yields `NA` for `sum`, `prod`,
 `mean`, `min` and `max`, and `first` and `last` return the value in
 place, `NA` or not. An empty group cannot occur, since groups come from
-the rows. Double accumulation follows axis M; the tests of §8 compare
-with base at the tolerance that axis's choice allows, and bit-identical
-is the target.
+the rows, but a group can have no value left once `na.rm` drops its
+missing ones: it gives `NA` for `sum`, `prod`, `mean`, `min` and `max`,
+where base gives 0, 1, `NaN` and `±Inf` (D49). Missing is `is.na()`'s, so
+`NaN` is missing for doubles. Double accumulation follows axis M: long
+double, as base accumulates, and the tests of §8 hold `sum`, `prod` and
+`mean` to base bit for bit, `mean`'s correction pass included. One case is
+not bit for bit, in base either: without `na.rm`, a group holding both
+`NA` and `NaN` gives one or the other, as base's arithmetic does (IEEE
+takes the payload from the operand order, which a compiler may commute).
 
 **Broadcast.** `broadcast = "none"` returns one value per group in
 identifier order, so `grp_reduce(x, g, "sum")` lines up with `g$keys`.
@@ -991,7 +1004,15 @@ and is never repeated. When `by` is key vectors rather than a
 `grp()` result, `grp()` runs first and the result carries
 the group object as the attribute `groups`, so a consumer that needs
 `keys` or `sizes` for its output does not group twice (D25). This is
-the call `zutable`'s `by` with several aggregates will make.
+the call `zutable`'s `by` with several aggregates makes (Stage 14): the
+executor reduces every aggregate of a step in one call, each with
+zutable's own null rule (SQL's: `NA` is dropped and `NaN` is a value, the
+greatest, design.md D47), so the kernel takes `nan_missing` per column, which
+`grp_reduce()` sets and the executor does not. `count_distinct()`, which is
+not one of `fn`, runs as `grp()` over the pairs of group and value. Fusion
+in the kernel is blocked: the rows go in blocks of 4096, and every column
+takes its turn on a block while the block's group ids are in L1; `mean`
+of doubles sweeps twice, for the correction pass.
 
 ## 7. Errors
 
@@ -1455,6 +1476,17 @@ Marked **(M)** when the maintainer decided it in conversation and
   and an equality serve both sides. Semi and anti joins return `list(x)`.
   The table is sized for every row of the build side and never grows:
   five bytes a slot, and no rehash. 2026-11-18, Stage 13.
+- **D49 (C).** Reductions (§6.5) accumulate in long double, as base R
+  does, so that `sum`, `prod` and `mean` are base's bit for bit, which
+  the executor needs to agree with its reference over base `sum()` and
+  `mean()` (D29); double is the compile-time variant `ZT_PRECISION=0`.
+  Measured on an Intel i5-8500B at 10⁷ rows, long double costs 2.3 to 2.6
+  times double at 10³ groups and 7 to 16% at 10⁵ and 10⁷. A group with no
+  value left after `na.rm` gives `NA`, as collapse's `fsum()` and SQL do,
+  not base's 0 or `Inf`: the executor needs SQL's answer, and one rule
+  for `grp_reduce()` and the bracket keeps them one call. `grp_reduce()`'s
+  missing is `is.na()`'s (`NaN` included) and the executor's is SQL's
+  (`NA` only); the kernel takes which per column. 2026-11-18, Stage 14.
 
 ## 14. Later versions, in the order they are expected
 
@@ -1523,9 +1555,9 @@ Marked **(M)** when the maintainer decided it in conversation and
 - **Q9.** Answered on 2026-11-16 by D36: by translation. Whether that
   needs a `grp_reduce()` entry point taking several statistics over one
   column is decided when RFC 0074's translator is built.
-- **Q10.** Whether bit-identical results with base `sum()` and `mean()`
-  are worth long double in the scatter loop (axis M), answered in piece
-  e of §11 with the cost measured.
+- **Q10.** Answered on 2026-11-18 by D49: long double, as base has it,
+  measured at 2.3 to 2.6 times the cost of double at 10³ groups and 7
+  to 16% from 10⁵ up.
 - **Q11.** What the maintainer's typical inputs look like, rows,
   distinct groups and key columns at once, so that §9's regimes can be
   weighted; the §9.1 market-data shape is the one stated so far.

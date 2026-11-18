@@ -321,7 +321,9 @@ sort of every row.
 
 ## Kernel: joins and string keys (Stage 13, 2026-11-18)
 
-Apple M-series laptop, one thread, R 4.6.2, an installed build (`R CMD
+The Intel Core i5-8500B of the header (corrected 2026-11-18, Stage 14:
+this line first said an Apple M-series laptop, which it was not), one
+thread, R 4.6.2, an installed build (`R CMD
 INSTALL --preclean`); medians of five runs, seconds. data.table and
 collapse at one thread.
 
@@ -404,3 +406,66 @@ random; and the R side converts and checks each key column. `match()`
 and `fmatch()` hash `y` and write one vector in one pass. The next steps
 are a match path that writes `y` indices straight from the probe, and
 partitioning the build side above L2 as `grp()` does.
+
+## Kernel: reduce (Stage 14, 2026-11-18)
+
+The Intel Core i5-8500B of the header, one thread, R 4.6.2, an installed
+build (`R CMD INSTALL --preclean`); medians of five runs, seconds.
+collapse at one thread. 10^7 rows of `runif()`.
+
+### Axis M: long double or double accumulation
+
+`tools/bench/reduce-precision.c`, built twice, `-O2`, `ZT_PRECISION` 1
+and 0: `zt_reduce()` alone, no R, uniform group ids. On this x86-64
+machine long double is the x87's 80 bits (`sizeof` 16).
+
+| Statistic | Groups | Long double | Double | Ratio |
+| --- | ---: | ---: | ---: | ---: |
+| sum | 1e3 | 0.025 | 0.011 | 2.3x |
+| mean | 1e3 | 0.055 | 0.021 | 2.6x |
+| sum | 1e5 | 0.043 | 0.039 | 1.1x |
+| mean | 1e5 | 0.097 | 0.082 | 1.2x |
+| sum | 1e7 | 0.385 | 0.333 | 1.16x |
+| mean | 1e7 | 0.822 | 0.769 | 1.07x |
+
+With few groups the accumulators are in cache and the x87's adds are the
+cost; with many, the scattered accesses are, and long double adds 7 to
+16%. Decision D49: long double, which is what makes `sum`, `prod` and
+`mean` base R's bit for bit; double stays behind `ZT_PRECISION=0`. On
+arm64 macOS long double is double, so there the two builds are one.
+
+### `grp_reduce()` against section 9.3
+
+`tools/run-benchmarks` (section `reduce`), the groups made once
+beforehand for every oracle (`collapse::GRP()`, `zutable::grp()`, both
+sorted).
+
+| Case | zutable | collapse | Base | Target | Held |
+| --- | ---: | ---: | ---: | --- | --- |
+| sum, 1e3 groups | 0.053 | 0.012 `fsum` | 0.225 `rowsum()` | parity with `fsum()` | no, 0.23x |
+| sum, 1e5 groups | 0.063 | 0.023 `fsum` | 1.701 `rowsum()` | parity with `fsum()` | no, 0.37x |
+| sum, 1e7 groups | 0.411 | 0.126 `fsum` | 1.981 `rowsum()` | 2x faster than `fsum()` | no, 0.31x |
+| four columns, fused | 0.307 | 0.113 four `f*()` | | 1.5x faster than four calls | no, 0.37x |
+| `broadcast = "subtract"` | 0.166 | 0.172 `fwithin` | | parity with `fwithin()` | yes, 1.04x |
+| sum, any | | | | faster than `rowsum()` | yes, 4x to 27x |
+
+The bracket, 10^6 rows, the kernel executor against the reference
+executor's loop over groups (D29), results identical:
+
+| Query | Kernel | Reference | Ratio |
+| --- | ---: | ---: | ---: |
+| `by = g` (1e3 groups), four aggregates | 0.048 | 0.368 | 8x |
+| `by = h` (1e5 groups), two aggregates | 0.054 | 7.083 | 131x |
+| `over(mean(px), by = g)` | 0.078 | 0.209 | 3x |
+
+Recorded, not tuned (the maintainer deferred tuning, 2026-11-17). Where
+the time goes, from the code and the axis M table rather than a profile:
+long double is 2.3x at 10^3 groups, and `fsum()` sums in double;
+`src/reduce.c` copies the group ids to 0-based with a range check, a
+pass over n integers before the reduction; `mean` sweeps twice for the
+correction pass, which `fmean()` does not make; the fused reduction runs
+each column's loop with its statistic's branches inside, where collapse
+has one tight loop per statistic. One cost was a bug and is fixed in
+this stage: stripping attributes copied the 80 MB vector even when it had
+none, 0.066 s against 0.053 s at 10^3 groups.
+

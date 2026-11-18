@@ -217,15 +217,35 @@ for (spec in list(list("1e3", k3), list("1e5", k5), list("1e7", k7))) {
   keys <- g$groups[[1L]]
   record(tg, "collapse::fsum", "dbl", function() collapse::fsum(v, g), function(s) round(as.vector(s), 6))
   record(tg, "base rowsum()", "dbl", function() rowsum(v, g$group.id)[, 1L], function(s) round(as.vector(s), 6))
+  if (has_zutable) {
+    # Grouped once beforehand, as fsum(v, g) is; ids renumbered to collapse's
+    # sorted order so the results line up.
+    zg <- zutable::grp(spec[[2L]], sort = TRUE)
+    record(tg, "zutable grp_reduce()", "dbl", function() zutable::grp_reduce(v, zg, "sum"),
+           function(s) round(as.vector(s), 6))
+  }
   agree(tg)
 }
-g5 <- collapse::GRP(k5)
+g5 <- collapse::GRP(k5, sort = TRUE)
 vs <- replicate(4, stats::runif(n), simplify = FALSE)
 tg <- "reduce, four columns"
 record(tg, "four collapse f*() calls", "dbl", function() list(collapse::fsum(vs[[1L]], g5), collapse::fmean(vs[[2L]], g5),
-  collapse::fmin(vs[[3L]], g5), collapse::fmax(vs[[4L]], g5)), function(l) round(unlist(l), 6))
+  collapse::fmin(vs[[3L]], g5), collapse::fmax(vs[[4L]], g5)), function(l) round(unname(unlist(l)), 6))
+if (has_zutable) {
+  zg5 <- zutable::grp(k5, sort = TRUE)
+  record(tg, "zutable grp_reduce(), fused", "dbl",
+         function() unname(zutable::grp_reduce(vs, zg5, c("sum", "mean", "min", "max"))),
+         function(l) round(unname(unlist(l)), 6))
+}
+agree(tg)
 tg <- "reduce, broadcast = 'subtract'"
 record(tg, "collapse::fwithin", "dbl", function() collapse::fwithin(v, g5), function(s) round(sum(s), 4))
+if (has_zutable) {
+  record(tg, "zutable grp_reduce()", "dbl",
+         function() zutable::grp_reduce(v, zg5, "mean", broadcast = "subtract"),
+         function(s) round(sum(s), 4))
+}
+agree(tg)
 }
 
 # --- report --------------------------------------------------------------------
