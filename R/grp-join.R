@@ -147,7 +147,8 @@ zt_join_index <- function(k, type, multiple, xmask, ymask, call,
 # multiple = "error": the first row of x with several matches, and its key;
 # sides names the two tables, swapped for a right join.
 zt_multiple_abort <- function(cols, i, count, call, sides = c("x", "y")) {
-  key <- paste(vapply(cols, function(col) format(zt_take(col, i)), ""),
+  # 15 digits, so a double names the key it is, not a rounding of it.
+  key <- paste(vapply(cols, function(col) format(zt_take(col, i), digits = 15L), ""),
                collapse = ", ")
   zutable_abort("multiple", sprintf(
     "row %d of %s matches %d rows of %s on key (%s); multiple = \"error\"",

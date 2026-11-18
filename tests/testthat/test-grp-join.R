@@ -119,6 +119,9 @@ test_that("multiple = \"error\" is a zutable_multiple_error naming the key", {
   y <- data.frame(k = c(2L, 3L, 3L, 2L), s = c("b", "b", "b", "c"))
   expect_error(grp_join(x, y, multiple = "error"), class = "zutable_multiple_error")
   expect_snapshot(grp_join(x, y, multiple = "error"), error = TRUE)
+  # A double is named in full, not rounded to 7 digits.
+  expect_snapshot(grp_join(c(1, 0.123456789012), c(0.123456789012, 0.123456789012),
+                           multiple = "error"), error = TRUE)
   # One match per row is not a fan-out, whichever side is larger.
   expect_identical(grp_join(x, y[1:2, ], multiple = "error"),
                    list(x = 2:3, y = 1:2))
@@ -138,6 +141,13 @@ test_that("more than 2^31 - 1 pairs is a zutable_length_error, before any is mad
   # multiple = "first" leaves one pair per row.
   expect_identical(lengths(grp_join(x, y, multiple = "first")), c(x = 32768L, y = 32768L))
   expect_identical(grp_join(x, y, type = "semi")$x, seq_len(2^15))
+})
+
+test_that("a key of more than 2^31 - 1 rows is a zutable_length_error, either side", {
+  big <- seq_len(2^31)
+  expect_error(grp_join(big, 1L), class = "zutable_length_error")
+  expect_error(grp_join(1L, big), class = "zutable_length_error")
+  expect_error(grp_match(big, 1L), class = "zutable_length_error")
 })
 
 test_that("refusals", {
