@@ -351,6 +351,13 @@ zt_eval <- function(node, cols, n) {
 zt_eval_window <- function(node, cols, n) {
   keys <- lapply(node$by, function(k) zt_recycle_n(zt_eval(k, cols, n), n))
   g <- zt_group_ids(keys, n)
+  # Through the kernel: the group values once, then gathered to the rows
+  # (design-kernel 6.5, broadcast = "replace"). The loop is its reference.
+  if (zt_kernel_executor() && zt_reducible(list(node$agg))) {
+    first <- if (n) zt_reduce_ids(g$id, g$n_groups, list(NULL), "first", FALSE)[[1L]]
+    v <- zt_eval_groups(list(node$agg), cols, n, g, first)[[1L]]
+    return(zt_take(v, g$id))
+  }
   out <- zt_empty(node$type, n)
   for (rows in zt_group_rows(g)) {
     if (!length(rows)) next
