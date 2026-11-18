@@ -567,6 +567,8 @@ What each row rests on:
   prefix fall to multikey quicksort (Bentley and Sedgewick, 1997) from
   byte nine. This is DuckDB's string sort key. MSD radix over the bytes
   directly is the control.
+  (Decided 2026-11-18, Stage 12: D45, the prefix and multikey quicksort
+  alone; it won every shape and size measured.)
 - **O.** `collapse::GRP(sort = TRUE)` and data.table radix-sort every
   row and detect runs. Hashing to first-appearance identifiers, sorting
   the distinct keys with axis K or N, and relabelling through a lookup
@@ -902,7 +904,7 @@ and marked `NA`-free when `na.last = NA` or the input had none, so a later
 `sort()`, `is.unsorted()` or `anyNA()` on it returns at once; the wrapper
 is `zutable`'s own class, since base R exposes no API to create its
 wrapper, and a writable `DATAPTR` drops the metadata so an in-place edit
-cannot make `is.unsorted()` lie. `key_rank()`
+cannot make `is.unsorted()` lie (what each type marks: D46). `key_rank()`
 with `ties = "min"` equals `rank(ties.method = "min")`; `"first"` equals
 `"first"`; `"dense"` is the sorted group identifier of §6.2 and has no
 base equivalent.
@@ -1376,7 +1378,9 @@ Marked **(M)** when the maintainer decided it in conversation and
   (byte order, as §6.3 says), each raw list its rank as hexadecimal
   text, and the kernel sorts the codes. Neither function has `collate`
   yet; Stage 12 adds it with `stringi`. The executor sorts on the kernel
-  unless a key is a string. 2026-11-17, Stage 11.
+  unless a key is a string. 2026-11-17, Stage 11. Superseded
+  2026-11-18, Stage 12: the kernel ranks the distinct strings itself
+  (D45), and the executor sorts string keys on the kernel too.
 - **D43 (C).** `key_rank()` follows `rank()` for missing values: under
   `"min"` and `"first"` each row with a missing key takes a rank of its
   own, in order, as `rank()` ranks `NA`; `na.last = NA` drops those rows
@@ -1394,6 +1398,30 @@ Marked **(M)** when the maintainer decided it in conversation and
   hashing. Measured from R at 10^3 to 10^7 rows (benchmarks, Stage 11):
   sorting wins by 1.05x to 10x below 10^6 rows, and by up to 2.85x at
   10^7 rows when every row is distinct. 2026-11-17, Stage 11.
+- **D45 (C).** Axis N's answer: distinct strings are sorted by their
+  first eight bytes, packed big-endian into the key of a 16-byte record
+  and sorted by the hybrid, and each run of equal prefixes is finished by
+  multikey quicksort from the first byte the run does not share
+  (`zutable/strsort.h`). A string key reaches the integer sort as each
+  row's dense rank among the distinct strings, found by grouping the rows
+  first; with `collate = TRUE` the strings ranked are
+  `stringi::stri_sort_key()`'s keys, one per distinct string. Measured
+  without R at 10^3 to 10^6 distinct strings of four shapes (benchmarks,
+  Stage 12): 2.2x to 18x faster than full comparison and 1.1x to 9.5x
+  faster than MSD radix over the bytes, which are not kept. 2026-11-18,
+  Stage 12.
+- **D46 (C).** What sorted values mark (§6.3, D22): integer, double and
+  logical values, factors and dates, are marked with their direction and
+  `NA` position in base R's sortedness codes and with whether they hold
+  no `NA`. Strings are marked `NA`-free only: base R's sortedness of
+  strings is its collation, which neither byte order nor `stringi`'s need
+  match, and base R reads no `NA` mark on strings, so `anyNA()` still
+  scans them. `integer64` values and raw lists are not wrapped, since an
+  `integer64`'s order is not its doubles'. With `sort = TRUE`, only
+  `g$keys[[1]]` is wrapped: the later columns are sorted only within ties
+  of the earlier ones. A write through a writable pointer, or to a string
+  element, first copies a shared payload, as base R's wrapper does, and
+  drops both marks. 2026-11-18, Stage 12.
 
 ## 14. Later versions, in the order they are expected
 

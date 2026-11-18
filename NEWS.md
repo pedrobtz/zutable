@@ -62,3 +62,13 @@
 * `grp(sort = TRUE)` sorts every row instead of hashing when that is
   faster: below a million rows, and above when about 1% of the rows or
   more are distinct keys. The result is the same either way.
+* `key_order()` and `key_rank()` sort strings in the kernel, by the bytes
+  of their UTF-8 text, and with `collate = TRUE` in the locale's order
+  through `stringi` (a `Suggests`), whose collation keys are computed once
+  per distinct string; without `stringi`, `collate = TRUE` is a
+  `zutable_collate_error`.
+* `key_sort()` sorts values, as `sort(method = "radix")` does, and the
+  result remembers that it is sorted and whether it holds `NA`, so a later
+  `sort()`, `is.unsorted()` or `anyNA()` answers without a pass; modifying
+  it in place forgets both. `grp(sort = TRUE)`'s first key column carries
+  the same.
