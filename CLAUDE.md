@@ -72,7 +72,10 @@ C through `use_c()`: [src/zutable.c](src/zutable.c) registers the routines
 and [src/numbers.c](src/numbers.c) wraps zufast's number parsing and
 formatting (`LinkingTo: zufast`). [src/altrep.c](src/altrep.c) is the sorted-values
 ALTREP class (D22, D46): its payload is copied before any write when
-shared, and every write drops its marks. The kernel's header goes under
+shared, and every write drops its marks. [src/join.c](src/join.c) is
+`grp_join()`'s translation of `zutable/join.h`; `join()` runs on it, with
+the R join kept as its oracle under `options(zutable.executor =
+"reference")`. The kernel's header goes under
 `inst/include/` and `src/` stays a thin R translation over it
 (design-kernel §4).
 

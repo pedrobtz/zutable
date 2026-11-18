@@ -15,9 +15,9 @@ moves one family of operators onto C, held to the reference executor's
 results.
 
 **Kernel clock** ([design-kernel §10](design-kernel.md#10-the-experiment-how-fast-can-a-kernel-be-built-from-the-blocks)).
-First kernel commit (Stage 9): 2026-11-17. Join working (Stage 13): —. Last kernel
+First kernel commit (Stage 9): 2026-11-17. Join working (Stage 13): 2026-11-18. Last kernel
 piece (Stage 15): —. Hypothesis: Stage 9 to Stage 13 in 14 calendar days or
-fewer.
+fewer: held, in 2 days.
 
 ## Stages
 
@@ -36,7 +36,7 @@ fewer.
 | 10 | [Kernel groups](#stage-10--kernel-groups) | full | [#12](https://github.com/pedrobtz/zutable/issues/12) | [#37](https://github.com/pedrobtz/zutable/pull/37) | 2026-11-17 |
 | 11 | [Kernel sort](#stage-11--kernel-sort) | full | [#13](https://github.com/pedrobtz/zutable/issues/13) | [#38](https://github.com/pedrobtz/zutable/pull/38) | 2026-11-17 |
 | 12 | [Strings and sorted values](#stage-12--strings-and-sorted-values) | full | [#14](https://github.com/pedrobtz/zutable/issues/14) | [#39](https://github.com/pedrobtz/zutable/pull/39) | 2026-11-18 |
-| 13 | [Kernel join and match](#stage-13--kernel-join-and-match) | quick | [#15](https://github.com/pedrobtz/zutable/issues/15) | | |
+| 13 | [Kernel join and match](#stage-13--kernel-join-and-match) | quick | [#15](https://github.com/pedrobtz/zutable/issues/15) | | 2026-11-18 |
 | 14 | [Kernel reduce](#stage-14--kernel-reduce) | quick | [#16](https://github.com/pedrobtz/zutable/issues/16) | | |
 | 15 | [Consumer fixture, ABI and fuzz](#stage-15--consumer-fixture-abi-and-fuzz) | quick | [#17](https://github.com/pedrobtz/zutable/issues/17) | | |
 | 16 | [Benchmarks and documentation](#stage-16--benchmarks-and-documentation) | quick | [#18](https://github.com/pedrobtz/zutable/issues/18) | | |

@@ -318,3 +318,89 @@ only identifiers and first rows (`zt_grp` also builds sizes, starts and
 the group order, which the string path discards), and for a single string
 key one counting pass over the groups in rank order instead of a second
 sort of every row.
+
+## Kernel: joins and string keys (Stage 13, 2026-11-18)
+
+Apple M-series laptop, one thread, R 4.6.2, an installed build (`R CMD
+INSTALL --preclean`); medians of five runs, seconds. data.table and
+collapse at one thread.
+
+### Axis F: string keys as pointers, or encoded first
+
+`tools/bench/str-keys.R`. Strings `key-<9 digits>-suffix`. "Pointer" is
+the kernel as shipped, hashing each row's interned `CHARSXP`; "encode" is
+the one pass that turns the column into integer codes (`grp()$id`, over
+both sides for a match); "integer" is the same operation on the codes.
+The last column is how many uses repay the encoding.
+
+| Op | Rows | Distinct | Pointer | Encode | Integer | Reuses to repay |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| `grp()` | 1e6 | 1e2 | 0.033 | 0.033 | 0.016 | 1.9 |
+| `grp_match()` | 1e6 | 1e2 | 0.044 | 0.045 | 0.021 | 2.0 |
+| `grp()` | 1e6 | 1e4 | 0.039 | 0.039 | 0.021 | 2.2 |
+| `grp_match()` | 1e6 | 1e4 | 0.039 | 0.047 | 0.020 | 2.5 |
+| `grp()` | 1e6 | 1e6 | 0.136 | 0.136 | 0.044 | 1.5 |
+| `grp_match()` | 1e6 | 1e6 | 0.234 | 0.407 | 0.089 | 2.8 |
+| `grp()` | 1e7 | 1e2 | 0.306 | 0.306 | 0.173 | 2.3 |
+| `grp_match()` | 1e7 | 1e2 | 0.390 | 0.395 | 0.217 | 2.3 |
+| `grp()` | 1e7 | 1e4 | 0.425 | 0.425 | 0.249 | 2.4 |
+| `grp_match()` | 1e7 | 1e4 | 0.413 | 0.498 | 0.210 | 2.5 |
+| `grp()` | 1e7 | 1e6 | 1.643 | 1.643 | 0.891 | 2.2 |
+| `grp_match()` | 1e7 | 1e6 | 1.653 | 2.188 | 0.813 | 2.6 |
+
+Encoding first can only cost more for one use, since it is itself a
+pointer pass; it repays itself from the second or third reuse. Decision
+D47: the kernel hashes pointers, and a caller that reuses a column keeps
+`grp()$id`. The integer pass running at about half the pointer pass's
+time is partly the pointer path's own cost: `zt_str_ptrs()` reads every
+`CHARSXP`'s encoding flags to decide whether to translate, a pass over
+the strings the integer path does not make.
+
+### Joins and matches against section 9.3
+
+`tools/bench/join.R`. Integer keys; `x` has n rows, `y` the distinct keys
+once each, shuffled. data.table is `X[Y, on =, which = TRUE, nomatch =
+NULL]`, the index pairs of an inner join; two keys split each key into
+`k %% 97` and `k %/% 97`. The ratio is the other's time over zutable's.
+
+| Case | Rows | Distinct | zutable | Other | Other's | Ratio |
+| --- | ---: | ---: | ---: | --- | ---: | ---: |
+| inner, one key | 1e6 | 1e3 | 0.020 | data.table | 0.015 | 0.75x |
+| inner, two keys | 1e6 | 1e3 | 0.027 | data.table | 0.018 | 0.67x |
+| match, one key | 1e6 | 1e3 | 0.018 | `match()` | 0.005 | 0.28x |
+| match, one key | 1e6 | 1e3 | 0.018 | `fmatch()` | 0.001 | 0.06x |
+| match, `integer64` | 1e6 | 1e3 | 0.019 | bit64 | 0.013 | 0.68x |
+| inner, one key | 1e6 | 1e5 | 0.031 | data.table | 0.054 | 1.74x |
+| inner, two keys | 1e6 | 1e5 | 0.040 | data.table | 0.055 | 1.38x |
+| match, one key | 1e6 | 1e5 | 0.030 | `match()` | 0.136 | 4.53x |
+| match, one key | 1e6 | 1e5 | 0.030 | `fmatch()` | 0.046 | 1.53x |
+| match, `integer64` | 1e6 | 1e5 | 0.031 | bit64 | 0.006 | 0.19x |
+| inner, one key | 1e7 | 1e3 | 0.230 | data.table | 0.155 | 0.67x |
+| inner, two keys | 1e7 | 1e3 | 0.266 | data.table | 0.176 | 0.66x |
+| match, one key | 1e7 | 1e3 | 0.189 | `match()` | 0.047 | 0.25x |
+| match, one key | 1e7 | 1e3 | 0.189 | `fmatch()` | 0.013 | 0.07x |
+| match, `integer64` | 1e7 | 1e3 | 0.197 | bit64 | 0.129 | 0.65x |
+| inner, one key | 1e7 | 1e6 | 0.796 | data.table | 0.830 | 1.04x |
+| inner, two keys | 1e7 | 1e6 | 1.071 | data.table | 0.561 | 0.52x |
+| match, one key | 1e7 | 1e6 | 0.768 | `match()` | 0.272 | 0.35x |
+| match, one key | 1e7 | 1e6 | 0.768 | `fmatch()` | 0.133 | 0.17x |
+| match, `integer64` | 1e7 | 1e6 | 0.822 | bit64 | 0.384 | 0.47x |
+
+`join()` itself, 10^6 rows of `x` against 10^5 keys: 0.089 s on the
+kernel against 2.400 s on the reference executor, and `merge()` 3.366 s.
+
+Against section 9.3: parity with data.table's one-key join holds at 10^5
+and 10^6 distinct keys and misses at 10^3 (0.67x to 0.75x); "1.5x faster
+than data.table" on two keys misses everywhere but 10^6 x 10^5 (1.38x);
+"faster than `match()`" holds only at 10^5 distinct (4.5x); parity with
+`fmatch()` and with bit64 misses in all but one row. Recorded, not tuned
+(the maintainer deferred tuning, 2026-11-17). Where the time goes, from
+the code rather than a profile: `grp_match()` runs the whole join and
+keeps one of its two pair vectors; every join buckets `y` by class and
+fills both vectors with a count pass first; the probe hashes all of `x`
+into an array before probing rather than as it goes; the table is sized
+for every build row, so 10^6 distinct keys make a 10 MB table probed at
+random; and the R side converts and checks each key column. `match()`
+and `fmatch()` hash `y` and write one vector in one pass. The next steps
+are a match path that writes `y` indices straight from the probe, and
+partitioning the build side above L2 as `grp()` does.
