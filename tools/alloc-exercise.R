@@ -12,4 +12,11 @@ z <- zutable(a = c(1L, 2L), b = c(1.5, 2.5))
 z[, { a := a + 1L; b := b * 2 }]
 z2 <- copy(z)
 freeze(z)
-invisible(list(d, z2))
+# The kernel: grp() by hashing (zt_grp) and by sorting (zt_grp_sort), and
+# the sort (zt_key_order, zt_key_rank).
+k <- c(3L, 1L, NA, 3L, 2L)
+g1 <- grp(k, c("a", "b", "a", "a", NA))
+g2 <- grp(k, sort = TRUE)
+o <- key_order(k, c(2.5, NaN, 1, -0, 0), decreasing = c(FALSE, TRUE))
+r <- key_rank(k, ties = "dense")
+invisible(list(d, z2, g1, g2, o, r))

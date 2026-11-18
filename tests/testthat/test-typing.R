@@ -5,6 +5,8 @@
 
 test_that("every function accepts exactly the types its signatures declare", {
   checked <- 0L
+  # Typing is pure R; under gctorture at step 20 every tenth combination.
+  stride <- if (under_torture()) 10L else 1L
   for (entry in zt_vocab) {
     if (!length(entry$sigs)) next
     arities <- unique(unlist(lapply(entry$sigs, function(s) {
@@ -16,6 +18,8 @@ test_that("every function accepts exactly the types its signatures declare", {
         as.list(as.data.frame(t(expand.grid(rep(list(typing_ids), k),
                                             stringsAsFactors = FALSE))))
       for (ids in combos) {
+        checked <- checked + 1L
+        if (checked %% stride) next
         ids <- unname(unlist(ids))
         expected <- NULL
         for (s in entry$sigs) {
@@ -26,7 +30,6 @@ test_that("every function accepts exactly the types its signatures declare", {
                         zutable_type_error = function(e) NULL)
         expect_identical(got, expected, info = sprintf(
           "%s(%s)", entry$name, paste(ids, collapse = ", ")))
-        checked <- checked + 1L
       }
     }
   }

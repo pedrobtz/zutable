@@ -7,7 +7,8 @@
  * is how the C tests, the fuzz target and the consumer fixture build it.
  *
  * Layers, each testable without the one above, arrive stage by stage:
- * key.h (the key model), table.h, partition.h, then groups.h, sort.h,
+ * key.h (the key model), table.h, partition.h, then groups.h, sort.h
+ * (over sortrec.h, pdqsort.h, vergesort.h, skasort.h and radix.h),
  * join.h and reduce.h.
  */
 #ifndef ZUTABLE_H
@@ -19,5 +20,6 @@
 #include "zutable/table.h"
 #include "zutable/partition.h"
 #include "zutable/groups.h"
+#include "zutable/sort.h"
 
 #endif /* ZUTABLE_H */

@@ -53,3 +53,12 @@
   character, factor, `integer64`, raw), in first-appearance or key order;
   the bracket's `by` runs on it. It is a hash table of five bytes a slot,
   partitioned to the cache above L3.
+* `key_order()` gives the stable permutation that sorts rows by one or
+  more keys, and `key_rank()` their ranks, as `order(method = "radix")`
+  and `rank()` do, with `decreasing` per key and `na.last`. They run the
+  kernel's hybrid sort: Vergesort's run detection in front of counting
+  sort, pdqsort, LSD radix and ska sort, chosen by size and key width.
+  The bracket's `order` and `grp(sort = TRUE)` run on it.
+* `grp(sort = TRUE)` sorts every row instead of hashing when that is
+  faster: below a million rows, and above when about 1% of the rows or
+  more are distinct keys. The result is the same either way.

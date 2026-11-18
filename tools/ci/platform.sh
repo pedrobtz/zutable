@@ -13,9 +13,9 @@ fi
 # Every kernel header compiles alone, C11 and C++17, with and without R.
 CC="$cc" CXX="$cxx" sh tools/check-headers
 # The C tests build and pass without R headers.
-CC="$cc" sh tools/ci/c-tests.sh
+CC="$cc" CXX="$cxx" sh tools/ci/c-tests.sh
 # ... and under ASan and UBSan where the toolchain has them.
 if [ "$os" = ubuntu ]; then
-  CC="$cc" CFLAGS_EXTRA="-fsanitize=address,undefined -fno-sanitize-recover=all" \
+  CC="$cc" CXX="$cxx" CFLAGS_EXTRA="-fsanitize=address,undefined -fno-sanitize-recover=all" \
     OUT=build/c-tests-asan sh tools/ci/c-tests.sh
 fi

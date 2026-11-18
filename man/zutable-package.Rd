@@ -24,5 +24,12 @@ Authors:
   \item Pedro Baltazar \email{pedrobtz@gmail.com} [copyright holder]
 }
 
+Other contributors:
+\itemize{
+  \item Orson Peters (pdqsort, ported in inst/include/zutable/pdqsort.inc) [contributor, copyright holder]
+  \item Morwenn (Vergesort, ported in inst/include/zutable/vergesort.inc) [contributor, copyright holder]
+  \item Malte Skarupke (ska sort, ported in inst/include/zutable/skasort.inc) [contributor, copyright holder]
+}
+
 }
 \keyword{internal}

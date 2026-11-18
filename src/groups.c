@@ -163,3 +163,59 @@ SEXP zt_grp(SEXP keys, SEXP i64, SEXP nrows, SEXP force_bits) {
   UNPROTECT(7);
   return out;
 }
+
+// grp(sort = TRUE) by sorting every row (design-kernel 4.2, axis O; D44):
+// the same list as zt_grp, already in key order, or NULL when the keys
+// should be hashed instead: not fixed width, too few distinct keys for the
+// sort to pay (unless `force` is TRUE, a test hook), or an NA beside a NaN
+// in a run the order ties.
+SEXP zt_grp_sort(SEXP keys, SEXP i64, SEXP nrows, SEXP force) {
+  int ncol = (int) XLENGTH(keys);
+  double nd = REAL(nrows)[0];
+  if (nd > ZT_MAX_ROWS) Rf_error("zt_grp_sort: more than 2^31 - 1 rows");
+  zt_row n = (zt_row) nd;
+  if (ncol == 0 || n < 2) return R_NilValue;
+  SEXP keep = PROTECT(Rf_allocVector(VECSXP, ncol));
+  zt_column *cols = (zt_column *) R_alloc((size_t) ncol, sizeof(zt_column));
+  zt_fill_key(keys, i64, cols, keep);
+  zt_key k = {cols, ncol};
+  if (!zt_key_fixed_width(&k) ||
+      (LOGICAL(force)[0] != TRUE && !zt_groups_sort_pays(&k, n))) {
+    UNPROTECT(1);
+    return R_NilValue;
+  }
+  zt_sort_col *sc = (zt_sort_col *) R_alloc((size_t) ncol, sizeof(zt_sort_col));
+  zt_codebook *cb = (zt_codebook *) R_alloc((size_t) ncol, sizeof(zt_codebook));
+  void *mem = R_alloc(zt_sort_scratch_bytes(n), 1);
+  zt_row *first = (zt_row *) R_alloc((size_t) n, sizeof(zt_row));
+  zt_row *start = (zt_row *) R_alloc((size_t) n, sizeof(zt_row));
+  SEXP id = PROTECT(Rf_allocVector(INTSXP, n));
+  SEXP order = PROTECT(Rf_allocVector(INTSXP, n));
+  zt_row *ids = INTEGER(id), *ord = INTEGER(order);
+  zt_row ng = zt_groups_by_sort(&k, n, sc, cb, ord, ids, first, start, mem);
+  if (ng < 0) {
+    UNPROTECT(3);
+    return R_NilValue;
+  }
+  SEXP sizes = PROTECT(Rf_allocVector(INTSXP, ng));
+  SEXP starts = PROTECT(Rf_allocVector(INTSXP, ng));
+  SEXP firsts = PROTECT(Rf_allocVector(INTSXP, ng));
+  int *sz = INTEGER(sizes), *st = INTEGER(starts), *fi = INTEGER(firsts);
+  for (zt_row g = 0; g < ng; g++) {
+    sz[g] = (g + 1 < ng ? start[g + 1] : n) - start[g];
+    st[g] = start[g] + 1;
+    fi[g] = first[g] + 1;
+  }
+  for (zt_row i = 0; i < n; i++) { ids[i]++; ord[i]++; }
+
+  const char *names[] = {"id", "n", "sizes", "starts", "order", "first", ""};
+  SEXP out = PROTECT(Rf_mkNamed(VECSXP, names));
+  SET_VECTOR_ELT(out, 0, id);
+  SET_VECTOR_ELT(out, 1, Rf_ScalarInteger(ng));
+  SET_VECTOR_ELT(out, 2, sizes);
+  SET_VECTOR_ELT(out, 3, starts);
+  SET_VECTOR_ELT(out, 4, order);
+  SET_VECTOR_ELT(out, 5, firsts);
+  UNPROTECT(7);
+  return out;
+}
