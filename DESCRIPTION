@@ -36,6 +36,7 @@ Suggests:
     duckdb,
     knitr,
     rmarkdown,
+    stringi,
     testthat (>= 3.0.0),
     withr
 Config/testthat/edition: 3

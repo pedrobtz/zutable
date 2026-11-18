@@ -14,6 +14,10 @@ SEXP zt_grp(SEXP keys, SEXP i64, SEXP nrows, SEXP force_bits);
 SEXP zt_grp_sort(SEXP keys, SEXP i64, SEXP nrows, SEXP force);
 SEXP zt_key_order(SEXP keys, SEXP i64, SEXP dec, SEXP na_last);
 SEXP zt_key_rank(SEXP keys, SEXP i64, SEXP dec, SEXP na_last, SEXP ties);
+SEXP zt_strings_rank(SEXP x);
+SEXP zt_sorted_wrap(SEXP x, SEXP sorted, SEXP no_na);
+SEXP zt_sorted_meta(SEXP x);
+void zt_init_altrep(DllInfo *dll);
 
 // Native routines are registered here as stages add them. Symbols are
 // hidden (Makevars) and only R_init_zutable is exported (design section 3,
@@ -29,6 +33,9 @@ static const R_CallMethodDef call_methods[] = {
   {"zt_grp_sort", (DL_FUNC) &zt_grp_sort, 4},
   {"zt_key_order", (DL_FUNC) &zt_key_order, 4},
   {"zt_key_rank", (DL_FUNC) &zt_key_rank, 5},
+  {"zt_strings_rank", (DL_FUNC) &zt_strings_rank, 1},
+  {"zt_sorted_wrap", (DL_FUNC) &zt_sorted_wrap, 3},
+  {"zt_sorted_meta", (DL_FUNC) &zt_sorted_meta, 1},
   {NULL, NULL, 0}
 };
 
@@ -36,4 +43,5 @@ void attribute_visible R_init_zutable(DllInfo *dll) {
   R_registerRoutines(dll, NULL, call_methods, NULL, NULL);
   R_useDynamicSymbols(dll, FALSE);
   R_forceSymbols(dll, TRUE);
+  zt_init_altrep(dll);
 }

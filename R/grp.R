@@ -32,14 +32,26 @@ grp <- function(..., sort = FALSE) {
   n <- if (length(keys)) length(keys[[1L]]) else 0L
   if (isTRUE(sort)) {
     g <- zt_grp_sort_route(keys, n)
-    if (!is.null(g)) return(g)
+    if (!is.null(g)) return(zt_mark_first_key(g))
   }
   g <- zt_grp_native(keys, n)
   out <- list(id = g$id, n = g$n, sizes = g$sizes, starts = g$starts,
               order = g$order,
               keys = lapply(keys, zt_take, idx = g$first))
-  if (isTRUE(sort) && g$n > 1L) out <- zt_grp_sorted(out, n)
+  if (isTRUE(sort)) {
+    if (g$n > 1L) out <- zt_grp_sorted(out, n)
+    out <- zt_mark_first_key(out)
+  }
   out
+}
+
+# With sort = TRUE the first key column of g$keys is sorted, NA last: it
+# carries that, as key_sort()'s values do (D22).
+zt_mark_first_key <- function(g) {
+  if (length(g$keys)) {
+    g$keys[[1L]] <- zt_mark_sorted(g$keys[[1L]], FALSE, TRUE)
+  }
+  g
 }
 
 zt_grp_native <- function(keys, n, force_bits = NA_integer_) {
@@ -115,7 +127,7 @@ zt_key_columns <- function(args, call) {
 # groups that tie in the order, so they keep first appearance.
 zt_grp_sorted <- function(g, n) {
   k <- zt_sort_keys(g$keys, FALSE, sys.call())
-  if (k$base) k <- zt_base_codes(k)
+  if (k$strings) k <- zt_string_codes(k)
   o <- .Call(zt_key_order, k$keys, k$i64, k$dec, 1L)
   newid <- integer(g$n)
   newid[o] <- seq_len(g$n)

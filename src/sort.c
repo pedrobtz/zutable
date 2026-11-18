@@ -64,3 +64,39 @@ SEXP zt_key_rank(SEXP keys, SEXP i64, SEXP dec, SEXP na_last, SEXP ties) {
   UNPROTECT(1);
   return out;
 }
+
+// Dense ranks, 1-based, of distinct strings in byte order (design-kernel
+// 6.3; zutable/strsort.h): x is a character vector, already UTF-8 or a
+// vector of collation keys, whose bytes are compared as they are; or a
+// list of raw vectors. A missing element (NA, or NULL in a list) ranks NA.
+SEXP zt_strings_rank(SEXP x) {
+  R_xlen_t n = XLENGTH(x);
+  if (n > ZT_MAX_ROWS) Rf_error("zt_strings_rank: more than 2^31 - 1 strings");
+  zt_bytes *s = (zt_bytes *) R_alloc(n > 0 ? (size_t) n : 1, sizeof(zt_bytes));
+  zt_row *idx = (zt_row *) R_alloc(n > 0 ? (size_t) n : 1, sizeof(zt_row));
+  zt_row m = 0;
+  for (R_xlen_t i = 0; i < n; i++) {
+    if (TYPEOF(x) == STRSXP) {
+      SEXP e = STRING_ELT(x, i);
+      if (e == NA_STRING) continue;
+      s[m].data = (const uint8_t *) CHAR(e);
+      s[m].len = (int32_t) LENGTH(e);
+    } else {
+      SEXP e = VECTOR_ELT(x, i);
+      if (TYPEOF(e) != RAWSXP) continue;
+      s[m].data = RAW(e);
+      s[m].len = (int32_t) XLENGTH(e);
+    }
+    idx[m++] = (zt_row) i;
+  }
+  zt_row *perm = (zt_row *) R_alloc(m > 0 ? (size_t) m : 1, sizeof(zt_row));
+  zt_row *rank = (zt_row *) R_alloc(m > 0 ? (size_t) m : 1, sizeof(zt_row));
+  zt_str_sort(s, m, perm, R_alloc(zt_str_sort_scratch_bytes(m), 1));
+  zt_str_dense_rank(s, m, perm, rank);
+  SEXP out = PROTECT(Rf_allocVector(INTSXP, n));
+  int *o = INTEGER(out);
+  for (R_xlen_t i = 0; i < n; i++) o[i] = NA_INTEGER;
+  for (zt_row j = 0; j < m; j++) o[idx[j]] = rank[j];
+  UNPROTECT(1);
+  return out;
+}

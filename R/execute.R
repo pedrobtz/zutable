@@ -96,11 +96,11 @@ zt_order_index <- function(vals, types, desc) {
     dec <- c(dec, desc[[k]], desc[[k]])
   }
   if (!length(vals[[1L]])) return(integer())
-  # The kernel's sort (Stage 11) unless a key is a string, which waits for
-  # its string path (Stage 12); base radix order is the reference (D29).
-  strings <- any(vapply(keys, is.character, NA))
-  if (!strings && !identical(getOption("zutable.executor", "kernel"), "reference")) {
-    return(.Call(zt_key_order, unname(keys), rep(FALSE, length(keys)), dec, 1L))
+  # The kernel's sort, strings by the bytes of their UTF-8 text (Stage
+  # 12); base radix order is the reference (D29).
+  if (!identical(getOption("zutable.executor", "kernel"), "reference")) {
+    k <- zt_string_codes(list(keys = unname(keys), strings = TRUE))
+    return(.Call(zt_key_order, k$keys, rep(FALSE, length(keys)), dec, 1L))
   }
   do.call(order, c(unname(keys), list(decreasing = dec, method = "radix")))
 }
