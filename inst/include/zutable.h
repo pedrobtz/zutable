@@ -23,5 +23,6 @@
 #include "zutable/sort.h"
 #include "zutable/strsort.h"
 #include "zutable/join.h"
+#include "zutable/reduce.h"
 
 #endif /* ZUTABLE_H */

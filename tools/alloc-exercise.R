@@ -37,4 +37,16 @@ j3 <- tryCatch(grp_join(1:2, c(1L, 1L), multiple = "error"), error = identity)
 jm <- grp_match(c(2L, 9L), 1:3)
 jt <- join(zutable(a = c(1L, NA)), zutable(a = c(NA, 1L), b = 1:2), on = a,
            how = "full", na_equal = FALSE)
-invisible(list(d, z2, g1, g2, o, r, os, v2, vs, u, m, j1, j2, j3, jm, jt))
+# Reductions (zt_reduce_r): every statistic over the three kinds, fused,
+# broadcast, and the executor's aggregates, over() and := with by.
+rd <- grp_reduce(list(c(1.5, NA, 3), c(2L, NA, 4L), c(TRUE, NA, FALSE)), c("a", "b", "a"),
+                 c("mean", "sum", "max"))
+rd2 <- lapply(c("prod", "min", "count", "nobs", "first", "last"),
+              function(f) grp_reduce(c(1, 2, NaN), c(1L, 1L, 2L), f, na.rm = FALSE))
+rd3 <- grp_reduce(c("b", "a", NA), c(1L, 1L, 2L), "min", broadcast = "replace")
+za <- zutable(g = c("x", "y", "x"), v = c(1, 2, 3), w = c(0, 0, 0))
+ra <- za[, .(s = sum(v), d = count_distinct(v), hi = max(g)), by = g, having = s > 0]
+ro <- za[select = .(v, m = over(mean(v), by = g))]
+za[, w := v - mean(v), by = g]
+invisible(list(d, z2, g1, g2, o, r, os, v2, vs, u, m, j1, j2, j3, jm, jt, rd, rd2, rd3,
+               ra, ro, za))

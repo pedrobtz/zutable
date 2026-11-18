@@ -198,32 +198,12 @@ zt_run_update <- function(x, up, call) {
   }
   scoped <- zt_take_rows(cols, rows)
   keys <- lapply(up$by, function(k) zt_recycle_n(zt_eval(k, scoped, length(rows)), length(rows)))
-  groups <- zt_group_rows(zt_group_ids(keys, length(rows)))
-  if (!length(keys) && length(rows)) groups <- list(seq_along(rows))
-  targets <- unique(vapply(Filter(function(s) s$kind == "set", up$stmts),
-                           function(s) s$name, ""))
-  new <- cols[targets]
-  for (g in groups) {
-    if (!length(g)) next
-    work <- zt_take_rows(cols, rows[g])
-    m <- length(g)
-    for (s in up$stmts) {
-      v <- zt_eval(s$node, work, m)
-      if (zt_nrow_of(v) != 1L && zt_nrow_of(v) != m) {
-        zutable_abort("value", sprintf(
-          "`%s` gets %d values for %d rows; give one value or one per row written",
-          s$name, zt_nrow_of(v), m
-        ), call = call)
-      }
-      v <- zt_recycle_n(v, m)
-      work[[s$name]] <- v
-      if (s$kind == "set") {
-        col <- new[[s$name]]
-        if (is.data.frame(col)) col[rows[g], ] <- v else col[rows[g]] <- v
-        new[[s$name]] <- col
-      }
-    }
+  if (zt_kernel_executor() && zt_reducible(lapply(up$stmts, function(s) s$node))) {
+    new <- zt_update_kernel(up, cols, rows, scoped, keys, call)
+  } else {
+    new <- zt_update_loop(up, cols, rows, scoped, keys, call)
   }
+  targets <- zt_update_targets(up)
   # Every new column is checked before any is written (§6.2).
   for (nm in targets) {
     new[[nm]] <- zt_normalise(new[[nm]], schema$fields[[nm]], call)
@@ -301,4 +281,85 @@ zt_block_query <- function(x, block, q, env, call) {
   x2 <- new_zutable(cols, new_schema(unname(fields)), n)
   q$select <- last
   zt_execute(x2, zt_plan_query(x2, q, env, call), call)
+}
+
+zt_update_targets <- function(up) {
+  unique(vapply(Filter(function(s) s$kind == "set", up$stmts), function(s) s$name, ""))
+}
+
+# The statements group by group, each over its group's rows: the reference
+# (D29) for zt_update_kernel(), and the route for an r() node.
+zt_update_loop <- function(up, cols, rows, scoped, keys, call) {
+  groups <- zt_group_rows(zt_group_ids(keys, length(rows)))
+  if (!length(keys) && length(rows)) groups <- list(seq_along(rows))
+  targets <- zt_update_targets(up)
+  new <- cols[targets]
+  for (g in groups) {
+    if (!length(g)) next
+    work <- zt_take_rows(cols, rows[g])
+    m <- length(g)
+    for (s in up$stmts) {
+      v <- zt_eval(s$node, work, m)
+      if (zt_nrow_of(v) != 1L && zt_nrow_of(v) != m) {
+        zutable_abort("value", sprintf(
+          "`%s` gets %d values for %d rows; give one value or one per row written",
+          s$name, zt_nrow_of(v), m
+        ), call = call)
+      }
+      v <- zt_recycle_n(v, m)
+      work[[s$name]] <- v
+      if (s$kind == "set") {
+        col <- new[[s$name]]
+        if (is.data.frame(col)) col[rows[g], ] <- v else col[rows[g]] <- v
+        new[[s$name]] <- col
+      }
+    }
+  }
+  new
+}
+
+# The statements over all the written rows at once, through the kernel:
+# each aggregate is reduced per group (design-kernel 6.5) and gathered back
+# to the rows, so a statement is evaluated once, not once per group.
+zt_update_kernel <- function(up, cols, rows, scoped, keys, call) {
+  m <- length(rows)
+  g <- zt_group_ids(keys, m)
+  if (!length(keys)) g <- list(id = rep(1L, m), n_groups = as.integer(m > 0L))
+  targets <- zt_update_targets(up)
+  new <- cols[targets]
+  work <- scoped
+  for (s in up$stmts) {
+    node <- s$node
+    if (isTRUE(node$aggregate) && m) {
+      pending <- list()
+      rewrite <- function(nd) {
+        if (identical(nd$kind, "call") && identical(zt_vocab[[nd$fn]]$kind, "aggregate")) {
+          nm <- paste0(".zt_agg", length(pending) + 1L)
+          pending[[nm]] <<- nd
+          return(zt_node("col", name = nm, type = nd$type, nullable = TRUE, aggregate = FALSE))
+        }
+        if (!is.null(nd$args)) nd$args <- lapply(nd$args, rewrite)
+        nd
+      }
+      node <- rewrite(node)
+      aggs <- zt_reduce_aggregates(pending, work, m, g)
+      v <- zt_eval(node, c(work, lapply(aggs, zt_take, idx = g$id)), m)
+    } else {
+      v <- zt_eval(node, work, m)
+    }
+    if (zt_nrow_of(v) != 1L && zt_nrow_of(v) != m) {
+      zutable_abort("value", sprintf(
+        "`%s` gets %d values for %d rows; give one value or one per row written",
+        s$name, zt_nrow_of(v), m
+      ), call = call)
+    }
+    v <- zt_recycle_n(v, m)
+    work[[s$name]] <- v
+    if (s$kind == "set") {
+      col <- new[[s$name]]
+      if (is.data.frame(col)) col[rows, ] <- v else col[rows] <- v
+      new[[s$name]] <- col
+    }
+  }
+  new
 }

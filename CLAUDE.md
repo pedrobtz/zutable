@@ -75,7 +75,12 @@ ALTREP class (D22, D46): its payload is copied before any write when
 shared, and every write drops its marks. [src/join.c](src/join.c) is
 `grp_join()`'s translation of `zutable/join.h`; `join()` runs on it, with
 the R join kept as its oracle under `options(zutable.executor =
-"reference")`. The kernel's header goes under
+"reference")`. [src/reduce.c](src/reduce.c) is `grp_reduce()`'s
+translation of `zutable/reduce.h`; the executor's aggregates, `over()`
+and `:=` with `by` rewrite each aggregate call into a column of
+per-group values (`zt_eval_groups()` in `R/execute.R`), keeping the
+loop over groups as their oracle, and the loop for an `r()` node. The
+kernel's header goes under
 `inst/include/` and `src/` stays a thin R translation over it
 (design-kernel §4).
 

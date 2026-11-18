@@ -29,6 +29,11 @@ grp <- function(..., sort = FALSE) {
   if (!is.logical(sort) || length(sort) != 1L || is.na(sort)) {
     zutable_abort("type", "`sort` is TRUE or FALSE", call = call)
   }
+  zt_grp_build(keys, sort)
+}
+
+# grp() of checked key columns (zt_key_columns()).
+zt_grp_build <- function(keys, sort) {
   n <- if (length(keys)) length(keys[[1L]]) else 0L
   if (isTRUE(sort)) {
     g <- zt_grp_sort_route(keys, n)
