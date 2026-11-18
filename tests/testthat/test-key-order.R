@@ -286,6 +286,13 @@ test_that("refusals", {
   expect_error(key_sort(1:3, decreasing = c(TRUE, FALSE)), class = "zutable_type_error")
   expect_error(key_sort(data.frame(a = 1, b = 2)), class = "zutable_type_error")
   expect_error(key_sort(1i), class = "zutable_type_error")
+  expect_error(key_sort(1:3, decreasing = NA), class = "zutable_type_error")
+  expect_error(key_sort(1:3, na.last = "keep"), class = "zutable_type_error")
+  # Every route checks the row limit before C does (a compact sequence,
+  # so nothing is allocated).
+  expect_error(key_order(1:2^31), class = "zutable_length_error")
+  expect_error(key_sort(1:2^31), class = "zutable_length_error")
+  expect_error(key_rank(c("a", "b"), 1:2), NA)
   expect_identical(key_order(), integer())
   expect_identical(key_rank(), integer())
 })

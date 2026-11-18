@@ -121,3 +121,13 @@ test_that("grp(sort = TRUE) marks its first key column sorted", {
   expect_null(sorted_meta(g$keys[[2L]]))
   expect_null(sorted_meta(grp(c(3, 1))$keys[[1L]]))
 })
+
+test_that("the wrapping hook takes only a plain vector and a sortedness code", {
+  expect_error(sorted_wrap(c(a = 1L), 1L, TRUE))
+  expect_error(sorted_wrap(list(1), 1L, TRUE))
+  expect_error(sorted_wrap(1:3, 3L, TRUE))
+  expect_error(sorted_wrap(1:3, -3L, TRUE))
+  for (code in c(-2L, -1L, 0L, 1L, 2L, NA_integer_)) {
+    expect_identical(sorted_meta(sorted_wrap(c(1L, 2L), code, FALSE)), c(code, 0L))
+  }
+})

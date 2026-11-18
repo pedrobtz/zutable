@@ -53,7 +53,9 @@ key_order <- function(..., decreasing = FALSE, na.last = TRUE,
   ) {
     x <- ..1
     if (
-      is.null(attributes(x)) && (is.double(x) || is.integer(x) || is.logical(x))
+      is.null(attributes(x)) &&
+        (is.double(x) || is.integer(x) || is.logical(x)) &&
+        length(x) <= .Machine$integer.max
     ) {
       na <- if (is.na(na.last)) {
         -1L

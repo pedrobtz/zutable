@@ -6,6 +6,7 @@ test_that("collated order is stringi::stri_order()", {
   skip_if_not_installed("stringi")
   withr::local_seed(121)
   for (n in c(1L, 2L, 30L, 1001L, 5000L)) {
+    if (under_torture() && n > 1001L) next
     x <- sample(collate_pool(), n, TRUE)
     for (d in c(FALSE, TRUE)) {
       for (nl in list(TRUE, FALSE, NA)) {

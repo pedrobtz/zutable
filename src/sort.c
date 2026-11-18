@@ -11,6 +11,9 @@
 static zt_sort_col *zt_fill_sort_cols(SEXP keys, SEXP i64, SEXP dec, zt_row *n) {
   int ncol = (int) XLENGTH(keys);
   zt_sort_col *cols = (zt_sort_col *) R_alloc(ncol > 0 ? (size_t) ncol : 1, sizeof(zt_sort_col));
+  if (ncol > 0 && XLENGTH(VECTOR_ELT(keys, 0)) > ZT_MAX_ROWS) {
+    Rf_error("zt_key_order: more than 2^31 - 1 rows");
+  }
   *n = ncol > 0 ? (zt_row) XLENGTH(VECTOR_ELT(keys, 0)) : 0;
   for (int c = 0; c < ncol; c++) {
     SEXP x = VECTOR_ELT(keys, c);
