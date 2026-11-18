@@ -22,5 +22,6 @@
 #include "zutable/groups.h"
 #include "zutable/sort.h"
 #include "zutable/strsort.h"
+#include "zutable/join.h"
 
 #endif /* ZUTABLE_H */
