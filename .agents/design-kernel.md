@@ -509,6 +509,9 @@ What each row rests on:
   same string column is grouped or joined repeatedly, which `zutable`
   will do. `grp()`'s `keys` and `id` fields are that encoding
   made public (§5), so a consumer can keep it.
+  (Decided 2026-11-18, Stage 13: D47, pointer mixing in the kernel, the
+  encoding left to the consumer through `grp()$id`; it repays itself only
+  from the second or third reuse.)
 - **G.** data.table packs several narrow integer columns into one 64-bit
   key before ordering. When ranges allow, the composite key becomes one
   integer and axes B, D and K run on it; otherwise column-at-a-time
@@ -929,6 +932,16 @@ so `j$x` is non-decreasing and `grp_match()` lines up with `x`. The
 kernel builds on the smaller side (§4); when that is `x`, the pairs are
 produced in `y` order and reordered, and the reorder is part of the
 join's measured cost (D23).
+
+How the keys pair, the two sides' columns, and what each type returns
+(D48): `by = NULL` pairs the columns by position; a character `by` names
+them in data frames or named lists, `c(a = "b")` pairing `x`'s `a` with
+`y`'s `b`. A factor matches by its labels, against a factor or a
+character key; integer, logical and double keys match by value, as
+`match()` does; strings, raw lists and `integer64` match only their own
+kind. `semi` and `anti` return `list(x)` alone. A result of more than
+2³¹ − 1 pairs is a `zutable_length_error`, raised from the count before
+any pair is written.
 
 The default is `all`, because it is what `merge()` and data.table do.
 `error` exists for callers such as the table's `merge()` and the planned
@@ -1425,6 +1438,23 @@ Marked **(M)** when the maintainer decided it in conversation and
   pointers in places (`identical()` takes `INTEGER()`), which drops the
   marks too: a lost mark is a scan, never a wrong answer. 2026-11-18,
   Stage 12.
+- **D47 (C).** Axis F's answer: string keys are hashed as their interned
+  pointers, and the kernel does not dictionary-encode first. Encoding is
+  a grouping pass over the pointers, so for one use it can only cost
+  more; once paid, the integer pass runs about twice as fast, and the
+  encoding repays itself after 1.5 to 2.8 reuses at 10⁶ and 10⁷ rows and
+  10² to 10⁶ distinct strings (`.agents/benchmarks.md`, Stage 13). A
+  caller that reuses a column keeps `grp()$id`, which is that encoding.
+  No switch is kept (D14). 2026-11-18, Stage 13.
+- **D48 (C).** `grp_join()`'s keys (§6.4): `by` pairs the columns by
+  position when `NULL` and by name otherwise, `c(a = "b")` for names that
+  differ, as dplyr spells it; `merge()`'s `by.x` and `by.y` were the
+  alternative, and one argument keeps the call short. Each pair of
+  columns is brought to one native type before hashing, factors through
+  their labels and numbers to double when their types differ, so a hash
+  and an equality serve both sides. Semi and anti joins return `list(x)`.
+  The table is sized for every row of the build side and never grows:
+  five bytes a slot, and no rehash. 2026-11-18, Stage 13.
 
 ## 14. Later versions, in the order they are expected
 

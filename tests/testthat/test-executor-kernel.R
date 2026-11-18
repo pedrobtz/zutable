@@ -51,3 +51,58 @@ test_that("ordered queries agree, kernel and reference", {
                      plain(with_executor("reference", queries[[i]]())), info = i)
   }
 })
+
+test_that("joins agree, kernel and reference, for every how, multiple and na_equal", {
+  withr::local_seed(49)
+  mk <- function(n, tag) {
+    d <- data.frame(
+      id = seq_len(n),
+      k = sample(c(1:6, NA), n, TRUE),
+      s = sample(c("a", "é", iconv("é", "UTF-8", "latin1"), "", NA), n, TRUE),
+      x = sample(c(NA, NaN, -0, 0, 2.5), n, TRUE),
+      b = sample(c(TRUE, FALSE, NA), n, TRUE),
+      day = as.Date("2026-01-01") + sample(c(0:3, NA), n, TRUE),
+      e = factor(sample(c("lo", "hi", NA), n, TRUE), levels = c("lo", "hi")),
+      stringsAsFactors = FALSE
+    )
+    names(d)[-1L] <- paste0(names(d)[-1L], tag)
+    as_zutable(d)
+  }
+  # Both sizes of x against y, so the table is built on either side.
+  for (sz in list(c(60L, 25L), c(25L, 60L))) {
+    x <- mk(sz[[1L]], "")
+    y <- mk(sz[[2L]], "2")
+    ons <- list(
+      quote(.(k == k2)), quote(.(s == s2)), quote(.(x == x2)), quote(.(b == b2)),
+      quote(.(day == day2)), quote(.(e == e2)), quote(.(k == k2, s == s2)),
+      quote(.(x == x2, e == e2, b == b2))
+    )
+    # Step 20 keeps one key of each native kind and the three-column one,
+    # which reach every C path; the rest repeat them (a Date is a double, a
+    # factor a string). In full this test took 41 of the 240 minutes there
+    # (2026-11-18).
+    if (under_torture()) ons <- ons[c(1L, 2L, 3L, 8L)]
+    for (on in ons) {
+      for (how in c("inner", "left", "right", "full", "semi", "anti")) {
+        for (multiple in c("all", "first", "last")) {
+          for (na_equal in c(TRUE, FALSE)) {
+            run <- function(which) with_executor(which, eval(bquote(
+              join(x, y, on = .(on), how = .(how), multiple = .(multiple),
+                   na_equal = .(na_equal), suffix = c(".x", ".y"))
+            )))
+            expect_identical(plain(run("kernel")), plain(run("reference")),
+                             info = paste(deparse(on), how, multiple, na_equal, sz[[1L]]))
+          }
+        }
+      }
+      for (how in c("inner", "left", "right", "full")) {
+        k <- tryCatch(with_executor("kernel", eval(bquote(join(x, y, on = .(on), how = .(how),
+                        multiple = "error", suffix = c(".x", ".y"))))), error = identity)
+        r <- tryCatch(with_executor("reference", eval(bquote(join(x, y, on = .(on), how = .(how),
+                        multiple = "error", suffix = c(".x", ".y"))))), error = identity)
+        expect_identical(class(k), class(r))
+        expect_identical(conditionMessage(k), conditionMessage(r))
+      }
+    }
+  }
+})

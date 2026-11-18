@@ -29,4 +29,12 @@ vs <- key_sort(c("b", "a"))
 vs[1L] <- "c"
 u <- unserialize(serialize(v, NULL))
 m <- .Call(zutable:::zt_sorted_meta, u)
-invisible(list(d, z2, g1, g2, o, r, os, v2, vs, u, m))
+# Joins (zt_join): pairs, a left join with an unmatched row, semi, the
+# fan-out error, and join() on tables with na_equal = FALSE.
+j1 <- grp_join(c("a", "b", "a"), c("b", "a", "a", NA), type = "left")
+j2 <- grp_join(list(k, c(1, 2, 3, 4, 5)), list(c(3L, NA), c(1, 3)), type = "semi")
+j3 <- tryCatch(grp_join(1:2, c(1L, 1L), multiple = "error"), error = identity)
+jm <- grp_match(c(2L, 9L), 1:3)
+jt <- join(zutable(a = c(1L, NA)), zutable(a = c(NA, 1L), b = 1:2), on = a,
+           how = "full", na_equal = FALSE)
+invisible(list(d, z2, g1, g2, o, r, os, v2, vs, u, m, j1, j2, j3, jm, jt))

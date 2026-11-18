@@ -17,6 +17,8 @@ SEXP zt_key_rank(SEXP keys, SEXP i64, SEXP dec, SEXP na_last, SEXP ties);
 SEXP zt_strings_rank(SEXP x);
 SEXP zt_sorted_wrap(SEXP x, SEXP sorted, SEXP no_na);
 SEXP zt_sorted_meta(SEXP x);
+SEXP zt_join(SEXP xkeys, SEXP ykeys, SEXP i64, SEXP type, SEXP multiple,
+             SEXP xmask, SEXP ymask);
 void zt_init_altrep(DllInfo *dll);
 
 // Native routines are registered here as stages add them. Symbols are
@@ -36,6 +38,7 @@ static const R_CallMethodDef call_methods[] = {
   {"zt_strings_rank", (DL_FUNC) &zt_strings_rank, 1},
   {"zt_sorted_wrap", (DL_FUNC) &zt_sorted_wrap, 3},
   {"zt_sorted_meta", (DL_FUNC) &zt_sorted_meta, 1},
+  {"zt_join", (DL_FUNC) &zt_join, 7},
   {NULL, NULL, 0}
 };
 

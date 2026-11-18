@@ -1,6 +1,6 @@
-# Joins and binding (design §10). The reference join is in R over match()
-# (D29); the kernel's grp_join() replaces it in a later stage and is held
-# to its results.
+# Joins and binding (design §10). join() runs on the kernel's grp_join()
+# (design-kernel 6.4); the reference join in R over match() stays as its
+# oracle (D29), under options(zutable.executor = "reference").
 
 #' Join two tables
 #'
@@ -48,7 +48,11 @@ join <- function(x, y, on, how = "inner", multiple = "all", na_equal = TRUE,
     zutable_abort("syntax", "`suffix` is two different strings", call = call)
   }
   keys <- zt_parse_on(substitute(on), x, y, call)
-  pairs <- zt_join_pairs(x, y, keys, how, multiple, na_equal, call)
+  pairs <- if (identical(getOption("zutable.executor", "kernel"), "reference")) {
+    zt_join_pairs(x, y, keys, how, multiple, na_equal, call)
+  } else {
+    zt_join_pairs_kernel(x, y, keys, how, multiple, na_equal, call)
+  }
   zt_join_build(x, y, keys, pairs, how, suffix, call)
 }
 
@@ -109,7 +113,15 @@ zt_parse_on <- function(e, x, y, call) {
 
 # Index pairs (x row, y row): x's order, then y's within an x row; NA in
 # `yi` for an x row with no match (left), NA in `xi` for a y row with none.
-zt_join_pairs <- function(x, y, keys, how, multiple, na_equal, call) {
+zt_join_pairs <- function(x, y, keys, how, multiple, na_equal, call,
+                          sides = c("x", "y")) {
+  if (how == "right") {
+    # The left join of y with x, in y's order, then x's within a y row;
+    # `multiple` counts rows of x per row of y.
+    r <- zt_join_pairs(y, x, list(x = keys$y, y = keys$x), "left",
+                       multiple, na_equal, call, sides = c("y", "x"))
+    return(list(xi = r$yi, yi = r$xi))
+  }
   nx <- .row_names_info(x, 2L)
   ny <- .row_names_info(y, 2L)
   code <- NULL
@@ -146,12 +158,7 @@ zt_join_pairs <- function(x, y, keys, how, multiple, na_equal, call) {
   }
   if (multiple == "error" && any(counts > 1L)) {
     i <- which(counts > 1L)[[1L]]
-    key <- paste(vapply(keys$x, function(k) format(zt_take(x[[k]], i)), ""),
-                 collapse = ", ")
-    zutable_abort("multiple", sprintf(
-      "row %d of x matches %d rows of y on key (%s); multiple = \"error\"",
-      i, counts[[i]], key
-    ), call = call)
+    zt_multiple_abort(lapply(keys$x, function(k) x[[k]]), i, counts[[i]], call, sides)
   }
   if (multiple == "first") hits <- lapply(hits, utils::head, 1L)
   if (multiple == "last") hits <- lapply(hits, utils::tail, 1L)
@@ -159,12 +166,6 @@ zt_join_pairs <- function(x, y, keys, how, multiple, na_equal, call) {
   if (how %in% c("left", "full")) {
     hits[counts == 0L] <- list(NA_integer_)
     counts <- lengths(hits)
-  }
-  if (how == "right") {
-    # The left join of y with x, in y's order, then x's within a y row.
-    r <- zt_join_pairs(y, x, list(x = keys$y, y = keys$x), "left",
-                       multiple, na_equal, call)
-    return(list(xi = r$yi, yi = r$xi))
   }
   xi <- rep(seq_len(nx), counts)
   yi <- unlist(hits, use.names = FALSE)
@@ -179,6 +180,39 @@ zt_join_pairs <- function(x, y, keys, how, multiple, na_equal, call) {
     yi <- c(yi, extra)
   }
   list(xi = as.integer(xi), yi = as.integer(yi))
+}
+
+# The same pairs as zt_join_pairs(), from the kernel: inner, left, semi and
+# anti from grp_join(); right as the left join of y with x, swapped; full
+# as the left join with the rows of y no pair has (design-kernel 6.4).
+zt_join_pairs_kernel <- function(x, y, keys, how, multiple, na_equal, call,
+                                 sides = c("x", "y")) {
+  if (how == "right") {
+    r <- zt_join_pairs_kernel(y, x, list(x = keys$y, y = keys$x), "left",
+                              multiple, na_equal, call, sides = c("y", "x"))
+    return(list(xi = r$yi, yi = r$xi))
+  }
+  xc <- lapply(keys$x, function(k) x[[k]])
+  yc <- lapply(keys$y, function(k) y[[k]])
+  k <- zt_join_pair_keys(xc, yc, call)
+  xmask <- ymask <- NULL
+  if (!na_equal) {
+    # SQL: a missing key matches nothing.
+    xmask <- Reduce(`|`, lapply(xc, zt_is_null))
+    ymask <- Reduce(`|`, lapply(yc, zt_is_null))
+  }
+  type <- switch(how, full = "left", how)
+  j <- zt_join_index(k, type, multiple, xmask, ymask, call, sides)
+  if (how %in% c("semi", "anti")) return(list(xi = j$x, yi = NULL))
+  if (how == "full") {
+    ny <- .row_names_info(y, 2L)
+    seen <- logical(ny)
+    seen[j$y[!is.na(j$y)]] <- TRUE
+    extra <- which(!seen)
+    j$x <- c(j$x, rep(NA_integer_, length(extra)))
+    j$y <- c(j$y, extra)
+  }
+  list(xi = j$x, yi = j$y)
 }
 
 zt_join_build <- function(x, y, keys, pairs, how, suffix, call) {

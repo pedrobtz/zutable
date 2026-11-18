@@ -30,8 +30,9 @@ static const void *const *zt_str_ptrs(SEXP x, SEXP keep, int slot) {
 }
 
 // Fill a zt_key from a list of key vectors, already checked in R: integer,
-// logical, double (i64 when `i64[c]`), character, or a list of raw.
-static void zt_fill_key(SEXP keys, SEXP i64, zt_column *cols, SEXP keep) {
+// logical, double (i64 when `i64[c]`), character, or a list of raw. Also
+// used by join.c.
+void zt_fill_key(SEXP keys, SEXP i64, zt_column *cols, SEXP keep) {
   int ncol = (int) XLENGTH(keys);
   for (int c = 0; c < ncol; c++) {
     SEXP x = VECTOR_ELT(keys, c);
