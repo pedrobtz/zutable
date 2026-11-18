@@ -35,7 +35,7 @@ fewer.
 | 9 | [Kernel foundation and spike](#stage-9--kernel-foundation-and-spike) | quick | [#11](https://github.com/pedrobtz/zutable/issues/11) | [#35](https://github.com/pedrobtz/zutable/pull/35) | 2026-11-17 |
 | 10 | [Kernel groups](#stage-10--kernel-groups) | full | [#12](https://github.com/pedrobtz/zutable/issues/12) | [#37](https://github.com/pedrobtz/zutable/pull/37) | 2026-11-17 |
 | 11 | [Kernel sort](#stage-11--kernel-sort) | full | [#13](https://github.com/pedrobtz/zutable/issues/13) | [#38](https://github.com/pedrobtz/zutable/pull/38) | 2026-11-17 |
-| 12 | [Strings and sorted values](#stage-12--strings-and-sorted-values) | full | [#14](https://github.com/pedrobtz/zutable/issues/14) | | 2026-11-18 |
+| 12 | [Strings and sorted values](#stage-12--strings-and-sorted-values) | full | [#14](https://github.com/pedrobtz/zutable/issues/14) | [#39](https://github.com/pedrobtz/zutable/pull/39) | 2026-11-18 |
 | 13 | [Kernel join and match](#stage-13--kernel-join-and-match) | quick | [#15](https://github.com/pedrobtz/zutable/issues/15) | | |
 | 14 | [Kernel reduce](#stage-14--kernel-reduce) | quick | [#16](https://github.com/pedrobtz/zutable/issues/16) | | |
 | 15 | [Consumer fixture, ABI and fuzz](#stage-15--consumer-fixture-abi-and-fuzz) | quick | [#17](https://github.com/pedrobtz/zutable/issues/17) | | |
