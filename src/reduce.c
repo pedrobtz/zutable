@@ -7,6 +7,15 @@
 #include <Rinternals.h>
 #include <zutable.h>
 
+// Accumulators of ng elements, aligned for zt_acc: R_alloc() promises only
+// 8 bytes, and long double wants 16 on x86_64.
+static zt_acc *zt_alloc_acc(int ng) {
+  size_t align = _Alignof(zt_acc);
+  char *p = R_alloc((size_t) ng * sizeof(zt_acc) + sizeof(zt_acc) + align, 1);
+  uintptr_t u = ((uintptr_t) p + align - 1) & ~(uintptr_t) (align - 1);
+  return (zt_acc *) u;
+}
+
 // id: integer group ids 1 .. ng, one per row, no NA. xs: a list of value
 // columns (integer, logical or double; or NULL for count, and for first
 // and last without na.rm). fns: the statistic
@@ -75,8 +84,8 @@ SEXP zt_reduce_r(SEXP id, SEXP ng_, SEXP xs, SEXP fns, SEXP narm, SEXP nanmiss) 
     c->na_rm = LOGICAL_RO(narm)[k] == TRUE;
     c->nan_missing = LOGICAL_RO(nanmiss)[k] == TRUE;
     c->out = otype == REALSXP ? (void *) REAL(o) : (void *) INTEGER(o);
-    c->acc = a ? (zt_acc *) R_alloc((size_t) ng + 1, sizeof(zt_acc)) : NULL;
-    c->acc2 = a2 ? (zt_acc *) R_alloc((size_t) ng + 1, sizeof(zt_acc)) : NULL;
+    c->acc = a ? zt_alloc_acc(ng) : NULL;
+    c->acc2 = a2 ? zt_alloc_acc(ng) : NULL;
     c->cnt = cn ? (zt_row *) R_alloc((size_t) ng + 1, sizeof(zt_row)) : NULL;
     c->flag = fl ? (uint8_t *) R_alloc((size_t) ng + 1, 1) : NULL;
   }

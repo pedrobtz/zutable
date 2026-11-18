@@ -69,7 +69,9 @@ typedef enum {
      count, nobs                    int32_t
      first, last                    zt_row, the row, -1 for none
    acc, acc2, cnt and flag are scratch of ng elements each, of the sizes
-   zt_reduce_scratch() gives (NULL where it gives 0). */
+   zt_reduce_scratch() gives (NULL where it gives 0); acc and acc2 aligned
+   for zt_acc, which as long double wants 16 bytes on x86_64, more than
+   some allocators (R's R_alloc()) promise. */
 typedef struct {
   zt_fn fn;
   int kind;
