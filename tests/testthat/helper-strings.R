@@ -14,3 +14,11 @@ collate_pool <- function() {
     "\u00e9t\u00e9", "e\u0301te\u0301", "10", "9", "\u4e2d\u6587"
   )
 }
+
+# ICU's locale for the test: under a C or POSIX locale ICU collates by code
+# point, which is byte order, and collate = TRUE would be untested.
+local_icu_locale <- function(locale = "en_US", env = parent.frame()) {
+  old <- stringi::stri_locale_get()
+  suppressMessages(stringi::stri_locale_set(locale))
+  withr::defer(suppressMessages(stringi::stri_locale_set(old)), envir = env)
+}

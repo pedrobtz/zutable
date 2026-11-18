@@ -1421,7 +1421,10 @@ Marked **(M)** when the maintainer decided it in conversation and
   `g$keys[[1]]` is wrapped: the later columns are sorted only within ties
   of the earlier ones. A write through a writable pointer, or to a string
   element, first copies a shared payload, as base R's wrapper does, and
-  drops both marks. 2026-11-18, Stage 12.
+  drops both marks. Base R before 4.6 also reads through writable
+  pointers in places (`identical()` takes `INTEGER()`), which drops the
+  marks too: a lost mark is a scan, never a wrong answer. 2026-11-18,
+  Stage 12.
 
 ## 14. Later versions, in the order they are expected
 

@@ -186,7 +186,9 @@ zt_na_last <- function(na.last, call, keep) {
 #' s
 #' is.unsorted(s, na.rm = TRUE)
 #' key_sort(c("b", "A", "a"))
-#' key_sort(c("b", "A", "a"), collate = TRUE)
+#' if (requireNamespace("stringi", quietly = TRUE)) {
+#'   key_sort(c("b", "A", "a"), collate = TRUE)
+#' }
 key_sort <- function(x, decreasing = FALSE, na.last = TRUE, collate = FALSE) {
   call <- sys.call()
   cols <- zt_key_columns(list(x), call)

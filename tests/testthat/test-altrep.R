@@ -78,12 +78,15 @@ test_that("a shared payload is copied before a write, never changed", {
   expect_identical(x, c(1L, 2L, 3L))
   expect_identical(w, c(7L, 2L, 3L))
   # A copy writes on its own; the original keeps its values and metadata.
+  # The metadata is read first: before R 4.6, identical() reads through
+  # INTEGER(), a writable pointer, which drops it.
   y <- key_sort(c(3L, 1L, 2L))
   z <- y
   z[1L] <- 9L
-  expect_identical(y, 1:3)
   expect_identical(sorted_meta(y), c(1L, 1L))
   expect_identical(sorted_meta(z)[[1L]], NA_integer_)
+  expect_identical(y, 1:3)
+  expect_identical(z, c(9L, 2L, 3L))
 })
 
 test_that("serialize() round trip keeps the values, attributes and metadata", {

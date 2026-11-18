@@ -4,6 +4,7 @@
 
 test_that("collated order is stringi::stri_order()", {
   skip_if_not_installed("stringi")
+  local_icu_locale()
   withr::local_seed(121)
   for (n in c(1L, 2L, 30L, 1001L, 5000L)) {
     if (under_torture() && n > 1001L) next
@@ -29,6 +30,7 @@ test_that("collated order is stringi::stri_order()", {
 
 test_that("collated keys beside other keys, and dense ranks", {
   skip_if_not_installed("stringi")
+  local_icu_locale()
   withr::local_seed(122)
   s <- sample(collate_pool(), 400, TRUE)
   a <- sample(1:3, 400, TRUE)

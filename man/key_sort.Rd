@@ -42,5 +42,7 @@ s <- key_sort(c(3, 1, NA, 2))
 s
 is.unsorted(s, na.rm = TRUE)
 key_sort(c("b", "A", "a"))
-key_sort(c("b", "A", "a"), collate = TRUE)
+if (requireNamespace("stringi", quietly = TRUE)) {
+  key_sort(c("b", "A", "a"), collate = TRUE)
+}
 }
