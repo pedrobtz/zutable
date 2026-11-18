@@ -19,4 +19,14 @@ g1 <- grp(k, c("a", "b", "a", "a", NA))
 g2 <- grp(k, sort = TRUE)
 o <- key_order(k, c(2.5, NaN, 1, -0, 0), decreasing = c(FALSE, TRUE))
 r <- key_rank(k, ties = "dense")
-invisible(list(d, z2, g1, g2, o, r))
+# Strings (zt_strings_rank) and sorted values (zt_sorted_wrap, the ALTREP
+# class's methods: a write, a copy and a serialize round trip).
+os <- key_order(c("b", "a", NA, "ab"), list(as.raw(1), NULL, raw(), as.raw(0)))
+v <- key_sort(c(3, 1, NA))
+v2 <- v
+v2[1L] <- 5
+vs <- key_sort(c("b", "a"))
+vs[1L] <- "c"
+u <- unserialize(serialize(v, NULL))
+m <- .Call(zutable:::zt_sorted_meta, u)
+invisible(list(d, z2, g1, g2, o, r, os, v2, vs, u, m))

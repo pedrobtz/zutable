@@ -115,6 +115,105 @@ test_that("integer64, strings and raw keys sort by value, text and bytes", {
   }
 })
 
+test_that("strings sort by the bytes of their UTF-8 text, at every size", {
+  # The kernel's string sort (zutable/strsort.h) on the distinct strings,
+  # held to base radix order of enc2utf8() input (design-kernel 6.3, 8).
+  withr::local_seed(117)
+  latin <- iconv("caf\u00e9", "UTF-8", "latin1")
+  pool <- c(
+    "b", "a", "B", "", NA, "\u00e9", "ab", "a b", "abc", "abd", latin,
+    "caf\u00e9", "\u4e2d\u6587", "zz", "https://example.org/a/1",
+    "https://example.org/a/10", "https://example.org/a/2", "aaaaaaaab",
+    "aaaaaaaa", "aaaaaaaaa"
+  )
+  for (n in c(sort_sizes, 20000L)) {
+    if (under_torture() && n > 1001L) next
+    # Few distinct strings, and nearly every string distinct.
+    few <- sample(pool, n, TRUE)
+    many <- paste0(sample(c("k", "K", "\u00e9"), n, TRUE), sample.int(n * 4L + 1L, n))
+    for (x in list(few, many)) {
+      u <- enc2utf8(x)
+      for (d in c(FALSE, TRUE)) {
+        for (nl in list(TRUE, FALSE, NA)) {
+          expect_identical(
+            key_order(x, decreasing = d, na.last = nl),
+            order(u, decreasing = d, na.last = nl, method = "radix"),
+            info = paste(n, d, format(nl))
+          )
+        }
+      }
+      expect_identical(
+        key_rank(x, ties = "min"),
+        as.integer(rank(match(u, sort(unique(u), method = "radix")),
+                        ties.method = "min", na.last = TRUE))
+      )
+    }
+  }
+  # One text in two encodings is one key: equal, in row order.
+  expect_identical(key_order(c(latin, "a", "caf\u00e9")), c(2L, 1L, 3L))
+  # Ordered by the UTF-8 bytes, not the native ones: latin1 "\u00e9" is
+  # E9, after the E4 that starts "\u4e2d"; in UTF-8 it is C3 A9, before.
+  e <- iconv("\u00e9", "UTF-8", "latin1")
+  expect_identical(key_order(c(e, "\u4e2d", e)), c(1L, 3L, 2L))
+  expect_identical(key_order(c("\u4e2d", e)), c(2L, 1L))
+  # Strings beside other keys.
+  a <- sample(1:3, 500, TRUE)
+  s <- sample(pool, 500, TRUE)
+  expect_identical(
+    key_order(a, s, decreasing = c(TRUE, FALSE)),
+    order(a, enc2utf8(s), decreasing = c(TRUE, FALSE), method = "radix")
+  )
+})
+
+test_that("raw vectors sort by bytes, a shorter prefix first", {
+  withr::local_seed(118)
+  bytes <- function() {
+    if (stats::runif(1) < 0.1) return(NULL)
+    as.raw(sample(c(0L, 0L, 1L, 2L, 255L), sample(0:11, 1), TRUE))
+  }
+  for (n in c(1L, 30L, 1001L)) {
+    r <- replicate(n, bytes(), simplify = FALSE)
+    # Hexadecimal text sorts as the bytes do: two digits a byte.
+    hex <- vapply(r, function(e) {
+      if (is.null(e)) NA_character_ else paste(sprintf("%02x", as.integer(e)), collapse = "")
+    }, "")
+    for (nl in list(TRUE, FALSE, NA)) {
+      expect_identical(
+        key_order(r, na.last = nl),
+        order(hex, na.last = nl, method = "radix"),
+        info = paste(n, format(nl))
+      )
+    }
+  }
+})
+
+test_that("key_sort() is sort(method = 'radix') on every kind", {
+  withr::local_seed(119)
+  for (n in c(0L, 1L, 25L, 1001L)) {
+    for (kind in kinds) {
+      x <- key_of(kind, n)
+      for (d in c(FALSE, TRUE)) {
+        for (nl in list(TRUE, FALSE, NA)) {
+          want <- x[order(x, decreasing = d, na.last = nl, method = "radix")]
+          expect_identical(
+            key_sort(x, decreasing = d, na.last = nl),
+            want,
+            info = paste(kind, n, d, format(nl))
+          )
+        }
+      }
+    }
+  }
+  s <- c("b", NA, "A", "a", "")
+  expect_identical(key_sort(s), sort(enc2utf8(s), method = "radix", na.last = TRUE))
+  expect_identical(key_sort(s, na.last = NA), sort(enc2utf8(s), method = "radix"))
+  named <- c(b = 2L, a = 1L)
+  expect_identical(key_sort(named), named[2:1])
+  skip_if_not_installed("bit64")
+  v <- c(5, -3, NA, 2^40)
+  expect_identical(key_sort(bit64::as.integer64(v)), bit64::as.integer64(v)[c(2L, 1L, 4L, 3L)])
+})
+
 test_that("key_rank() is rank() for ties min and first, for every na.last", {
   withr::local_seed(115)
   for (n in c(0L, 1L, 25L, 200L, 3000L)) {
@@ -184,6 +283,16 @@ test_that("refusals", {
     class = "zutable_type_error"
   )
   expect_error(key_rank(1:3, na.last = "drop"), class = "zutable_type_error")
+  expect_error(key_sort(1:3, decreasing = c(TRUE, FALSE)), class = "zutable_type_error")
+  expect_error(key_sort(data.frame(a = 1, b = 2)), class = "zutable_type_error")
+  expect_error(key_sort(1i), class = "zutable_type_error")
+  expect_error(key_sort(1:3, decreasing = NA), class = "zutable_type_error")
+  expect_error(key_sort(1:3, na.last = "keep"), class = "zutable_type_error")
+  # Every route checks the row limit before C does (a compact sequence,
+  # so nothing is allocated).
+  expect_error(key_order(1:2^31), class = "zutable_length_error")
+  expect_error(key_sort(1:2^31), class = "zutable_length_error")
+  expect_error(key_rank(c("a", "b"), 1:2), NA)
   expect_identical(key_order(), integer())
   expect_identical(key_rank(), integer())
 })

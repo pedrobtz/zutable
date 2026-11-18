@@ -70,7 +70,9 @@ Benchmark only after `--preclean`: `load_all()` leaves `-O0` objects in
 To be written as stages land; see `.agents/design.md`. The scaffold set up
 C through `use_c()`: [src/zutable.c](src/zutable.c) registers the routines
 and [src/numbers.c](src/numbers.c) wraps zufast's number parsing and
-formatting (`LinkingTo: zufast`). The kernel's header goes under
+formatting (`LinkingTo: zufast`). [src/altrep.c](src/altrep.c) is the sorted-values
+ALTREP class (D22, D46): its payload is copied before any write when
+shared, and every write drops its marks. The kernel's header goes under
 `inst/include/` and `src/` stays a thin R translation over it
 (design-kernel §4).
 

@@ -5,13 +5,14 @@
 \alias{key_rank}
 \title{Order and rank rows by keys}
 \usage{
-key_order(..., decreasing = FALSE, na.last = TRUE)
+key_order(..., decreasing = FALSE, na.last = TRUE, collate = FALSE)
 
 key_rank(
   ...,
   ties = c("min", "first", "dense"),
   decreasing = FALSE,
-  na.last = TRUE
+  na.last = TRUE,
+  collate = FALSE
 )
 }
 \arguments{
@@ -23,6 +24,10 @@ vectors), or a data frame or list of them.}
 
 \item{na.last}{\code{TRUE}, \code{FALSE} or \code{NA}; for \code{key_rank()} also \code{"keep"},
 which ranks a row with a missing key \code{NA}.}
+
+\item{collate}{\code{FALSE} sorts strings by bytes; \code{TRUE} in the order of
+the current locale, as \code{stringi::stri_order()} does. \code{TRUE} needs the
+\code{stringi} package, and is a \code{zutable_collate_error} without it.}
 
 \item{ties}{For \code{key_rank()}: \code{"min"} gives equal keys the lowest rank
 of their run, as \code{rank(ties.method = "min")}; \code{"first"} ranks them in
@@ -47,7 +52,9 @@ The order is base R's: numbers ascending, \code{FALSE} before \code{TRUE}, facto
 by level, \code{-0} equal to \code{0}. \code{NA} and \code{NaN} are equal, and go last with
 \code{na.last = TRUE}, first with \code{FALSE}, and with \code{NA} their rows are left
 out. \code{decreasing} reverses a key's order but not the stability: equal
-keys keep row order. Strings sort by the bytes of their UTF-8 text.
+keys keep row order. Strings sort by the bytes of their UTF-8 text,
+or with \code{collate = TRUE} in the locale's order, through \code{stringi}'s
+collation keys, which are computed once per distinct string.
 }
 \examples{
 x <- c(3, 1, NA, 2, 1)

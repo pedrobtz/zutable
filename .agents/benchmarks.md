@@ -244,3 +244,77 @@ at 1% of the rows or more (D44). The R-level row of the harness
 is kept as the route's first measurement; the C route is the
 `zutable::grp(sort = TRUE)` row, 0.551 s, against collapse's 0.354.
 
+## Kernel: strings (Stage 12, 2026-11-18)
+
+### Axis N: sorting distinct strings
+
+Three ways to sort distinct byte strings (`tools/bench/str-sort.c`, no R,
+`-O2`), nanoseconds a string (median of five), each order checked against
+full comparison's before it is timed. *compare* is merge sort with
+`memcmp()` on each pair, what base radix does on the distinct set;
+*prefix* is the first eight bytes as an integer through the hybrid, then
+multikey quicksort on each run of equal prefixes; *msd* is MSD radix over
+the bytes, insertion sort below 32. Shapes: *random*, 6 to 24 random
+letters; *url*, a 25-byte shared prefix, two letters and a number;
+*code*, two letters and seven digits; *words*, 3 to 10 letters from nine,
+then a number.
+
+| Shape | n | compare | prefix | msd |
+| --- | ---: | ---: | ---: | ---: |
+| random | 1e3 | 82 | **25** | 45 |
+| random | 1e4 | 139 | **25** | 46 |
+| random | 1e5 | 285 | **29** | 49 |
+| random | 1e6 | 776 | **44** | 418 |
+| url | 1e3 | 186 | **104** | 167 |
+| url | 1e4 | 237 | **139** | 167 |
+| url | 1e5 | 445 | **190** | 218 |
+| url | 1e6 | 1054 | **479** | 3642 |
+| code | 1e3 | 87 | **21** | 47 |
+| code | 1e4 | 136 | **24** | 46 |
+| code | 1e5 | 283 | **30** | 64 |
+| code | 1e6 | 678 | **40** | 345 |
+| words | 1e3 | 103 | **29** | 52 |
+| words | 1e4 | 149 | **29** | 57 |
+| words | 1e5 | 297 | **34** | 65 |
+| words | 1e6 | 763 | **45** | 470 |
+
+The prefix wins every cell: 2.2x to 18x over full comparison and 1.1x to
+9.5x over MSD radix. Its weakest shape is the URL, where the shared
+prefix leaves every string to multikey quicksort; there MSD radix comes
+within 1.15x at 10^5 and then falls apart at 10^6, when its 257-bucket
+passes leave cache. So `zutable/strsort.h` keeps the prefix alone (D45),
+and the two controls stay in the bench file only (D14).
+
+### Order and collated sort from R
+
+`tools/bench/str-order.R`, seconds a call, median of three; strings of 4
+to 16 random characters (`stringi::stri_rand_strings()`):
+
+| Input | Rows | Distinct | `key_order()` | base radix | `forderv()` | vs base |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| character | 1e7 | 1e5 | 1.192 | 0.181 | 0.710 | 0.15x |
+| character | 1e6 | 1e6 | 0.411 | 0.474 | 0.631 | 1.15x |
+| character | 1e7 | 1e7 | 8.297 | 6.592 | 9.168 | 0.79x |
+
+| Collated sort | Strings | Distinct | `key_sort()` | `stri_sort()` | `sort()` | vs stringi | vs base |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| words | 1e5 | 1e4 | 0.015 | 0.114 | 0.294 | 7.6x | 19.6x |
+| words | 1e6 | 1e5 | 0.184 | 1.377 | 4.419 | 7.5x | 24.0x |
+| words | 1e6 | 1e6 | 1.609 | 1.996 | 6.179 | 1.24x | 3.8x |
+
+Against section 9.3: collated sort beats parity with `stri_order()` in
+every row, by paying for collation once per distinct string; it is 20x
+faster than base `sort()` once strings repeat, and 3.8x when every string
+is distinct, a miss. The byte order misses both of its targets (3x base
+radix at 10^5 distinct, 1.5x at all distinct): base radix orders strings
+by their `CHARSXP`s' truelength scratch, one pass over the rows and a
+sort of the distinct set, where `key_order()` hashes the rows into groups
+and then sorts every row again by its integer code. A profile of the 10^7
+x 10^5 call (0.93 s that run): grouping 0.57 s, the integer order 0.20,
+`enc2utf8()` 0.05, the gather of ranks 0.03, ranking the 10^5 distinct
+strings 0.008. Recorded, not tuned (section 9.3; the maintainer deferred
+tuning, 2026-11-17). The known next steps: a grouping pass that returns
+only identifiers and first rows (`zt_grp` also builds sizes, starts and
+the group order, which the string path discards), and for a single string
+key one counting pass over the groups in rank order instead of a second
+sort of every row.

@@ -9,7 +9,7 @@
  * Layers, each testable without the one above, arrive stage by stage:
  * key.h (the key model), table.h, partition.h, then groups.h, sort.h
  * (over sortrec.h, pdqsort.h, vergesort.h, skasort.h and radix.h),
- * join.h and reduce.h.
+ * strsort.h (byte strings), join.h and reduce.h.
  */
 #ifndef ZUTABLE_H
 #define ZUTABLE_H
@@ -21,5 +21,6 @@
 #include "zutable/partition.h"
 #include "zutable/groups.h"
 #include "zutable/sort.h"
+#include "zutable/strsort.h"
 
 #endif /* ZUTABLE_H */

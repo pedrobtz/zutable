@@ -10,7 +10,9 @@
 #' by level, `-0` equal to `0`. `NA` and `NaN` are equal, and go last with
 #' `na.last = TRUE`, first with `FALSE`, and with `NA` their rows are left
 #' out. `decreasing` reverses a key's order but not the stability: equal
-#' keys keep row order. Strings sort by the bytes of their UTF-8 text.
+#' keys keep row order. Strings sort by the bytes of their UTF-8 text,
+#' or with `collate = TRUE` in the locale's order, through `stringi`'s
+#' collation keys, which are computed once per distinct string.
 #'
 #' @param ... Key vectors of one length (integer, double, logical,
 #'   character, factor, `integer64`, `Date`, `POSIXct`, or a list of raw
@@ -18,6 +20,9 @@
 #' @param decreasing One logical, or one per key column.
 #' @param na.last `TRUE`, `FALSE` or `NA`; for `key_rank()` also `"keep"`,
 #'   which ranks a row with a missing key `NA`.
+#' @param collate `FALSE` sorts strings by bytes; `TRUE` in the order of
+#'   the current locale, as `stringi::stri_order()` does. `TRUE` needs the
+#'   `stringi` package, and is a `zutable_collate_error` without it.
 #' @param ties For `key_rank()`: `"min"` gives equal keys the lowest rank
 #'   of their run, as `rank(ties.method = "min")`; `"first"` ranks them in
 #'   row order; `"dense"` numbers the distinct keys 1, 2, ... A row with a
@@ -34,7 +39,8 @@
 #' key_order(c("b", "a", "b"), c(2, 1, 1))
 #' key_rank(x)
 #' key_rank(x, ties = "dense")
-key_order <- function(..., decreasing = FALSE, na.last = TRUE) {
+key_order <- function(..., decreasing = FALSE, na.last = TRUE,
+                      collate = FALSE) {
   # One plain integer, double or logical vector: straight to the kernel,
   # for the many small sorts of a grouped operation (design-kernel 4.3).
   if (
@@ -47,7 +53,9 @@ key_order <- function(..., decreasing = FALSE, na.last = TRUE) {
   ) {
     x <- ..1
     if (
-      is.null(attributes(x)) && (is.double(x) || is.integer(x) || is.logical(x))
+      is.null(attributes(x)) &&
+        (is.double(x) || is.integer(x) || is.logical(x)) &&
+        length(x) <= .Machine$integer.max
     ) {
       na <- if (is.na(na.last)) {
         -1L
@@ -60,13 +68,14 @@ key_order <- function(..., decreasing = FALSE, na.last = TRUE) {
     }
   }
   call <- sys.call()
+  collate <- zt_check_collate(collate, call)
   k <- zt_sort_keys(list(...), decreasing, call)
   na <- zt_na_last(na.last, call, keep = FALSE)
   if (!length(k$keys)) {
     return(integer())
   }
-  if (k$base) {
-    return(zt_base_order(k, na))
+  if (k$strings) {
+    k <- zt_string_codes(k, collate)
   }
   .Call(zt_key_order, k$keys, k$i64, k$dec, na)
 }
@@ -77,10 +86,12 @@ key_rank <- function(
   ...,
   ties = c("min", "first", "dense"),
   decreasing = FALSE,
-  na.last = TRUE
+  na.last = TRUE,
+  collate = FALSE
 ) {
   call <- sys.call()
   ties <- zt_match_ties(ties, call)
+  collate <- zt_check_collate(collate, call)
   k <- zt_sort_keys(list(...), decreasing, call)
   # "keep" ranks the rows without a missing key among themselves, as NA
   # does, and keeps the others as NA; the kernel ranks those rows 0.
@@ -89,8 +100,8 @@ key_rank <- function(
   if (!length(k$keys)) {
     return(integer())
   }
-  if (k$base) {
-    k <- zt_base_codes(k)
+  if (k$strings) {
+    k <- zt_string_codes(k, collate)
   }
   r <- .Call(
     zt_key_rank,
@@ -149,9 +160,93 @@ zt_na_last <- function(na.last, call, keep) {
   }
 }
 
+#' Sort values
+#'
+#' `key_sort()` returns `x` sorted, as `sort(x, method = "radix")` does, by
+#' the order of [key_order()]. The result remembers that it is sorted and
+#' whether it holds a missing value, so a later `sort()`, `is.unsorted()`
+#' or `anyNA()` on it answers at once, without a pass over the values.
+#' Modifying the result in place forgets both.
+#'
+#' Numbers, logicals, factors and dates are marked. Strings are not marked
+#' sorted, since base R's sortedness of strings is its own collation, which
+#' byte order and `stringi`'s need not match, and base R reads no missing
+#' value mark on strings; nor is an `integer64` vector, whose order is not
+#' that of its doubles.
+#'
+#' @param x A key vector: integer, double, logical, character, factor,
+#'   `integer64`, `Date`, `POSIXct`, or a list of raw vectors.
+#' @inheritParams key_order
+#' @param decreasing `TRUE` or `FALSE`.
+#' @return `x` in sorted order, with its class and levels; without its
+#'   missing values when `na.last = NA`.
+#' @export
+#' @examples
+#' s <- key_sort(c(3, 1, NA, 2))
+#' s
+#' is.unsorted(s, na.rm = TRUE)
+#' key_sort(c("b", "A", "a"))
+#' if (requireNamespace("stringi", quietly = TRUE)) {
+#'   key_sort(c("b", "A", "a"), collate = TRUE)
+#' }
+key_sort <- function(x, decreasing = FALSE, na.last = TRUE, collate = FALSE) {
+  call <- sys.call()
+  cols <- zt_key_columns(list(x), call)
+  if (length(cols) != 1L) {
+    zutable_abort("type", "`x` is one key vector", call = call)
+  }
+  if (!is.logical(decreasing) || length(decreasing) != 1L || is.na(decreasing)) {
+    zutable_abort("type", "`decreasing` is TRUE or FALSE", call = call)
+  }
+  o <- key_order(x, decreasing = decreasing, na.last = na.last,
+                 collate = collate)
+  zt_mark_sorted(x[o], decreasing, na.last)
+}
+
+# y, already sorted, wrapped with what is known of it (src/altrep.c): its
+# sortedness in base R's codes and whether it has no missing value. A list
+# or an integer64 vector is returned as it is; strings carry no_na only.
+zt_mark_sorted <- function(y, decreasing, na.last) {
+  if (!typeof(y) %in% c("integer", "double", "logical", "character") ||
+      inherits(y, "integer64")) {
+    return(y)
+  }
+  no_na <- !anyNA(y)
+  # R's codes (Rinternals.h): 1 increasing and -1 decreasing with NA last,
+  # 2 and -2 with NA first; NA_integer_ is UNKNOWN_SORTEDNESS.
+  sorted <- if (is.character(y)) {
+    NA_integer_
+  } else if (no_na || isTRUE(na.last)) {
+    if (decreasing) -1L else 1L
+  } else {
+    if (decreasing) -2L else 2L
+  }
+  a <- attributes(y)
+  attributes(y) <- NULL
+  w <- .Call(zt_sorted_wrap, y, sorted, no_na)
+  attributes(w) <- a
+  w
+}
+
+zt_check_collate <- function(collate, call) {
+  if (!is.logical(collate) || length(collate) != 1L || is.na(collate)) {
+    zutable_abort("type", "`collate` is TRUE or FALSE", call = call)
+  }
+  if (collate && !zt_has_stringi()) {
+    zutable_abort(
+      "collate",
+      "`collate = TRUE` needs the stringi package; install it, or sort by bytes with `collate = FALSE`",
+      call = call
+    )
+  }
+  collate
+}
+
+zt_has_stringi <- function() requireNamespace("stringi", quietly = TRUE)
+
 # The key columns as the kernel takes them: integer (factor codes, raw,
 # Date), logical, double (integer64 flagged, Date and POSIXct stripped);
-# `base` when a character or raw-list key sends the order to base R.
+# `strings` when a character or raw-list key needs zt_string_codes().
 zt_sort_keys <- function(args, decreasing, call) {
   cols <- zt_key_columns(args, call)
   if (
@@ -170,62 +265,31 @@ zt_sort_keys <- function(args, decreasing, call) {
   }
   dec <- rep_len(decreasing, length(cols))
   i64 <- vapply(cols, function(k) inherits(k, "integer64"), NA)
-  base <- any(vapply(cols, function(k) is.character(k) || is.list(k), NA))
-  keys <- lapply(cols, function(k) {
-    if (is.factor(k)) {
-      return(as.integer(unclass(k)))
-    }
-    if (is.raw(k)) {
-      return(as.integer(k))
-    }
-    if (is.list(k)) {
-      return(k)
-    }
-    attributes(k) <- NULL
-    k
-  })
-  list(keys = keys, i64 = i64, dec = dec, base = base)
+  strings <- any(vapply(cols, function(k) is.character(k) || is.list(k), NA))
+  list(keys = zt_native_keys(cols), i64 = i64, dec = dec, strings = strings)
 }
 
-# Strings and raw lists until the kernel sorts them (Stage 12): every
-# other key becomes its dense rank, missing kept, and base R's radix order
-# sorts strings in C-locale byte order of their UTF-8 text.
-zt_base_codes <- function(k) {
-  keys <- lapply(seq_along(k$keys), function(j) {
-    v <- k$keys[[j]]
-    if (is.character(v)) {
-      return(enc2utf8(v))
-    }
-    if (is.list(v)) {
-      return(vapply(
-        v,
-        function(e) {
-          if (is.null(e)) {
-            NA_character_
-          } else {
-            paste(format(as.hexmode(as.integer(e)), width = 2L), collapse = "")
-          }
-        },
-        ""
-      ))
-    }
-    r <- .Call(zt_key_rank, list(v), k$i64[j], FALSE, 1L, 3L)
-    r[is.na(v)] <- NA_integer_
-    r
+# Character and raw-list keys as integer codes in their order (design-kernel
+# 6.3, axis N): the rows are grouped, the distinct strings ranked by the
+# kernel's string sort (zutable/strsort.h), byte order of the UTF-8 text or
+# of stringi's collation keys, and each row coded by its string's rank;
+# missing stays missing.
+zt_string_codes <- function(k, collate = FALSE) {
+  k$keys <- lapply(k$keys, function(v) {
+    if (is.character(v) || is.list(v)) zt_str_codes(v, collate) else v
   })
-  # Ranks of each key in base order, so the kernel ranks the composite.
-  codes <- lapply(seq_along(keys), function(j) {
-    v <- keys[[j]]
-    if (!is.character(v)) {
-      return(v)
-    }
-    u <- sort(unique(v[!is.na(v)]), method = "radix")
-    match(v, u)
-  })
-  list(keys = codes, i64 = rep(FALSE, length(codes)), dec = k$dec, base = FALSE)
+  k$strings <- FALSE
+  k
 }
 
-zt_base_order <- function(k, na) {
-  k <- zt_base_codes(k)
-  .Call(zt_key_order, k$keys, k$i64, k$dec, na)
+zt_str_codes <- function(v, collate) {
+  if (is.character(v)) {
+    v <- enc2utf8(v)
+  }
+  g <- zt_grp_native(list(v), length(v))
+  u <- v[g$first]
+  if (collate && is.character(u)) {
+    u <- stringi::stri_sort_key(u)
+  }
+  .Call(zt_strings_rank, u)[g$id]
 }
