@@ -80,6 +80,15 @@ test_that("multiple picks the first, the last, or refuses", {
   expect_error(join(y, x, on = k, how = "right", multiple = "error"),
                class = "zutable_multiple_error")
   expect_identical(join(y, x, on = k, how = "right", multiple = "first")$v, c("a", "c"))
+  # A right join counts rows of x per row of y: y's duplicate keys each
+  # match one row of x, which is no fan-out, in both executors.
+  for (ex in c("kernel", "reference")) {
+    r <- with_executor(ex, join(x, y, on = k, how = "right", multiple = "error"))
+    expect_identical(r$v, c("a", "b", "c"), info = ex)
+    expect_identical(r$id, c(1L, 1L, 2L), info = ex)
+    expect_snapshot(with_executor(ex, join(y, x, on = k, how = "right", multiple = "error")),
+                    error = TRUE)
+  }
 })
 
 test_that("keys appear once, under x's name; a y-only row takes y's key", {
