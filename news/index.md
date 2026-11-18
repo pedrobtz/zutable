@@ -113,3 +113,15 @@
   [`anyNA()`](https://rdrr.io/r/base/NA.html) answers without a pass;
   modifying it in place forgets both. `grp(sort = TRUE)`’s first key
   column carries the same.
+- [`grp_join()`](https://pedrobtz.github.io/zutable/reference/grp_join.md)
+  returns the index pairs of an inner, left, semi or anti join on one or
+  several keys, in `x`’s row order and then `y`’s, with `multiple` to
+  keep every match, the first, the last, or to raise a
+  `zutable_multiple_error`;
+  [`grp_match()`](https://pedrobtz.github.io/zutable/reference/grp_join.md)
+  generalises [`match()`](https://rdrr.io/r/base/match.html) to several
+  keys. [`join()`](https://pedrobtz.github.io/zutable/reference/join.md)
+  now runs on them.
+- `join(how = "right", multiple = "error")` counts the rows of `x` that
+  match each row of `y`, as documented; it used to raise on a row of `x`
+  matching several rows of `y`. The error names the side its row is in.

@@ -9,6 +9,9 @@
   : Explain how a table is computed
 - [`grp()`](https://pedrobtz.github.io/zutable/reference/grp.md) : Group
   rows by keys
+- [`grp_join()`](https://pedrobtz.github.io/zutable/reference/grp_join.md)
+  [`grp_match()`](https://pedrobtz.github.io/zutable/reference/grp_join.md)
+  : Join keys as index pairs
 - [`join()`](https://pedrobtz.github.io/zutable/reference/join.md) :
   Join two tables
 - [`key_order()`](https://pedrobtz.github.io/zutable/reference/key_order.md)

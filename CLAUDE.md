@@ -77,8 +77,14 @@ registers the routines and
 zufast’s number parsing and formatting (`LinkingTo: zufast`).
 [src/altrep.c](https://pedrobtz.github.io/zutable/src/altrep.c) is the
 sorted-values ALTREP class (D22, D46): its payload is copied before any
-write when shared, and every write drops its marks. The kernel’s header
-goes under `inst/include/` and `src/` stays a thin R translation over it
+write when shared, and every write drops its marks.
+[src/join.c](https://pedrobtz.github.io/zutable/src/join.c) is
+[`grp_join()`](https://pedrobtz.github.io/zutable/reference/grp_join.md)’s
+translation of `zutable/join.h`;
+[`join()`](https://pedrobtz.github.io/zutable/reference/join.md) runs on
+it, with the R join kept as its oracle under
+`options(zutable.executor = "reference")`. The kernel’s header goes
+under `inst/include/` and `src/` stays a thin R translation over it
 (design-kernel §4).
 
 ## Invariants that are easy to break
@@ -130,9 +136,10 @@ routine), `coverage.yml` (badge on `gh-pages`) and `assurance.yml`
 gctorture at step 20 on the branch
 (`gh workflow run gctorture.yaml --ref <branch>`) before merging a
 change to `PROTECT`s. Step 20 sets `ZUTABLE_GCTORTURE=true`, under which
-the pure-R typing sweep, the many-size sort sweeps and the million-row
-tests do less (`tests/testthat/helper-0-torture.R`): the whole suite
-outgrew the 240-minute job by Stage 11. The kernel stages add
+the pure-R typing sweep, the many-size sort sweeps, the kernel join
+differential and the million-row tests do less
+(`tests/testthat/helper-0-torture.R`): the whole suite outgrew the
+240-minute job by Stage 11, and again by Stage 13. The kernel stages add
 `check-headers`, a consumer fixture and a fuzz target. Stages marked
 `full` in the roadmap: 3, 6, 10, 11, 12.
 
