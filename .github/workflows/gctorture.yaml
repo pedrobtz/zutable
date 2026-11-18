@@ -42,6 +42,11 @@ jobs:
       # treats 0 as false.
       test-timeout-minutes: ${{ (github.event_name != 'schedule' && github.event_name != 'workflow_dispatch') && 10 || 0 }}
       timeout-minutes: 240
+      # Step 20 lightens the tests that repeat pure-R work or one native
+      # path at many sizes (tests/testthat/helper-0-torture.R): by Stage 11 the
+      # whole suite took more than the 240 minutes (2026-11-18). Each still
+      # runs in full in every other workflow.
+      env: ${{ (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && 'ZUTABLE_GCTORTURE=true' || '' }}
 
   # A scheduled failure otherwise notifies only whoever last edited the cron
   # line. This keeps one open issue, labelled gctorture, while the scheduled

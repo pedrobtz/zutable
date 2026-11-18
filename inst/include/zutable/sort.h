@@ -355,7 +355,9 @@ ZT_INLINE zt_row zt_order_run(const zt_sort_col *cols, int ncol, zt_row n, int n
     zt_row j = 0, e = n;
     while (e > 0) {
       zt_row b = e - 1;
-      uint64_t ub, u;
+      /* No cell is missing on this path (nondec and noninc say so), so
+         ub is always set; initialised for GCC's flow analysis. */
+      uint64_t ub = 0, u;
       (void) zt_sort_ordinal(&cols[0], b, &ub);
       while (b > 0 && !zt_sort_ordinal(&cols[0], b - 1, &u) && u == ub) b--;
       for (zt_row i = b; i < e; i++) out[j++] = i;

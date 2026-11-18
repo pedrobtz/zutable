@@ -68,6 +68,7 @@ test_that("strings and raw lists are never sorted by this route", {
 test_that("the route is chosen by rows and estimated distinct keys", {
   # The thresholds themselves are straddled in tests/c/test-sort.c; here
   # the route as R reaches it, on either side of each.
+  skip_under_torture()
   withr::local_seed(52)
   route <- function(x) !is.null(zt_grp_sort_route(list(x), length(x)))
   big <- 1e6L

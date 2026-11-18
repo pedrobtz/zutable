@@ -1,7 +1,8 @@
 # Keys for test-key-order.R: sizes either side of every threshold of the
-# hybrid (zutable/sort.h), and key vectors of every kind and shape.
+# hybrid (zutable/sort.h), and key vectors of every kind and shape. Under
+# gctorture at step 20 a size per regime: the R allocations are the same.
 
-sort_sizes <- c(
+sort_sizes <- if (under_torture()) c(0L, 1L, 25L, 1001L) else c(
   0L,
   1L,
   2L,

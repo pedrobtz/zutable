@@ -54,6 +54,7 @@ test_that("several keys sort by the first, then the next, each in its direction"
 
 test_that("large inputs take the MSD and radix paths and agree", {
   skip_on_cran()
+  skip_under_torture()
   withr::local_seed(113)
   n <- 1100000L
   for (kind in c("int_wide", "dbl_wide", "sorted", "int")) {
@@ -119,7 +120,9 @@ test_that("key_rank() is rank() for ties min and first, for every na.last", {
   for (n in c(0L, 1L, 25L, 200L, 3000L)) {
     for (kind in c("int", "dbl", "lgl", "fct", "date")) {
       x <- key_of(kind, n)
-      xr <- if (is.factor(x)) as.integer(x) else x
+      # unclass(): rank() on a Date dispatches per comparison, and is slow
+      # under gctorture; the day numbers rank the same.
+      xr <- if (is.factor(x)) as.integer(x) else unclass(x)
       for (ties in c("min", "first")) {
         for (nl in list(TRUE, FALSE, NA, "keep")) {
           expect_identical(
