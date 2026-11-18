@@ -78,6 +78,9 @@
 <code><a href="../reference/grp_join.html">grp_join()</a></code> returns the index pairs of an inner, left, semi or anti join on one or several keys, in <code>x</code>’s row order and then <code>y</code>’s, with <code>multiple</code> to keep every match, the first, the last, or to raise a <code>zutable_multiple_error</code>; <code><a href="../reference/grp_join.html">grp_match()</a></code> generalises <code><a href="https://rdrr.io/r/base/match.html" class="external-link">match()</a></code> to several keys. <code><a href="../reference/join.html">join()</a></code> now runs on them.</li>
 <li>
 <code>join(how = "right", multiple = "error")</code> counts the rows of <code>x</code> that match each row of <code>y</code>, as documented; it used to raise on a row of <code>x</code> matching several rows of <code>y</code>. The error names the side its row is in.</li>
+<li>
+<code><a href="../reference/grp_reduce.html">grp_reduce()</a></code> computes <code>sum</code>, <code>prod</code>, <code>mean</code>, <code>min</code>, <code>max</code>, <code>count</code>, <code>nobs</code>, <code>first</code> and <code>last</code> by group in one pass, several columns at once, with <code>na.rm</code> and a <code>broadcast</code> back to the rows (<code>"replace"</code>, <code>"subtract"</code>, <code>"divide"</code>). Sums and means are base R’s bit for bit; a group with no values left is <code>NA</code>.</li>
+<li>The bracket’s aggregates, <code>over()</code> and <code>:=</code> with <code>by</code> now reduce every group at once through <code><a href="../reference/grp_reduce.html">grp_reduce()</a></code>’s kernel, rather than evaluating each group in turn: 8 to 130 times faster at 10^6 rows, with the same results.</li>
 </ul></div>
   </main></div>
 

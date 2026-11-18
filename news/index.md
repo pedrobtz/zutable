@@ -125,3 +125,14 @@
 - `join(how = "right", multiple = "error")` counts the rows of `x` that
   match each row of `y`, as documented; it used to raise on a row of `x`
   matching several rows of `y`. The error names the side its row is in.
+- [`grp_reduce()`](https://pedrobtz.github.io/zutable/reference/grp_reduce.md)
+  computes `sum`, `prod`, `mean`, `min`, `max`, `count`, `nobs`, `first`
+  and `last` by group in one pass, several columns at once, with `na.rm`
+  and a `broadcast` back to the rows (`"replace"`, `"subtract"`,
+  `"divide"`). Sums and means are base R’s bit for bit; a group with no
+  values left is `NA`.
+- The bracket’s aggregates, `over()` and `:=` with `by` now reduce every
+  group at once through
+  [`grp_reduce()`](https://pedrobtz.github.io/zutable/reference/grp_reduce.md)’s
+  kernel, rather than evaluating each group in turn: 8 to 130 times
+  faster at 10^6 rows, with the same results.

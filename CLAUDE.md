@@ -83,9 +83,16 @@ write when shared, and every write drops its marks.
 translation of `zutable/join.h`;
 [`join()`](https://pedrobtz.github.io/zutable/reference/join.md) runs on
 it, with the R join kept as its oracle under
-`options(zutable.executor = "reference")`. The kernel’s header goes
-under `inst/include/` and `src/` stays a thin R translation over it
-(design-kernel §4).
+`options(zutable.executor = "reference")`.
+[src/reduce.c](https://pedrobtz.github.io/zutable/src/reduce.c) is
+[`grp_reduce()`](https://pedrobtz.github.io/zutable/reference/grp_reduce.md)’s
+translation of `zutable/reduce.h`; the executor’s aggregates, `over()`
+and `:=` with `by` rewrite each aggregate call into a column of
+per-group values (`zt_eval_groups()` in `R/execute.R`), keeping the loop
+over groups as their oracle, and the loop for an
+[`r()`](https://pedrobtz.github.io/zutable/reference/vocabulary.md)
+node. The kernel’s header goes under `inst/include/` and `src/` stays a
+thin R translation over it (design-kernel §4).
 
 ## Invariants that are easy to break
 
