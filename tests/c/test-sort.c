@@ -86,7 +86,13 @@ static void test_rungs(void) {
         if (memcmp(w, wr, n * sizeof *w)) { fprintf(stderr, "  %s n=%zu shape=%d\n", #stmt, n, shape); CHECK(0); } } while (0)
 #define RUN_Q(stmt) do { memcpy(q, q0, n * sizeof *q); stmt; \
         if (memcmp(q, qr, n * sizeof *q)) { fprintf(stderr, "  %s n=%zu shape=%d\n", #stmt, n, shape); CHECK(0); } } while (0)
+      /* Insertion sort is quadratic: under ZT_TEST_QUICK it stops past the
+         sizes the hybrid gives it (fewer than 24 records). */
+#ifdef ZT_TEST_QUICK
+      if (n <= 1025) { RUN_W(zt_insertion_w64(w, w + n)); RUN_Q(zt_insertion_r128(q, q + n)); }
+#else
       if (n <= 20000) { RUN_W(zt_insertion_w64(w, w + n)); RUN_Q(zt_insertion_r128(q, q + n)); }
+#endif
       RUN_W(zt_pdqsort_w64(w, w + n));
       RUN_Q(zt_pdqsort_r128(q, q + n));
       RUN_W(zt_heapsort_w64(w, w + n));
