@@ -45,7 +45,8 @@ reference executor; Stages 9 to 15 (2026-11-17 to 19) the kernel beneath
 it, its header, consumer fixture and fuzz target; Stage 16 (2026-11-19)
 the benchmark record in `.agents/benchmarks.md`, the README, the
 evaluated Get started vignette and two articles under
-`vignettes/articles/`. The roadmap in `.agents/roadmap.md` takes it to
+`vignettes/articles/`; Stage 17 (2026-11-19) the assurance pass over
+native coverage, fuzz reach and mutation survivors. The roadmap in `.agents/roadmap.md` takes it to
 v0.1.0; for now 0.1.0 includes the kernel (design D35).
 
 ## Versions and dependents
@@ -126,7 +127,11 @@ valgrind, lto, rchk, analyzers, cran-special; valgrind reads
 `tools/valgrind.supp`, which suppresses only findings whose top frame is
 in DuckDB, the test oracle), `gctorture.yaml` (step 2000 on pull requests, step 20 daily and on dispatch), `alloc-failure.yaml`
 (weekly, through `tools/alloc-exercise.R`, which must reach every native
-routine), `coverage.yml` (badge on `gh-pages`) and `assurance.yml`
+routine), `coverage.yml` (badge on `gh-pages`; `native: true`, so it lists
+the C functions no test enters and the conditions taken one way),
+`mutation.yaml` (Mull over the six C test binaries, built with
+`ZT_TEST_QUICK` by `tools/ci/mutation-build.sh`, and the fuzz driver;
+a survivor is real only when no binary kills it) and `assurance.yml`
 (`ungated-jobs: fail`), plus r-lib's pkgdown workflow. Dispatch gctorture
 at step 20 on the branch (`gh workflow run gctorture.yaml --ref <branch>`)
 before merging a change to `PROTECT`s. Step 20 sets `ZUTABLE_GCTORTURE=true`,
@@ -139,7 +144,8 @@ fuzz target's 20,000-input smoke, and the consumer fixture
 (`tools/ci/consumer.sh`, which builds `tools/zutabletest` against the
 installed header and runs it with zutable gone from the library).
 `fuzz.yaml` runs the kernel's fuzz target (`tools/fuzz/`, without R) for
-30 seconds on a pull request and an hour weekly and on dispatch. Stages marked `full`
+30 seconds on a pull request and an hour weekly and on dispatch, with
+`reach-floor: 97`. Stages marked `full`
 in the roadmap: 3, 6, 10, 11, 12.
 
 Tests run shuffled everywhere: `tests/testthat.R` and

@@ -18,5 +18,12 @@ jobs:
     with:
       badge-branch: gh-pages
       badge-path: badges/coverage.svg
+      # gcov over src/ and the kernel's header as the R suite reaches them:
+      # the functions no test enters and the conditions taken one way only
+      # (assurance.md, Stage 17).
+      native: true
+      # The suite as R CMD check runs it, but with NOT_CRAN set: the tests
+      # past 1e6 rows that take the wide radix rungs skip on CRAN.
+      native-run: cd tests && NOT_CRAN=true Rscript testthat.R
     permissions:
       contents: write

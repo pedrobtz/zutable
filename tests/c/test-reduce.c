@@ -9,6 +9,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
+#include <float.h>
 
 static int failures = 0;
 #define CHECK(cond) do { if (!(cond)) { \
@@ -20,9 +21,23 @@ static uint32_t next(void) { rng = rng * 6364136223846793005ull + 14426950408889
 
 static uint64_t bits(double v) { uint64_t b; memcpy(&b, &v, sizeof b); return b; }
 
+/* The oracle's own NA test and sum rounding, not reduce.h's: a mutant in
+   the kernel's zt_f64_is_na() or zt_acc_double() must not change the
+   reference with it (mutation run, Stage 17). R's NA is a NaN whose low
+   word is 1954; a sum past the largest double is infinite. */
+static int ref_is_na(double v) {
+  uint64_t b = bits(v);
+  return (b & 0x7ff0000000000000ull) == 0x7ff0000000000000ull &&
+         (b & 0x000fffffffffffffull) != 0 && (b & 0xffffffffull) == 1954u;
+}
+static double ref_acc_double(zt_acc s) {
+  if (s != s) return (double) s;
+  return fabsl(s) > (zt_acc) DBL_MAX ? (s > 0 ? INFINITY : -INFINITY) : (double) s;
+}
+
 /* Same value: NA is NA, any NaN is NaN (R's identical()), else the bits. */
 static int same_f64(double a, double b) {
-  if (zt_f64_is_na(a) || zt_f64_is_na(b)) return zt_f64_is_na(a) && zt_f64_is_na(b);
+  if (ref_is_na(a) || ref_is_na(b)) return ref_is_na(a) && ref_is_na(b);
   if (a != a || b != b) return a != a && b != b;
   return bits(a) == bits(b);
 }
@@ -30,7 +45,7 @@ static int same_f64(double a, double b) {
 static int miss(int kind, const void *x, zt_row i, int nan_missing) {
   if (kind == ZT_KIND_F64) {
     double v = ((const double *) x)[i];
-    return nan_missing ? v != v : zt_f64_is_na(v);
+    return nan_missing ? v != v : ref_is_na(v);
   }
   return ((const int32_t *) x)[i] == INT32_MIN;
 }
@@ -62,7 +77,7 @@ static void reference(zt_fn fn, int kind, const void *x, int na_rm, int nan_miss
       if (kind == ZT_KIND_F64 && v != v && !m) { any_nan = 1; continue; }
       if (m) {
         if (!na_rm) {
-          if (kind != ZT_KIND_F64 || zt_f64_is_na(v)) any_na = 1; else any_miss = 1;
+          if (kind != ZT_KIND_F64 || ref_is_na(v)) any_na = 1; else any_miss = 1;
         }
         continue;
       }
@@ -83,7 +98,7 @@ static void reference(zt_fn fn, int kind, const void *x, int na_rm, int nan_miss
   case ZT_FN_LAST: *iv = last; break;
   case ZT_FN_SUM:
   case ZT_FN_PROD:
-    *dv = !cnt || any_miss ? ZT_F64_NA : zt_acc_double(s);
+    *dv = !cnt || any_miss ? ZT_F64_NA : ref_acc_double(s);
     break;
   case ZT_FN_MEAN:
     if (!cnt || any_miss) { *dv = ZT_F64_NA; break; }
@@ -134,7 +149,27 @@ static double out_value(const spec *s, const void *out, zt_row g) {
   return v == INT32_MIN ? ZT_F64_NA : (double) v;
 }
 
+/* A sum of exactly the largest double is that double, not infinity: only
+   past DBL_MAX does base R's rsum() give Inf. */
+static void test_dbl_max(void) {
+  double x[2] = {DBL_MAX, 0.0}, out[1];
+  zt_row ids[2] = {0, 0};
+  int a, a2, cn, fl;
+  zt_reduce_scratch(ZT_FN_SUM, ZT_KIND_F64, &a, &a2, &cn, &fl);
+  zt_acc acc[1], acc2[1];
+  zt_row cnt[1];
+  uint8_t flag[1];
+  zt_reduce_col c = {ZT_FN_SUM, ZT_KIND_F64, x, 1, 1, out,
+                     a ? acc : NULL, a2 ? acc2 : NULL, cn ? cnt : NULL, fl ? flag : NULL};
+  zt_reduce(ids, 2, 1, &c, 1);
+  CHECK(out[0] == DBL_MAX);
+  x[1] = DBL_MAX;
+  zt_reduce(ids, 2, 1, &c, 1);
+  CHECK(out[0] == INFINITY);
+}
+
 int main(void) {
+  test_dbl_max();
   static const zt_row sizes[] = {0, 1, 7, 300, 4095, 4096, 4097, 10000};
   static const zt_row groups[] = {1, 3, 50, 2000};
   for (size_t si = 0; si < sizeof sizes / sizeof sizes[0]; si++) {
@@ -145,12 +180,16 @@ int main(void) {
       int32_t *xl = malloc(sizeof(int32_t) * (size_t) (n + 1));
       double *xd = malloc(sizeof(double) * (size_t) (n + 1));
       double pool[] = {0.0, -0.0, 1.5, 0.1, -2.25, 1e300, -1e300, 1e-300, 3.0, 7.0};
+      double not_na;
+      { uint64_t b = 0x40000000000007a2ull; memcpy(&not_na, &b, sizeof not_na); }
       for (zt_row i = 0; i < n; i++) {
         ids[i] = (zt_row) (next() % (uint32_t) ng);
         uint32_t r = next() % 20;
         xi[i] = r == 0 ? INT32_MIN : (int32_t) (next() % 2000001) - 1000000;
         xl[i] = r == 1 ? INT32_MIN : (int32_t) (next() % 2);
+        /* r == 5: an ordinary number whose low word is NA's, 1954. */
         xd[i] = r == 2 ? ZT_F64_NA : r == 3 ? ZT_F64_NAN : r == 4 ? INFINITY :
+                r == 5 ? not_na :
                 pool[next() % 10] * (double) (1 + next() % 7);
       }
       /* Every statistic, kind and missing rule, alone. */

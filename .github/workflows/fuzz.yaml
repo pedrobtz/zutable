@@ -38,6 +38,10 @@ jobs:
       github-packages: pedrobtz/zufast
       cflags: -g -O1 -fno-omit-frame-pointer -Iinst/include -I.github-packages/zufast/inst/include
       profile: auto
+      # The hour's corpus reached 98.6% of invariants.c's lines on
+      # 2026-11-19 (the rest: the abort macro, which a green run never
+      # reaches); a harness change that stops reaching code goes red.
+      reach-floor: 97
       max-total-time: ${{ (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && 3600 || 300 }}
       # The long run keeps going after a finding and reports every distinct
       # one; a pull request stops at the first, for a fast red.

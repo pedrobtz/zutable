@@ -47,8 +47,16 @@ static uint64_t key_at(int shape, size_t i, size_t n, int bits) {
 static int bits_of(uint64_t v) { int b = 0; while (v) { b++; v >>= 1; } return b; }
 
 static void test_rungs(void) {
+  /* ZT_TEST_QUICK (the mutation build, where Mull's instrumentation makes
+     this sweep ten times slower) stops at 20000 records: every rung still
+     runs at every size, and only the hybrid's switch to the MSD pass at
+     1e6 goes unvisited. */
   static const size_t sizes[] = {0, 1, 2, 23, 24, 25, 127, 128, 129, 999, 1000, 1001,
-                                 1023, 1024, 1025, 20000, 1000000, 1000001};
+                                 1023, 1024, 1025, 20000
+#ifndef ZT_TEST_QUICK
+                                 , 1000000, 1000001
+#endif
+  };
   size_t cap = 1000001;
   zt_w64 *w = malloc(cap * sizeof *w), *w0 = malloc(cap * sizeof *w),
          *wt = malloc(cap * sizeof *w), *wr = malloc(cap * sizeof *w);
@@ -78,7 +86,13 @@ static void test_rungs(void) {
         if (memcmp(w, wr, n * sizeof *w)) { fprintf(stderr, "  %s n=%zu shape=%d\n", #stmt, n, shape); CHECK(0); } } while (0)
 #define RUN_Q(stmt) do { memcpy(q, q0, n * sizeof *q); stmt; \
         if (memcmp(q, qr, n * sizeof *q)) { fprintf(stderr, "  %s n=%zu shape=%d\n", #stmt, n, shape); CHECK(0); } } while (0)
+      /* Insertion sort is quadratic: under ZT_TEST_QUICK it stops past the
+         sizes the hybrid gives it (fewer than 24 records). */
+#ifdef ZT_TEST_QUICK
+      if (n <= 1025) { RUN_W(zt_insertion_w64(w, w + n)); RUN_Q(zt_insertion_r128(q, q + n)); }
+#else
       if (n <= 20000) { RUN_W(zt_insertion_w64(w, w + n)); RUN_Q(zt_insertion_r128(q, q + n)); }
+#endif
       RUN_W(zt_pdqsort_w64(w, w + n));
       RUN_Q(zt_pdqsort_r128(q, q + n));
       RUN_W(zt_heapsort_w64(w, w + n));
@@ -396,6 +410,14 @@ static void test_groups_by_sort(void) {
   zt_column zc = {ZT_KIND_F64, z};
   zt_key kz = {&zc, 1};
   CHECK(zt_groups_by_sort(&kz, 4, sc, cb, order, ids, first, starts, mem) == -1);
+  /* A NaN, or an NA, beside numbers only stays on the sort: three groups,
+     the missing one last. */
+  for (int w = 0; w < 2; w++) {
+    z[0] = 1; z[1] = 2; z[3] = 3;
+    if (w) memcpy(&z[2], &na, sizeof na); else z[2] = NAN;
+    CHECK(zt_groups_by_sort(&kz, 4, sc, cb, order, ids, first, starts, mem) == 4);
+    CHECK(ids[0] == 0 && ids[1] == 1 && ids[3] == 2 && ids[2] == 3);
+  }
   free(mem);
 }
 
