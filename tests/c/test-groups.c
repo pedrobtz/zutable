@@ -83,7 +83,18 @@ static int32_t run(const zt_key *k, int32_t n, int bits, int32_t *ids, int32_t *
   return ng;
 }
 
+/* A key of no columns: every row is the same key, so every row hashes the
+   same, and the hash is written, not left as it was. */
+static void test_zero_columns(void) {
+  zt_key k = {NULL, 0};
+  uint64_t h[5] = {1, 2, 3, 4, 5};
+  zt_key_hash(&k, 5, h);
+  for (int i = 0; i < 5; i++) CHECK(h[i] == h[0]);
+  CHECK(h[0] != 1 || h[4] != 5);
+}
+
 int main(void) {
+  test_zero_columns();
   enum { N = 3000 };
   static int32_t a[N], ids[N], first[N], ref[N];
   static double d[N];
@@ -111,7 +122,16 @@ int main(void) {
         zt_row *order = malloc(sizeof(zt_row) * N);
         zt_groups_order(N, ng, ids, sizes, starts, order);
         zt_row total = 0;
-        for (int32_t g = 0; g < ng; g++) total += sizes[g];
+        for (int32_t g = 0; g < ng; g++) {
+          /* Each size is the group's count, each start the sizes before
+             it, and the group's run in order begins at its first row. */
+          zt_row count = 0;
+          for (int i = 0; i < N; i++) count += ids[i] == g;
+          CHECK(sizes[g] == count);
+          CHECK(starts[g] == total);
+          CHECK(order[starts[g]] == first[g]);
+          total += sizes[g];
+        }
         CHECK(total == N);
         for (int j = 1; j < N; j++) {
           CHECK(ids[order[j - 1]] <= ids[order[j]]);

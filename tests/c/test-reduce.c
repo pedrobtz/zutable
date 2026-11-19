@@ -149,7 +149,27 @@ static double out_value(const spec *s, const void *out, zt_row g) {
   return v == INT32_MIN ? ZT_F64_NA : (double) v;
 }
 
+/* A sum of exactly the largest double is that double, not infinity: only
+   past DBL_MAX does base R's rsum() give Inf. */
+static void test_dbl_max(void) {
+  double x[2] = {DBL_MAX, 0.0}, out[1];
+  zt_row ids[2] = {0, 0};
+  int a, a2, cn, fl;
+  zt_reduce_scratch(ZT_FN_SUM, ZT_KIND_F64, &a, &a2, &cn, &fl);
+  zt_acc acc[1], acc2[1];
+  zt_row cnt[1];
+  uint8_t flag[1];
+  zt_reduce_col c = {ZT_FN_SUM, ZT_KIND_F64, x, 1, 1, out,
+                     a ? acc : NULL, a2 ? acc2 : NULL, cn ? cnt : NULL, fl ? flag : NULL};
+  zt_reduce(ids, 2, 1, &c, 1);
+  CHECK(out[0] == DBL_MAX);
+  x[1] = DBL_MAX;
+  zt_reduce(ids, 2, 1, &c, 1);
+  CHECK(out[0] == INFINITY);
+}
+
 int main(void) {
+  test_dbl_max();
   static const zt_row sizes[] = {0, 1, 7, 300, 4095, 4096, 4097, 10000};
   static const zt_row groups[] = {1, 3, 50, 2000};
   for (size_t si = 0; si < sizeof sizes / sizeof sizes[0]; si++) {
@@ -160,12 +180,16 @@ int main(void) {
       int32_t *xl = malloc(sizeof(int32_t) * (size_t) (n + 1));
       double *xd = malloc(sizeof(double) * (size_t) (n + 1));
       double pool[] = {0.0, -0.0, 1.5, 0.1, -2.25, 1e300, -1e300, 1e-300, 3.0, 7.0};
+      double not_na;
+      { uint64_t b = 0x40000000000007a2ull; memcpy(&not_na, &b, sizeof not_na); }
       for (zt_row i = 0; i < n; i++) {
         ids[i] = (zt_row) (next() % (uint32_t) ng);
         uint32_t r = next() % 20;
         xi[i] = r == 0 ? INT32_MIN : (int32_t) (next() % 2000001) - 1000000;
         xl[i] = r == 1 ? INT32_MIN : (int32_t) (next() % 2);
+        /* r == 5: an ordinary number whose low word is NA's, 1954. */
         xd[i] = r == 2 ? ZT_F64_NA : r == 3 ? ZT_F64_NAN : r == 4 ? INFINITY :
+                r == 5 ? not_na :
                 pool[next() % 10] * (double) (1 + next() % 7);
       }
       /* Every statistic, kind and missing rule, alone. */
