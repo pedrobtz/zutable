@@ -20,7 +20,7 @@ jobs:
   mutation:
     uses: pedrobtz/r-actions/.github/workflows/mutation.yml@v1
     with:
-      # Six binaries, the sort and reduce sweeps seconds each at -O0, every
+      # Seven binaries, the sort and reduce sweeps seconds each at -O0, every
       # mutant run by each: longer than the default 120 minutes.
       timeout-minutes: 340
       # test-sort runs past 30 s under Mull at -O0, the default limit,
@@ -31,5 +31,6 @@ jobs:
         build/mutation/test-header build/mutation/test-groups
         build/mutation/test-sort build/mutation/test-strsort
         build/mutation/test-join build/mutation/test-reduce
+        build/mutation/fuzz-smoke
       include: |
         .*/inst/include/zutable/.*\.(h|inc)
