@@ -23,6 +23,9 @@ jobs:
       # Six binaries, the sort and reduce sweeps seconds each at -O0, every
       # mutant run by each: longer than the default 120 minutes.
       timeout-minutes: 340
+      # test-sort runs past 30 s under Mull at -O0, the default limit,
+      # which then drops the binary at its warm-up run (2026-11-19).
+      mutant-timeout: 120000
       build: sh tools/ci/mutation-build.sh
       tests: >-
         build/mutation/test-header build/mutation/test-groups
