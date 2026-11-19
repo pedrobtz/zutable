@@ -1,0 +1,154 @@
+---
+title: "Joins without surprises"
+description: "What a join does with repeated keys, missing keys, mismatched types and clashing names, and how to choose."
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+```
+
+```{r setup}
+library(zutable)
+```
+
+A join that runs is not always the join you meant. A key repeated in the
+lookup table multiplies rows, a missing key matches or not depending on
+the tool, and an integer key against a double one may match by value or
+not at all. This article shows what `join()` does in each case, and how
+to ask for something else. It assumes you have read
+`vignette("zutable")`.
+
+We use two small tables throughout. `people` has a repeated customer, 20,
+and a row whose key is missing.
+
+```{r}
+orders <- zutable(order = 1:5, customer = c(10L, 20L, 10L, NA, 30L))
+people <- zutable(
+  customer = c(10L, 20L, 20L, NA),
+  name     = c("Ada", "Linus", "Grace", "Nobody")
+)
+```
+
+## Rows come in a fixed order
+
+An inner join keeps each pair of matching rows. The pairs come in the
+order of `x`'s rows, and within one row of `x` in the order of `y`'s, so
+the result reads like `orders` with names attached.
+
+```{r}
+join(orders, people, on = customer)
+```
+
+Order 2 appears twice, because customer 20 is in `people` twice. Order 5
+is gone: no person has customer 30.
+
+## A repeated key: choose with `multiple`
+
+`multiple` says what a row of `x` gets when it matches several rows of
+`y`. The default, `"all"`, gives every pair, as `merge()` and data.table
+do. `"first"` and `"last"` keep one match, in `y`'s order.
+
+```{r}
+join(orders, people, on = customer, multiple = "first")
+join(orders, people, on = customer, multiple = "last")
+```
+
+When a repeated key means the data is wrong, say so, and the join stops
+at the first row that fans out:
+
+```{r, error = TRUE}
+join(orders, people, on = customer, multiple = "error")
+```
+
+The error is a `zutable_multiple_error`, and it names the row and the key.
+
+## A missing key: choose with `na_equal`
+
+By default a missing key matches a missing key, as `match()` and
+data.table have it: order 4 found "Nobody" above. SQL has `NULL` match
+nothing, and `na_equal = FALSE` gives SQL's behaviour.
+
+```{r}
+join(orders, people, on = customer, na_equal = FALSE)
+```
+
+## Keys must have the same type
+
+A key's type is part of the schema, and the two sides must agree. An
+integer key against a double one is an error, not a match by value that
+could silently go wrong on `10.5`.
+
+```{r, error = TRUE}
+rates <- zutable(customer = c(10, 20), rate = c(0.1, 0.2))
+join(orders, rates, on = customer)
+```
+
+Convert one side with `cast()` first, so the conversion is visible where
+it happens:
+
+```{r}
+rates_int <- rates[select = .(customer = cast(customer, "int32"), rate)]
+join(orders, rates_int, on = customer)
+```
+
+Keys with different names are paired with `==`, as in
+`on = .(customer == customer_id)`.
+
+## Clashing column names: give `suffix`
+
+A column that is not a key and is in both tables would be ambiguous in
+the result, so `join()` refuses it unless you give the two suffixes.
+
+```{r, error = TRUE}
+returns <- zutable(customer = c(10L, 20L), order = 7:8)
+join(orders, returns, on = customer)
+join(orders, returns, on = customer, suffix = c(".x", ".y"))
+```
+
+## Which rows to keep: `how`
+
+`how` picks the rows. `"left"` keeps every row of `x`, `"right"` every
+row of `y`, `"full"` both. `"semi"` keeps the rows of `x` that have a
+match, once each and with `x`'s columns only, and `"anti"` the rows that
+have none.
+
+```{r}
+join(orders, people, on = customer, how = "full")
+join(orders, people, on = customer, how = "semi")
+join(orders, people, on = customer, how = "anti")
+```
+
+`"semi"` keeps order 2 once, although it matches two people, which makes
+it the safe way to filter by another table.
+
+## The index pairs underneath
+
+`join()` runs on the kernel's `grp_join()`, which works on plain vectors
+and returns the matching row numbers instead of a table. It follows the
+same rules: `x`'s order, then `y`'s, and a missing key matching a missing
+key.
+
+```{r}
+grp_join(c(10L, 20L, 10L, NA), c(10L, 20L, 20L, NA))
+```
+
+`grp_match()` is its single-index form, and agrees with `match()`:
+
+```{r}
+x <- c(10L, 20L, 10L, NA, 30L)
+y <- c(10L, 20L, 20L, NA)
+identical(grp_match(x, y), match(x, y))
+```
+
+Unlike `match()`, it takes several key columns at once, as a list or a
+data frame, without pasting them into one string. Here the rows of `x`
+are the pairs (1, 1), (2, 1) and (3, 2), and `y` holds (2, 1) and (3, 2):
+
+```{r}
+grp_match(list(1:3, c(1L, 1L, 2L)), list(2:3, 1:2))
+```
+
+## See also
+
+[Measuring the kernel](measurements.html) has the join's timings against
+data.table and `match()`.

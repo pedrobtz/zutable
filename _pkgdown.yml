@@ -2,3 +2,10 @@ url: https://pedrobtz.github.io/zutable/
 template:
   bootstrap: 5
 
+
+articles:
+  - title: Concepts
+    navbar: ~
+    contents:
+      - articles/joins
+      - articles/measurements
