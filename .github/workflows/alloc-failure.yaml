@@ -12,5 +12,14 @@ jobs:
     uses: pedrobtz/r-actions/.github/workflows/alloc-failure.yml@v1
     with:
       run: Rscript tools/alloc-exercise.R
+      # The floor is R with zutable attached, so the sweep starts in the
+      # exercise, not in library()'s find.package(): with R's startup alone
+      # as the floor, 300 allocations never left library() (Stage 18).
+      baseline-run: Rscript -e 'library(zutable)'
       expect-pattern: "cannot allocate|memory exhausted"
-      max-allocations: 300
+      # R's own TRE regex and gzfile() segfault on a failed allocation; a
+      # crash under .Call() into zutable never has these as its top frame.
+      ignore-crash-pattern: "^ 1: (grepl?|sub|gsub|regexpr|gregexpr|strsplit|gzfile)\\("
+      # Every allocation of the exercise past the floor (about 6,300 at
+      # Stage 18, 0.25 s each).
+      max-allocations: 10000
