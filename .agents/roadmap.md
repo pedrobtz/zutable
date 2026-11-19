@@ -16,8 +16,8 @@ results.
 
 **Kernel clock** ([design-kernel §10](design-kernel.md#10-the-experiment-how-fast-can-a-kernel-be-built-from-the-blocks)).
 First kernel commit (Stage 9): 2026-11-17. Join working (Stage 13): 2026-11-18. Last kernel
-piece (Stage 15): —. Hypothesis: Stage 9 to Stage 13 in 14 calendar days or
-fewer: held, in 2 days.
+piece (Stage 15): 2026-11-19. Hypothesis: Stage 9 to Stage 13 in 14 calendar days or
+fewer: held, in 2 days; the whole kernel, Stage 9 to Stage 15, in 3.
 
 ## Stages
 
@@ -38,7 +38,7 @@ fewer: held, in 2 days.
 | 12 | [Strings and sorted values](#stage-12--strings-and-sorted-values) | full | [#14](https://github.com/pedrobtz/zutable/issues/14) | [#39](https://github.com/pedrobtz/zutable/pull/39) | 2026-11-18 |
 | 13 | [Kernel join and match](#stage-13--kernel-join-and-match) | quick | [#15](https://github.com/pedrobtz/zutable/issues/15) | [#40](https://github.com/pedrobtz/zutable/pull/40) | 2026-11-18 |
 | 14 | [Kernel reduce](#stage-14--kernel-reduce) | quick | [#16](https://github.com/pedrobtz/zutable/issues/16) | [#41](https://github.com/pedrobtz/zutable/pull/41) | 2026-11-18 |
-| 15 | [Consumer fixture, ABI and fuzz](#stage-15--consumer-fixture-abi-and-fuzz) | quick | [#17](https://github.com/pedrobtz/zutable/issues/17) | | |
+| 15 | [Consumer fixture, ABI and fuzz](#stage-15--consumer-fixture-abi-and-fuzz) | quick | [#17](https://github.com/pedrobtz/zutable/issues/17) | | 2026-11-19 |
 | 16 | [Benchmarks and documentation](#stage-16--benchmarks-and-documentation) | quick | [#18](https://github.com/pedrobtz/zutable/issues/18) | | |
 | 17 | [Assurance](#stage-17--assurance) | quick | [#19](https://github.com/pedrobtz/zutable/issues/19) | | |
 | 18 | [Full CI](#stage-18--full-ci) | full | [#20](https://github.com/pedrobtz/zutable/issues/20) | | |
@@ -759,20 +759,28 @@ kernel clock.
 **Work.**
 
 - `tools/zutabletest`, a consumer package with `LinkingTo: zutable`,
-  and `consumer.yaml` (own workflow).
+  built by `tools/ci/consumer.sh` as a step of `platforms.yaml`.
 - `test-abi.R`.
-- The fuzz target under `ZT_STANDALONE` and the `fuzz.yml` caller.
+- The fuzz target under `ZT_STANDALONE`, in `tools/fuzz/`, and the
+  `fuzz.yml` caller, `fuzz.yaml`.
+
+Deviations (2026-11-19). The consumer runs as a step of
+`tools/ci/platform.sh`, not in a `consumer.yaml` of its own: the shared CI
+rules allow a pull request one macOS and one Windows job beyond R CMD
+check's, which `platforms.yaml` already takes, and its runners have R and
+zufast. The fuzz target lives in `tools/fuzz/`, as r-actions' fuzz caller
+expects, not in `fuzz/`, which would need its own `.Rbuildignore` line.
 
 **Tests.**
 
 - Consumer: `tools/zutabletest` builds and runs against the installed
   header with `zutable` removed from the library path, in
-  `consumer.yaml`.
+  `tools/ci/consumer.sh`.
 - ABI: the shared object exports `R_init_zutable` only, in
   `test-abi.R`.
 - Fuzz invariants: every row has an identifier, the permutation is a
   permutation with non-decreasing keys, every join pair's keys are equal,
-  group sums add up to the total, in `fuzz/`.
+  group sums add up to the total, in `tools/fuzz/`.
 
 **Exit criteria.**
 
