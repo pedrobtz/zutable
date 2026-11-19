@@ -18,5 +18,9 @@ jobs:
     with:
       badge-branch: gh-pages
       badge-path: badges/coverage.svg
+      # gcov over src/ and the kernel's header as the R suite reaches them:
+      # the functions no test enters and the conditions taken one way only
+      # (assurance.md, Stage 17).
+      native: true
     permissions:
       contents: write
