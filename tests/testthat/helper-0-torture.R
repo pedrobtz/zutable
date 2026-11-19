@@ -5,8 +5,12 @@
 # many sizes, do less there; every other workflow runs them in full.
 under_torture <- function() identical(Sys.getenv("ZUTABLE_GCTORTURE"), "true")
 
-skip_under_torture <- function() {
-  if (under_torture()) {
-    testthat::skip("million-row input under gctorture at step 20")
-  }
+skip_under_torture <- function(why = "million-row input under gctorture at step 20") {
+  if (under_torture()) testthat::skip(why)
+}
+
+# The DuckDB conformance tests check zutable's SQL, written in R, against
+# DuckDB's results: at step 20 they torture the oracle, not native code.
+skip_conformance_under_torture <- function() {
+  skip_under_torture("DuckDB conformance under gctorture at step 20")
 }

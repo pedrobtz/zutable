@@ -65,7 +65,8 @@ test_that("a mean whose sum overflows takes base R's second route", {
   expect_identical(grp_reduce(x, g, "mean"), reduce_oracle(x, g$id, g$n, "mean", TRUE))
   expect_identical(grp_reduce(x, g, "mean")[[3L]], Inf)
   withr::local_seed(147)
-  y <- c(stats::runif(600, 0.5, 1.8) * 1e308, stats::rnorm(600))
+  m <- if (under_torture()) 150L else 600L
+  y <- c(stats::runif(m, 0.5, 1.8) * 1e308, stats::rnorm(m))
   h <- grp(sample(1:40, length(y), TRUE))
   expect_identical(grp_reduce(y, h, "mean"), reduce_oracle(y, h$id, h$n, "mean", TRUE))
 })
@@ -73,10 +74,11 @@ test_that("a mean whose sum overflows takes base R's second route", {
 test_that("an R without long double gets sums and means in double, as base R's", {
   local_mocked_bindings(zt_long_double = function() FALSE)
   withr::local_seed(148)
-  x <- c(stats::rnorm(4000) * 10^sample(-8:12, 4000, TRUE), 1e308, 1e308, -1e308, 7)
+  m <- if (under_torture()) 400L else 4000L
+  x <- c(stats::rnorm(m) * 10^sample(-8:12, m, TRUE), 1e308, 1e308, -1e308, 7)
   id <- sample(1:30, length(x), TRUE)
-  id[4001:4004] <- 31L
-  i <- sample(c(NA, -50:50, .Machine$integer.max), 4004, TRUE)
+  id[m + 1:4] <- 31L
+  i <- sample(c(NA, -50:50, .Machine$integer.max), m + 4L, TRUE)
   g <- grp(id)
   for (fn in c("sum", "mean", "prod")) {
     v <- if (fn == "prod") x / 1e3 else x

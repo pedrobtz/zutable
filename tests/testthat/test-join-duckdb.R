@@ -1,6 +1,7 @@
 test_that("joins agree with DuckDB, NA keys matched or not", {
   skip_if_not_installed("duckdb")
   skip_if_not_installed("DBI")
+  skip_conformance_under_torture()
   con <- DBI::dbConnect(duckdb::duckdb())
   withr::defer(DBI::dbDisconnect(con, shutdown = TRUE))
   withr::local_seed(33)

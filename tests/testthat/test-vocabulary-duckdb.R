@@ -9,6 +9,7 @@
 test_that("every vocabulary row agrees with DuckDB", {
   skip_if_not_installed("duckdb")
   skip_if_not_installed("DBI")
+  skip_conformance_under_torture()
   con <- duck_connect()
   withr::defer(DBI::dbDisconnect(con, shutdown = TRUE))
   withr::local_seed(20261117)
@@ -37,6 +38,7 @@ test_that("every vocabulary row agrees with DuckDB", {
 test_that("the special forms agree with DuckDB", {
   skip_if_not_installed("duckdb")
   skip_if_not_installed("DBI")
+  skip_conformance_under_torture()
   con <- duck_connect()
   withr::defer(DBI::dbDisconnect(con, shutdown = TRUE))
   withr::local_seed(20261118)
@@ -95,6 +97,7 @@ test_that("text to double agrees with DuckDB's correctly rounded parser", {
 test_that("binary numeric functions agree with DuckDB on every pair of edge values", {
   skip_if_not_installed("duckdb")
   skip_if_not_installed("DBI")
+  skip_conformance_under_torture()
   con <- DBI::dbConnect(duckdb::duckdb())
   withr::defer(DBI::dbDisconnect(con, shutdown = TRUE))
   edge <- c(-Inf, -3.75, -2, -1, -0.5, -0, 0, 0.5, 1, 2, 3.75, Inf, NaN, NA)
