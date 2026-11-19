@@ -410,6 +410,14 @@ static void test_groups_by_sort(void) {
   zt_column zc = {ZT_KIND_F64, z};
   zt_key kz = {&zc, 1};
   CHECK(zt_groups_by_sort(&kz, 4, sc, cb, order, ids, first, starts, mem) == -1);
+  /* A NaN, or an NA, beside numbers only stays on the sort: three groups,
+     the missing one last. */
+  for (int w = 0; w < 2; w++) {
+    z[0] = 1; z[1] = 2; z[3] = 3;
+    if (w) memcpy(&z[2], &na, sizeof na); else z[2] = NAN;
+    CHECK(zt_groups_by_sort(&kz, 4, sc, cb, order, ids, first, starts, mem) == 4);
+    CHECK(ids[0] == 0 && ids[1] == 1 && ids[3] == 2 && ids[2] == 3);
+  }
   free(mem);
 }
 
