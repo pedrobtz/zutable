@@ -38,7 +38,7 @@ fewer: held, in 2 days; the whole kernel, Stage 9 to Stage 15, in 3.
 | 12 | [Strings and sorted values](#stage-12--strings-and-sorted-values) | full | [#14](https://github.com/pedrobtz/zutable/issues/14) | [#39](https://github.com/pedrobtz/zutable/pull/39) | 2026-11-18 |
 | 13 | [Kernel join and match](#stage-13--kernel-join-and-match) | quick | [#15](https://github.com/pedrobtz/zutable/issues/15) | [#40](https://github.com/pedrobtz/zutable/pull/40) | 2026-11-18 |
 | 14 | [Kernel reduce](#stage-14--kernel-reduce) | quick | [#16](https://github.com/pedrobtz/zutable/issues/16) | [#41](https://github.com/pedrobtz/zutable/pull/41) | 2026-11-18 |
-| 15 | [Consumer fixture, ABI and fuzz](#stage-15--consumer-fixture-abi-and-fuzz) | quick | [#17](https://github.com/pedrobtz/zutable/issues/17) | | 2026-11-19 |
+| 15 | [Consumer fixture, ABI and fuzz](#stage-15--consumer-fixture-abi-and-fuzz) | quick | [#17](https://github.com/pedrobtz/zutable/issues/17) | [#42](https://github.com/pedrobtz/zutable/pull/42) | 2026-11-19 |
 | 16 | [Benchmarks and documentation](#stage-16--benchmarks-and-documentation) | quick | [#18](https://github.com/pedrobtz/zutable/issues/18) | | |
 | 17 | [Assurance](#stage-17--assurance) | quick | [#19](https://github.com/pedrobtz/zutable/issues/19) | | |
 | 18 | [Full CI](#stage-18--full-ci) | full | [#20](https://github.com/pedrobtz/zutable/issues/20) | | |
