@@ -54,6 +54,10 @@ jobs:
       profile: auto
       # Findings inside DuckDB, the test oracle, only; see the file.
       suppressions: tools/valgrind.supp
+      # 180, not the default 60 (Stage 18): a cold cache spends 20 minutes
+      # building R and 19 building duckdb from source, which left the suite
+      # 15, and the cache is saved only by a job that finishes.
+      timeout-minutes: 180
 
   lto:
     if: >-
