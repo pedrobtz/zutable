@@ -39,7 +39,7 @@ fewer: held, in 2 days; the whole kernel, Stage 9 to Stage 15, in 3.
 | 13 | [Kernel join and match](#stage-13--kernel-join-and-match) | quick | [#15](https://github.com/pedrobtz/zutable/issues/15) | [#40](https://github.com/pedrobtz/zutable/pull/40) | 2026-11-18 |
 | 14 | [Kernel reduce](#stage-14--kernel-reduce) | quick | [#16](https://github.com/pedrobtz/zutable/issues/16) | [#41](https://github.com/pedrobtz/zutable/pull/41) | 2026-11-18 |
 | 15 | [Consumer fixture, ABI and fuzz](#stage-15--consumer-fixture-abi-and-fuzz) | quick | [#17](https://github.com/pedrobtz/zutable/issues/17) | [#42](https://github.com/pedrobtz/zutable/pull/42) | 2026-11-19 |
-| 16 | [Benchmarks and documentation](#stage-16--benchmarks-and-documentation) | quick | [#18](https://github.com/pedrobtz/zutable/issues/18) | | |
+| 16 | [Benchmarks and documentation](#stage-16--benchmarks-and-documentation) | quick | [#18](https://github.com/pedrobtz/zutable/issues/18) | | 2026-11-19 |
 | 17 | [Assurance](#stage-17--assurance) | quick | [#19](https://github.com/pedrobtz/zutable/issues/19) | | |
 | 18 | [Full CI](#stage-18--full-ci) | full | [#20](https://github.com/pedrobtz/zutable/issues/20) | | |
 | 19 | [v0.1.0 readiness](#stage-19--v010-readiness) | full | [#21](https://github.com/pedrobtz/zutable/issues/21) | | |
@@ -826,6 +826,16 @@ vignette and the two kernel articles run against the real package.
 - `R CMD check` passes on the quick profile.
 
 **Design.** [design-kernel §9](design-kernel.md#9-performance-targets).
+
+**Deviations** (2026-11-19). The README, which no stage named and design-kernel
+§2 lists for 0.1.0, is written here, since this is the documentation
+stage; it makes no speed claim, as the record supports none against
+collapse. The harness's memory column became the peak of R's heap during
+a call (it was the growth across it, which hides freed scratch), so
+Stage 11's "yes" for sort memory is corrected to "no" in
+`.agents/benchmarks.md`. The arm64 and GitHub-runner numbers of
+design-kernel §9 (D15) are not recorded: one x86-64 machine was
+available, and the record says so. Nine of the 32 rows of §9.3 are met.
 
 ## Stage 17 — Assurance
 
