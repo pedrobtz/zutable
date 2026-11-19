@@ -136,3 +136,7 @@
   [`grp_reduce()`](https://pedrobtz.github.io/zutable/reference/grp_reduce.md)’s
   kernel, rather than evaluating each group in turn: 8 to 130 times
   faster at 10^6 rows, with the same results.
+- The kernel’s header, `<zutable.h>`, is usable from another package’s C
+  with `LinkingTo: zutable` alone, as a test package shows on every OS.
+  The accumulators a caller passes to `zt_reduce()` must be aligned for
+  `zt_acc` (16 bytes on x86_64, beyond what `R_alloc()` promises).

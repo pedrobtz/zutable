@@ -146,9 +146,14 @@ change to `PROTECT`s. Step 20 sets `ZUTABLE_GCTORTURE=true`, under which
 the pure-R typing sweep, the many-size sort sweeps, the kernel join
 differential and the million-row tests do less
 (`tests/testthat/helper-0-torture.R`): the whole suite outgrew the
-240-minute job by Stage 11, and again by Stage 13. The kernel stages add
-`check-headers`, a consumer fixture and a fuzz target. Stages marked
-`full` in the roadmap: 3, 6, 10, 11, 12.
+240-minute job by Stage 11, and again by Stage 13. `platforms.yaml` runs
+`tools/ci/platform.sh` on each OS: `check-headers`, the C tests with the
+fuzz target’s 20,000-input smoke, and the consumer fixture
+(`tools/ci/consumer.sh`, which builds `tools/zutabletest` against the
+installed header and runs it with zutable gone from the library).
+`fuzz.yaml` runs the kernel’s fuzz target (`tools/fuzz/`, without R) for
+30 seconds on a pull request and an hour weekly and on dispatch. Stages
+marked `full` in the roadmap: 3, 6, 10, 11, 12.
 
 Tests run shuffled everywhere: `tests/testthat.R` and
 `tools/ci-run-tests.R` print their seed, and `ZUTABLE_TEST_SEED` replays

@@ -81,6 +81,7 @@
 <li>
 <code><a href="../reference/grp_reduce.html">grp_reduce()</a></code> computes <code>sum</code>, <code>prod</code>, <code>mean</code>, <code>min</code>, <code>max</code>, <code>count</code>, <code>nobs</code>, <code>first</code> and <code>last</code> by group in one pass, several columns at once, with <code>na.rm</code> and a <code>broadcast</code> back to the rows (<code>"replace"</code>, <code>"subtract"</code>, <code>"divide"</code>). Sums and means are base R’s bit for bit; a group with no values left is <code>NA</code>.</li>
 <li>The bracket’s aggregates, <code>over()</code> and <code>:=</code> with <code>by</code> now reduce every group at once through <code><a href="../reference/grp_reduce.html">grp_reduce()</a></code>’s kernel, rather than evaluating each group in turn: 8 to 130 times faster at 10^6 rows, with the same results.</li>
+<li>The kernel’s header, <code>&lt;zutable.h&gt;</code>, is usable from another package’s C with <code>LinkingTo: zutable</code> alone, as a test package shows on every OS. The accumulators a caller passes to <code>zt_reduce()</code> must be aligned for <code>zt_acc</code> (16 bytes on x86_64, beyond what <code>R_alloc()</code> promises).</li>
 </ul></div>
   </main></div>
 
