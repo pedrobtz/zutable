@@ -5,8 +5,10 @@
 #
 # Three rules (section 9.2): every oracle's result is reduced to a canonical
 # form and compared before a timing is kept; memory is recorded for every
-# row (the growth of R's heap across a run, from gc(): what R allocated, not
-# the process's peak RSS); the settings each oracle was given are stated.
+# row (the peak of R's heap during a run above its level before it, from
+# gc()'s "max used": what R allocated, which includes the kernel's scratch
+# from R_alloc(), not malloc() by other packages nor the process's RSS);
+# the settings each oracle was given are stated.
 #
 # Usage: Rscript tools/run-benchmarks [n] [out]
 #   n    rows (default 1e7), out: a Markdown file (default stdout)
@@ -41,10 +43,11 @@ record <- function(target, oracle, input, fn, canon, settings = "one thread") {
   t <- numeric(reps)
   mem <- NA_real_
   for (r in seq_len(reps)) {
-    gc(FALSE)
-    m0 <- gc(FALSE)[2L, 2L]
+    m0 <- gc(FALSE, reset = TRUE)[2L, 2L]
     t[[r]] <- system.time(res <- fn(), gcFirst = FALSE)[["elapsed"]]
-    mem <- max(mem, (gc(FALSE)[2L, 2L] - m0), na.rm = TRUE)
+    g <- gc(FALSE)
+    mem <- max(mem, g[2L, ncol(g)] - m0, na.rm = TRUE) # "max used (Mb)", the last column
+    rm(res)
   }
   rows[[length(rows) + 1L]] <<- data.frame(
     target = target, oracle = oracle, input = input,
@@ -166,19 +169,32 @@ if (has_zutable) record(tg, "zutable::key_order", "dbl", function() zutable::key
 agree(tg)
 tg <- "sort of values, double, 1e7 rows"
 record(tg, "base sort(method = 'radix')", "dbl", function() sort(dv, method = "radix"), identity)
+if (has_zutable) record(tg, "zutable::key_sort", "dbl", function() zutable::key_sort(dv), function(s) s[seq_along(s)])
+agree(tg)
 c5 <- paste0("id", sample.int(1e5))[sample.int(1e5, n, replace = TRUE)]
 tg <- "order, character, 1e5 distinct"
 record(tg, "base order(method = 'radix')", "chr", function() order(c5, method = "radix"), sorted_canon(c5))
 record(tg, "data.table:::forderv", "chr", function() data.table:::forderv(c5), sorted_canon(c5))
+if (has_zutable) record(tg, "zutable::key_order", "chr", function() zutable::key_order(c5), sorted_canon(c5))
 agree(tg)
 call <- sprintf("u%09d", sample.int(n))
 tg <- "order, character, all distinct"
 record(tg, "base order(method = 'radix')", "chr", function() order(call, method = "radix"), sorted_canon(call))
+if (has_zutable) record(tg, "zutable::key_order", "chr", function() zutable::key_order(call), sorted_canon(call))
 agree(tg)
 words <- paste0(sample(c(letters, LETTERS, "é"), 1e6, TRUE), sample(letters, 1e6, TRUE))
 tg <- "sort, character, collate = TRUE (1e6 rows)"
+# base sort() follows the session's collation, which need not be ICU's, so
+# the rows agree on the length; stringi and the kernel must agree exactly.
+if (has_zutable) {
+  stopifnot(identical(words[stringi::stri_order(words, locale = "en")],
+                      as.vector(zutable::key_sort(words, collate = TRUE))))
+}
 record(tg, "stringi::stri_order", "chr", function() stringi::stri_order(words), function(o) length(o),
        settings = "locale en")
+if (has_zutable) record(tg, "zutable::key_sort(collate = TRUE)", "chr",
+                        function() zutable::key_sort(words, collate = TRUE), function(o) length(o),
+                        settings = "stringi, locale en")
 record(tg, "base sort()", "chr", function() order(words), function(o) length(o),
        settings = "session collation")
 }
@@ -189,24 +205,32 @@ yk <- sample.int(.Machine$integer.max, 1e6)
 xk <- yk[sample.int(1e6, n, replace = TRUE)]
 dx <- data.table(k = xk, i = seq_len(n))
 dy <- data.table(k = yk, j = seq_len(1e6))
-pair_canon <- function(p) { o <- order(p$i, p$j); c(sum(as.numeric(p$i[o]) * 3 + p$j[o]), nrow(p)) }
+pair_canon <- function(p) { o <- order(p$i, p$j); c(sum(as.numeric(p$i[o]) * 3 + p$j[o]), length(p$i)) }
 tg <- "join, inner, one key"
 record(tg, "data.table x[y, on =]", "int", function() dy[dx, on = "k", nomatch = NULL, list(i, j)], pair_canon)
 record(tg, "base merge()", "int", function() merge(dx, dy, by = "k", sort = FALSE)[, c("i", "j")], pair_canon)
+zj <- function(j) list(i = j$x, j = j$y)
+if (has_zutable) record(tg, "zutable::grp_join", "int", function() zj(zutable::grp_join(xk, yk)), pair_canon)
 agree(tg)
 yk2 <- data.table(a = sample.int(1e3, 1e6, TRUE), b = sample.int(1e3, 1e6, TRUE))
 yk2 <- unique(yk2)[, j := .I]
 dx2 <- yk2[sample.int(nrow(yk2), n, TRUE), list(a, b)][, i := .I]
 tg <- "join, inner, two keys"
 record(tg, "data.table x[y, on =]", "int x int", function() yk2[dx2, on = c("a", "b"), nomatch = NULL, list(i, j)], pair_canon)
+if (has_zutable) record(tg, "zutable::grp_join", "int x int",
+                        function() zj(zutable::grp_join(list(dx2$a, dx2$b), list(yk2$a, yk2$b))), pair_canon)
+agree(tg)
 tg <- "match, one key"
 record(tg, "base match()", "int", function() match(xk, yk), identity)
 record(tg, "collapse::fmatch", "int", function() collapse::fmatch(xk, yk), identity)
+if (has_zutable) record(tg, "zutable::grp_match", "int", function() zutable::grp_match(xk, yk), identity)
 agree(tg)
 i64x <- bit64::as.integer64(xk)
 i64y <- bit64::as.integer64(yk)
 tg <- "match, integer64"
 record(tg, "bit64::match.integer64", "i64", function() bit64:::match.integer64(i64x, i64y), identity)
+if (has_zutable) record(tg, "zutable::grp_match", "i64", function() zutable::grp_match(i64x, i64y), identity)
+agree(tg)
 }
 
 # --- reduce --------------------------------------------------------------------
@@ -255,7 +279,7 @@ md <- c(
           format(Sys.Date()), Sys.info()[["machine"]], utils::sessionInfo()$running,
           paste(R.version$major, R.version$minor, sep = "."), format(n, scientific = TRUE), reps),
   "",
-  "| Target (design-kernel 9.3) | Oracle | Input | Seconds | R heap MB | Settings |",
+  "| Target (design-kernel 9.3) | Oracle | Input | Seconds | Peak MB | Settings |",
   "| --- | --- | --- | ---: | ---: | --- |",
   sprintf("| %s | %s | %s | %.3f | %.0f | %s |", tab$target, tab$oracle, tab$input, tab$seconds,
           tab$mb, tab$settings)

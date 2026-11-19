@@ -206,7 +206,7 @@ agreed with every oracle before it was timed.
 | order, n = 100, repeated 1e5 times: 2x faster than base | 0.718 | 2.366 (base order) | yes, 3.3x |
 | order, sorted input: O(n), parity with base radix | 0.034 | 0.000 (base radix) | no, see below |
 | order, reversed input: O(n), parity with base radix | 0.092 | 0.404 (base radix) | yes, 4.4x |
-| peak memory, sort: no more than base radix's | 38 MB | 38 MB | yes |
+| peak memory, sort: no more than base radix's | 38 MB | 38 MB | yes (corrected 2026-11-19, Stage 16: no, see below) |
 
 Base radix answers sorted input in no time because the input came from
 `sort()`, whose result carries R's sortedness metadata; on a plain copy
@@ -469,3 +469,169 @@ has one tight loop per statistic. One cost was a bug and is fixed in
 this stage: stripping attributes copied the 80 MB vector even when it had
 none, 0.066 s against 0.053 s at 10^3 groups.
 
+
+## The complete record (Stage 16, 2026-11-19)
+
+The Intel Core i5-8500B of the header, one thread, R 4.6.2, an installed
+build (`R CMD INSTALL --preclean`); `tools/run-benchmarks 1e7`, every
+section, with kit 0.0.21 installed again for its two rows. Stage 16 gave
+the harness a kernel row for every target of design-kernel 9.3 (sort of
+values, character order, collated sort, joins and matches had none), and
+changed its memory column from the heap's growth across a call, which a
+call's freed scratch never shows, to the peak of R's heap during it
+(`gc()`'s "max used" after a reset). That peak counts the kernel's whole
+scratch, which is `R_alloc()`, but not the `malloc()` of other packages
+or of base R's radix sort, so for them it is a floor. The memory targets
+below use process peak RSS where that matters.
+
+### Every row
+
+Run on 2026-11-19: x86_64, macOS Sequoia 15.7.9, R 4.6.2, 1e+07 rows, median of 5. Every row's oracles agreed on a canonical result before it was timed.
+
+| Target (design-kernel 9.3) | Oracle | Input | Seconds | Peak MB | Settings |
+| --- | --- | --- | ---: | ---: | --- |
+| groups, one integer key, 1e3 distinct | kit: match(x, funique(x)) | int | 0.163 | 76 | one thread |
+| groups, one integer key, 1e3 distinct | collapse::GRP | int | 0.086 | 38 | one thread |
+| groups, one integer key, 1e3 distinct | vctrs::vec_group_id | int | 0.104 | 204 | one thread |
+| groups, one integer key, 1e3 distinct | base: match(x, unique(x)) | int | 0.268 | 243 | one thread |
+| groups, one integer key, 1e3 distinct | zutable::grp | int | 0.170 | 229 | one thread |
+| groups, one integer key, 1e5 distinct | kit: match(x, funique(x)) | int | 0.303 | 78 | one thread |
+| groups, one integer key, 1e5 distinct | collapse::GRP | int | 0.218 | 39 | one thread |
+| groups, one integer key, 1e5 distinct | vctrs::vec_group_id | int | 0.269 | 204 | one thread |
+| groups, one integer key, 1e5 distinct | base: match(x, unique(x)) | int | 0.658 | 244 | one thread |
+| groups, one integer key, 1e5 distinct | zutable::grp | int | 0.353 | 232 | one thread |
+| groups, one key, 1e7 distinct | kit: match(x, funique(x)) | int | 1.117 | 188 | one thread |
+| groups, one key, 1e7 distinct | collapse::GRP | int | 0.493 | 111 | one thread |
+| groups, one key, 1e7 distinct | vctrs::vec_group_id | int | 0.415 | 204 | one thread |
+| groups, one key, 1e7 distinct | zutable::grp | int | 1.277 | 390 | one thread |
+| groups, two keys | collapse::GRP | int x int | 0.273 | 40 | one thread |
+| groups, two keys | vctrs::vec_group_id | int x int | 0.789 | 204 | one thread |
+| groups, two keys | zutable::grp | int x int | 0.515 | 270 | one thread |
+| groups, sort = TRUE, 1e5 distinct | collapse::GRP(sort = TRUE) | int | 0.362 | 78 | one thread |
+| groups, sort = TRUE, 1e5 distinct | zutable::grp(sort = TRUE) | int | 0.574 | 536 | one thread |
+| groups, sort = TRUE, 1e5 distinct | axis O: key_order() of every row, then runs | int | 0.722 | 534 | one thread |
+| groups, 9.1 market-data input | collapse::GRP | chr x int | 0.275 | 41 | one thread |
+| groups, 9.1 market-data input | zutable::grp | chr x int | 0.747 | 310 | one thread |
+| groups, 9.1 market-data input | duckdb GROUP BY | chr x int | 0.734 | 1 | threads = 1 |
+| order, integer, 1e7 rows | base order(method = 'radix') | int | 0.337 | 38 | one thread |
+| order, integer, 1e7 rows | data.table:::forderv | int | 0.910 | 38 | one thread |
+| order, integer, 1e7 rows | zutable::key_order | int | 0.237 | 229 | one thread |
+| order, double, 1e7 rows | base order(method = 'radix') | dbl | 0.378 | 38 | one thread |
+| order, double, 1e7 rows | data.table:::forderv | dbl | 1.285 | 38 | one thread |
+| order, double, 1e7 rows | zutable::key_order | dbl | 0.495 | 382 | one thread |
+| order, n = 100, repeated 1e5 times | base order() | dbl | 2.359 | 40 | one thread |
+| order, n = 100, repeated 1e5 times | zutable::key_order | dbl | 0.722 | 362 | one thread |
+| order, sorted input | base order(method = 'radix') | dbl | 0.000 | 0 | one thread |
+| order, sorted input | zutable::key_order | dbl | 0.033 | 38 | one thread |
+| order, reversed input | base order(method = 'radix') | dbl | 0.379 | 38 | one thread |
+| order, reversed input | zutable::key_order | dbl | 0.093 | 38 | one thread |
+| sort of values, double, 1e7 rows | base sort(method = 'radix') | dbl | 0.628 | 114 | one thread |
+| sort of values, double, 1e7 rows | zutable::key_sort | dbl | 0.661 | 458 | one thread |
+| order, character, 1e5 distinct | base order(method = 'radix') | chr | 0.336 | 38 | one thread |
+| order, character, 1e5 distinct | data.table:::forderv | chr | 1.127 | 38 | one thread |
+| order, character, 1e5 distinct | zutable::key_order | chr | 1.895 | 552 | one thread |
+| order, character, all distinct | base order(method = 'radix') | chr | 6.926 | 38 | one thread |
+| order, character, all distinct | zutable::key_order | chr | 4.877 | 1414 | one thread |
+| sort, character, collate = TRUE (1e6 rows) | stringi::stri_order | chr | 1.100 | 4 | locale en |
+| sort, character, collate = TRUE (1e6 rows) | zutable::key_sort(collate = TRUE) | chr | 0.096 | 61 | stringi, locale en |
+| sort, character, collate = TRUE (1e6 rows) | base sort() | chr | 4.008 | 4 | session collation |
+| join, inner, one key | data.table x[y, on =] | int | 1.603 | 576 | one thread |
+| join, inner, one key | base merge() | int | 1.596 | 576 | one thread |
+| join, inner, one key | zutable::grp_join | int | 1.012 | 270 | one thread |
+| join, inner, two keys | data.table x[y, on =] | int x int | 1.351 | 575 | one thread |
+| join, inner, two keys | zutable::grp_join | int x int | 1.059 | 294 | one thread |
+| match, one key | base match() | int | 0.493 | 88 | one thread |
+| match, one key | collapse::fmatch | int | 0.237 | 38 | one thread |
+| match, one key | zutable::grp_match | int | 0.957 | 269 | one thread |
+| match, integer64 | bit64::match.integer64 | i64 | 0.352 | 130 | one thread |
+| match, integer64 | zutable::grp_match | i64 | 1.024 | 311 | one thread |
+| reduce, sum, 1e3 groups | collapse::fsum | dbl | 0.012 | 0 | one thread |
+| reduce, sum, 1e3 groups | base rowsum() | dbl | 0.212 | 204 | one thread |
+| reduce, sum, 1e3 groups | zutable grp_reduce() | dbl | 0.054 | 38 | one thread |
+| reduce, sum, 1e5 groups | collapse::fsum | dbl | 0.023 | 1 | one thread |
+| reduce, sum, 1e5 groups | base rowsum() | dbl | 1.692 | 209 | one thread |
+| reduce, sum, 1e5 groups | zutable grp_reduce() | dbl | 0.062 | 41 | one thread |
+| reduce, sum, 1e7 groups | collapse::fsum | dbl | 0.127 | 48 | one thread |
+| reduce, sum, 1e7 groups | base rowsum() | dbl | 2.052 | 485 | one thread |
+| reduce, sum, 1e7 groups | zutable grp_reduce() | dbl | 0.405 | 213 | one thread |
+| reduce, four columns | four collapse f*() calls | dbl | 0.125 | 3 | one thread |
+| reduce, four columns | zutable grp_reduce(), fused | dbl | 0.359 | 51 | one thread |
+| reduce, broadcast = 'subtract' | collapse::fwithin | dbl | 0.192 | 77 | one thread |
+| reduce, broadcast = 'subtract' | zutable grp_reduce() | dbl | 0.178 | 119 | one thread |
+
+### Against section 9.3
+
+The ratio is the oracle's time over the kernel's, so above 1 the kernel
+is faster.
+
+| Target (design-kernel 9.3) | Kernel | Oracle | Ratio | Met |
+| --- | ---: | ---: | ---: | --- |
+| groups, one integer key, 1e3 distinct: parity with kit | 0.170 | 0.163 | 0.96x | yes |
+| groups, one integer key, 1e5 distinct: parity with kit | 0.353 | 0.303 | 0.86x | no |
+| groups, one key, 1e7 distinct: 2x faster than kit | 1.277 | 1.117 | 0.87x | no |
+| groups, two keys: 1.5x faster than `GRP()` | 0.515 | 0.273 | 0.53x | no |
+| groups, `sort = TRUE`, 1e5 distinct: 2x faster than `GRP()` | 0.574 | 0.362 | 0.63x | no |
+| groups, any input: 2x faster than `vec_group_id()` | | | 0.32x to 1.53x | no |
+| groups, 9.1 input: within 2x of duckdb, one thread | 0.747 | 0.734 | 0.98x | yes |
+| groups, 9.1 input: 1.2x faster than `GRP()` | 0.747 | 0.275 | 0.37x | no |
+| order, integer, 1e7 rows: 1.5x faster than base radix | 0.237 | 0.337 | 1.42x | no |
+| order, double, 1e7 rows: 1.5x faster than base radix | 0.495 | 0.378 | 0.76x | no |
+| order, any input: parity with `forderv()`, one thread | | | 3.8x int, 2.6x dbl, 0.59x chr | no |
+| order, n = 100, repeated 1e5 times: 2x faster than base | 0.722 | 2.359 | 3.3x | yes |
+| order, sorted or reversed: O(n), parity with base radix | 0.033 / 0.093 | 0.000 / 0.379 | 4.1x reversed | yes |
+| sort of values, double, 1e7 rows: 2x faster than base radix | 0.661 | 0.628 | 0.95x | no |
+| order, character, 1e5 distinct: 3x faster than base radix | 1.895 | 0.336 | 0.18x | no |
+| order, character, all distinct: 1.5x faster than base radix | 4.877 | 6.926 | 1.42x | no |
+| sort, character, `collate = TRUE`: parity with `stri_order()` | 0.096 | 1.100 | 11.5x | yes |
+| sort, character, `collate = TRUE`: 20x faster than base `sort()` | 0.096 | 4.008 | 42x | yes, once strings repeat |
+| join, inner, one key: parity with data.table | 1.012 | 1.603 | 1.58x | yes |
+| join, inner, two keys: 1.5x faster than data.table | 1.059 | 1.351 | 1.28x | no |
+| match, one key: faster than `match()` | 0.957 | 0.493 | 0.52x | no |
+| match, one key: parity with `fmatch()` | 0.957 | 0.237 | 0.25x | no |
+| match, `integer64`: parity with bit64 | 1.024 | 0.352 | 0.34x | no |
+| reduce, sum, 1e3 groups: parity with `fsum()` | 0.054 | 0.012 | 0.22x | no |
+| reduce, sum, 1e5 groups: parity with `fsum()` | 0.062 | 0.023 | 0.37x | no |
+| reduce, sum, 1e7 groups: 2x faster than `fsum()` | 0.405 | 0.127 | 0.31x | no |
+| reduce, four columns fused: 1.5x faster than four calls | 0.359 | 0.125 | 0.35x | no |
+| reduce, sum, any input: faster than `rowsum()` | | | 3.9x, 27x, 5.1x | yes |
+| reduce, `broadcast = "subtract"`: parity with `fwithin()` | 0.178 | 0.192 | 1.08x | yes |
+| peak memory, groups: input + 5 bytes a slot + 12 a row | 229 / 390 MiB | 194 MiB | 1.18x / 2.0x over | no |
+| peak memory, joins: input + 5 bytes a slot + 12 a row | 270 MiB | 136 MiB | 2.0x over | no |
+| peak memory, sort: no more than base radix's | 193 / 344 MiB | 39 / 229 MiB | 5x / 1.5x over | no |
+
+**Nine of the 32 rows are met.** The kernel is ahead of base R wherever
+base has no specialised path (small repeated orders, reversed input,
+collation, `rowsum()`, joins through `merge()`), level with an engine on
+the market-data shape, and ahead of data.table's one-key join and
+`forderv()` on numbers; it is behind collapse and kit nearly everywhere
+they compete, by 1.1x to 4.5x. Recorded, not tuned (the maintainer
+deferred tuning, 2026-11-17); the known next steps are those each stage's
+section above lists. The README makes no speed claim.
+
+Notes on the rows:
+
+- *Collated sort* draws 1e6 two-letter words, about 1,400 distinct, which
+  is the case collation once per distinct string is for; with every
+  string distinct (Stage 12) the kernel is 1.24x `stri_sort()` and 3.8x
+  base `sort()`, so the 20x row holds only once strings repeat.
+- *Sorted input*: base answers at once from R's sortedness metadata on a
+  `sort()` result; on a plain copy it takes 0.032 s (Stage 11), the
+  kernel 0.033.
+- *Character, all distinct* is `sprintf("u%09d")`, a shared prefix and
+  fixed width; Stage 12's random strings of 4 to 16 letters gave 0.79x.
+- *Memory, groups and joins*: the bound is computed for the input at
+  hand, 5 bytes for each slot of `zt_table_capacity()` (2^24 slots for
+  1e7 rows, 2^21 for the join's 1e6 build rows) and 12 bytes for each
+  row, both sides for a join, in MiB. The kernel's figure is the peak of
+  R's heap, its result included: `id` and `order` alone are 76 MiB at
+  1e7 rows, and the 8-byte hash of every row another 76. The 1e3-distinct
+  input is the first figure, the 1e7-distinct the second.
+- *Memory, sort* is process peak RSS above the input's (`/usr/bin/time
+  -l`, one call in a fresh R), integer then double, because base radix's
+  scratch is `malloc()` and `gc()` does not see it; the kernel's 16-byte
+  records for doubles (Stage 11) and 8-byte words with a code book for
+  integers are what it pays for.
+- *Machine*: one x86-64 machine. Design-kernel section 9 asks for the
+  maintainer's arm64 machine beside it and five runs on a GitHub Actions
+  runner for the SIMD rule (D15, D26); the kernel has no SIMD path in
+  0.1.0, and the arm64 numbers are still to be recorded.
