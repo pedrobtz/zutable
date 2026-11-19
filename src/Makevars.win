@@ -1,2 +1,4 @@
+# $(C_VISIBILITY) does not reach a DLL's exports: zutable-win.def does,
+# naming R_init_zutable alone (test-abi.R).
 PKG_CPPFLAGS = -I../inst/include
 PKG_CFLAGS = $(C_VISIBILITY)

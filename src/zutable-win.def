@@ -1,0 +1,3 @@
+LIBRARY zutable.dll
+EXPORTS
+  R_init_zutable
