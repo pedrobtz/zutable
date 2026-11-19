@@ -17,3 +17,4 @@
 ^pkgdown$
 ^tools$
 ^build$
+^README\.Rmd$
