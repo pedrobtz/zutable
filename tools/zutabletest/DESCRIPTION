@@ -1,0 +1,20 @@
+Package: zutabletest
+Title: Consumer Fixture for the zutable Kernel Header
+Version: 0.0.1
+Authors@R: 
+    person("Pedro", "Baltazar", , "pedrobtz@gmail.com", role = c("aut", "cre"))
+Description: Not a real package and never published. It proves that
+    zutable's kernel header can be consumed from another package's C code
+    with LinkingTo alone: the kernel is header-only, so nothing of zutable
+    is linked or loaded, and its tests run with zutable removed from the
+    library. Built and run only by tools/ci/consumer.sh.
+License: MIT + file LICENSE
+Encoding: UTF-8
+Depends: 
+    R (>= 4.1)
+LinkingTo: 
+    zutable,
+    zufast
+Suggests: 
+    testthat (>= 3.0.0)
+Config/testthat/edition: 3

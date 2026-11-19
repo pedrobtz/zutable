@@ -1,6 +1,7 @@
 # The kernel's own per-OS checks, one job per OS (r-actions platforms.yml):
-# tools/ci/platform.sh compiles every header alone and runs the C tests
-# without R, under ASan and UBSan on Linux.
+# tools/ci/platform.sh compiles every header alone, runs the C tests and the
+# fuzz target's smoke without R (under ASan and UBSan on Linux), and builds
+# the consumer fixture, tools/zutabletest, against the installed header.
 on:
   # No `push:`. A pull request already checks its merge with main, so the
   # push after merge would check the same tree again, in every package at

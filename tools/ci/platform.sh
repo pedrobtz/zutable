@@ -19,3 +19,6 @@ if [ "$os" = ubuntu ]; then
   CC="$cc" CXX="$cxx" CFLAGS_EXTRA="-fsanitize=address,undefined -fno-sanitize-recover=all" \
     OUT=build/c-tests-asan sh tools/ci/c-tests.sh
 fi
+# A sibling's package builds against the installed header with LinkingTo
+# alone, and runs with zutable gone from the library.
+sh tools/ci/consumer.sh
