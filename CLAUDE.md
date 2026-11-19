@@ -146,7 +146,7 @@ installed header and runs it with zutable gone from the library).
 `fuzz.yaml` runs the kernel's fuzz target (`tools/fuzz/`, without R) for
 30 seconds on a pull request and an hour weekly and on dispatch, with
 `reach-floor: 97`. Stages marked `full`
-in the roadmap: 3, 6, 10, 11, 12.
+in the roadmap: 3, 6, 10, 11, 12, 18, 19, 20.
 
 Tests run shuffled everywhere: `tests/testthat.R` and
 `tools/ci-run-tests.R` print their seed, and `ZUTABLE_TEST_SEED` replays
