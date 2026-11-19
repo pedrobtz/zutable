@@ -113,15 +113,16 @@ static int zt_sorted_no_na(SEXP x) { return zt_meta(x)[1]; }
 
 // --- per type ----------------------------------------------------------------
 
+// No Get_region methods: base R asks for a region only when
+// Dataptr_or_null returns NULL, which these never do, and R's default reads
+// a region through Elt (native coverage, Stage 17).
+
 static void *zt_int_dataptr(SEXP x, Rboolean writeable) {
   if (writeable) return INTEGER(zt_writable_payload(x));
   return (void *) INTEGER_RO(zt_payload(x));
 }
 static const void *zt_int_dataptr_or_null(SEXP x) { return INTEGER_RO(zt_payload(x)); }
 static int zt_int_elt(SEXP x, R_xlen_t i) { return INTEGER_ELT(zt_payload(x), i); }
-static R_xlen_t zt_int_get_region(SEXP x, R_xlen_t i, R_xlen_t n, int *buf) {
-  return INTEGER_GET_REGION(zt_payload(x), i, n, buf);
-}
 
 static void *zt_real_dataptr(SEXP x, Rboolean writeable) {
   if (writeable) return REAL(zt_writable_payload(x));
@@ -129,9 +130,6 @@ static void *zt_real_dataptr(SEXP x, Rboolean writeable) {
 }
 static const void *zt_real_dataptr_or_null(SEXP x) { return REAL_RO(zt_payload(x)); }
 static double zt_real_elt(SEXP x, R_xlen_t i) { return REAL_ELT(zt_payload(x), i); }
-static R_xlen_t zt_real_get_region(SEXP x, R_xlen_t i, R_xlen_t n, double *buf) {
-  return REAL_GET_REGION(zt_payload(x), i, n, buf);
-}
 
 static void *zt_lgl_dataptr(SEXP x, Rboolean writeable) {
   if (writeable) return LOGICAL(zt_writable_payload(x));
@@ -139,9 +137,6 @@ static void *zt_lgl_dataptr(SEXP x, Rboolean writeable) {
 }
 static const void *zt_lgl_dataptr_or_null(SEXP x) { return LOGICAL_RO(zt_payload(x)); }
 static int zt_lgl_elt(SEXP x, R_xlen_t i) { return LOGICAL_ELT(zt_payload(x), i); }
-static R_xlen_t zt_lgl_get_region(SEXP x, R_xlen_t i, R_xlen_t n, int *buf) {
-  return LOGICAL_GET_REGION(zt_payload(x), i, n, buf);
-}
 
 // Strings are written through Set_elt, under the write barrier; a
 // writable pointer, which only R's internals take, drops the metadata too.
@@ -169,7 +164,6 @@ void zt_init_altrep(DllInfo *dll) {
   R_set_altvec_Dataptr_method(zt_sorted_int, zt_int_dataptr);
   R_set_altvec_Dataptr_or_null_method(zt_sorted_int, zt_int_dataptr_or_null);
   R_set_altinteger_Elt_method(zt_sorted_int, zt_int_elt);
-  R_set_altinteger_Get_region_method(zt_sorted_int, zt_int_get_region);
   R_set_altinteger_Is_sorted_method(zt_sorted_int, zt_sorted_is_sorted);
   R_set_altinteger_No_NA_method(zt_sorted_int, zt_sorted_no_na);
 
@@ -178,7 +172,6 @@ void zt_init_altrep(DllInfo *dll) {
   R_set_altvec_Dataptr_method(zt_sorted_real, zt_real_dataptr);
   R_set_altvec_Dataptr_or_null_method(zt_sorted_real, zt_real_dataptr_or_null);
   R_set_altreal_Elt_method(zt_sorted_real, zt_real_elt);
-  R_set_altreal_Get_region_method(zt_sorted_real, zt_real_get_region);
   R_set_altreal_Is_sorted_method(zt_sorted_real, zt_sorted_is_sorted);
   R_set_altreal_No_NA_method(zt_sorted_real, zt_sorted_no_na);
 
@@ -187,7 +180,6 @@ void zt_init_altrep(DllInfo *dll) {
   R_set_altvec_Dataptr_method(zt_sorted_lgl, zt_lgl_dataptr);
   R_set_altvec_Dataptr_or_null_method(zt_sorted_lgl, zt_lgl_dataptr_or_null);
   R_set_altlogical_Elt_method(zt_sorted_lgl, zt_lgl_elt);
-  R_set_altlogical_Get_region_method(zt_sorted_lgl, zt_lgl_get_region);
   R_set_altlogical_Is_sorted_method(zt_sorted_lgl, zt_sorted_is_sorted);
   R_set_altlogical_No_NA_method(zt_sorted_lgl, zt_sorted_no_na);
 

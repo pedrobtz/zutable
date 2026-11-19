@@ -134,3 +134,25 @@ test_that("the wrapping hook takes only a plain vector and a sortedness code", {
     expect_identical(sorted_meta(sorted_wrap(c(1L, 2L), code, FALSE)), c(code, 0L))
   }
 })
+
+test_that("element access, inspect() and order() read through the wrapper", {
+  # x[[i]] goes through the Elt method of each type, NA included.
+  for (v in list(c(NA, 1L, 3L), c(NA, -0.5, 2), c(NA, FALSE, TRUE), c(NA, "a", "b"))) {
+    s <- key_sort(v, na.last = FALSE)
+    for (i in seq_along(v)) {
+      expect_identical(s[[i]], sort(v, na.last = FALSE, method = "radix")[[i]])
+    }
+  }
+  # inspect() shows the class's own line, then the payload.
+  out <- utils::capture.output(.Internal(inspect(key_sort(c(2L, 1L)))))
+  expect_match(out[[1L]], "zutable sorted values (sorted 1, no_na 1)", fixed = TRUE)
+  out <- utils::capture.output(.Internal(inspect(key_sort(c("b", NA)))))
+  expect_match(out[[1L]], "sortedness unknown, no_na 0", fixed = TRUE)
+  # order() and radix sort() of strings read the payload's pointers.
+  v <- c("b", NA, "a", "c", "a")
+  s <- key_sort(v)
+  plain <- c("a", "a", "b", "c", NA)
+  expect_identical(order(s), order(plain))
+  expect_identical(order(s, decreasing = TRUE), order(plain, decreasing = TRUE))
+  expect_identical(sort(s, method = "radix"), sort(plain, method = "radix"))
+})
