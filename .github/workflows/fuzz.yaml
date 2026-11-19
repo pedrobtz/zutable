@@ -1,0 +1,60 @@
+# The kernel's fuzz target (design-kernel section 8): random key tables
+# through groups, sort, join and reduce, each result held to its invariant
+# (tools/fuzz/invariants.c). Built without R under ZT_STANDALONE, against
+# zufast's headers. A pull request fuzzes for 30 seconds (profile quick);
+# the weekly run and a dispatch for an hour, which is the run Stage 15's
+# exit criterion asks for: `gh workflow run fuzz.yaml --ref <branch>`.
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+  schedule:
+    - cron: "17 4 * * 1"
+  workflow_dispatch:
+
+name: fuzz
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  fuzz:
+    if: >-
+      github.event_name != 'pull_request'
+      || contains(github.event.pull_request.labels.*.name, 'full-ci')
+      || !(contains(github.event.pull_request.labels.*.name, 'ci:docs')
+        || contains(github.event.pull_request.labels.*.name, 'ci:minimal')
+        || contains(github.event.pull_request.labels.*.name, 'skip-ci:fuzz'))
+    uses: pedrobtz/r-actions/.github/workflows/fuzz.yml@v1
+    with:
+      # The kernel is R-free; the R glue in src/ is not fuzzed, so it reads
+      # nothing a change to R/ alone could alter.
+      skip-r-only: true
+      harness: tools/fuzz/harness.c
+      sources: tools/fuzz/invariants.c
+      github-packages: pedrobtz/zufast
+      cflags: -g -O1 -fno-omit-frame-pointer -Iinst/include -I.github-packages/zufast/inst/include
+      profile: auto
+      max-total-time: ${{ (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && 3600 || 300 }}
+      # The long run keeps going after a finding and reports every distinct
+      # one; a pull request stops at the first, for a fast red.
+      keep-going: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
+
+  # A red scheduled run otherwise notifies only whoever last edited the cron
+  # line: one issue per distinct finding, labelled fuzz.
+  report:
+    needs: fuzz
+    if: ${{ always() && github.event_name == 'schedule' && needs.fuzz.result != 'skipped' }}
+    permissions:
+      issues: write
+    uses: pedrobtz/r-actions/.github/workflows/report.yml@v1
+    with:
+      name: fuzz
+      result: ${{ needs.fuzz.result }}
+      finding: ${{ needs.fuzz.outputs.finding }}
+      key: ${{ needs.fuzz.outputs.finding-key }}
+      details: ${{ needs.fuzz.outputs.report }}
+      findings: ${{ needs.fuzz.outputs.findings }}
