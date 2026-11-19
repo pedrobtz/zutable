@@ -81,7 +81,9 @@ shared, and every write drops its marks. [src/join.c](src/join.c) is
 `grp_join()`'s translation of `zutable/join.h`; `join()` runs on it, with
 the R join kept as its oracle under `options(zutable.executor =
 "reference")`. [src/reduce.c](src/reduce.c) is `grp_reduce()`'s
-translation of `zutable/reduce.h`; the executor's aggregates, `over()`
+translation of `zutable/reduce.h`, built again with double accumulators
+by [src/reduce-double.c](src/reduce-double.c) for an R without long
+double (`zt_long_double()` chooses); the executor's aggregates, `over()`
 and `:=` with `by` rewrite each aggregate call into a column of
 per-group values (`zt_eval_groups()` in `R/execute.R`), keeping the
 loop over groups as their oracle, and the loop for an `r()` node. The
@@ -125,9 +127,10 @@ in the full profile a Windows R-devel row, `nosuggests` and `nold`; weekly
 on Mondays 02:41 UTC), `native-checks.yaml` (sanitizers with ASan,
 valgrind, lto, rchk, analyzers, cran-special; valgrind reads
 `tools/valgrind.supp`, which suppresses only findings whose top frame is
-in DuckDB, the test oracle), `gctorture.yaml` (step 2000 on pull requests, step 20 daily and on dispatch), `alloc-failure.yaml`
+in DuckDB, the test oracle, and has 180 minutes for a cold cache), `gctorture.yaml` (step 2000 on pull requests, step 20 daily and on dispatch), `alloc-failure.yaml`
 (weekly, through `tools/alloc-exercise.R`, which must reach every native
-routine), `coverage.yml` (badge on `gh-pages`; `native: true`, so it lists
+routine; its floor is R with zutable attached, and crashes whose top frame
+is base R's regex or `gzfile()` are R's own), `coverage.yml` (badge on `gh-pages`; `native: true`, so it lists
 the C functions no test enters and the conditions taken one way),
 `mutation.yaml` (Mull over the six C test binaries, built with
 `ZT_TEST_QUICK` by `tools/ci/mutation-build.sh`, and the fuzz driver;
