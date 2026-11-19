@@ -40,7 +40,7 @@ fewer: held, in 2 days; the whole kernel, Stage 9 to Stage 15, in 3.
 | 14 | [Kernel reduce](#stage-14--kernel-reduce) | quick | [#16](https://github.com/pedrobtz/zutable/issues/16) | [#41](https://github.com/pedrobtz/zutable/pull/41) | 2026-11-18 |
 | 15 | [Consumer fixture, ABI and fuzz](#stage-15--consumer-fixture-abi-and-fuzz) | quick | [#17](https://github.com/pedrobtz/zutable/issues/17) | [#42](https://github.com/pedrobtz/zutable/pull/42) | 2026-11-19 |
 | 16 | [Benchmarks and documentation](#stage-16--benchmarks-and-documentation) | quick | [#18](https://github.com/pedrobtz/zutable/issues/18) | [#43](https://github.com/pedrobtz/zutable/pull/43) | 2026-11-19 |
-| 17 | [Assurance](#stage-17--assurance) | quick | [#19](https://github.com/pedrobtz/zutable/issues/19) | | 2026-11-19 |
+| 17 | [Assurance](#stage-17--assurance) | quick | [#19](https://github.com/pedrobtz/zutable/issues/19) | [#44](https://github.com/pedrobtz/zutable/pull/44) | 2026-11-19 |
 | 18 | [Full CI](#stage-18--full-ci) | full | [#20](https://github.com/pedrobtz/zutable/issues/20) | | |
 | 19 | [v0.1.0 readiness](#stage-19--v010-readiness) | full | [#21](https://github.com/pedrobtz/zutable/issues/21) | | |
 | 20 | [Review](#stage-20--review) | full | [#22](https://github.com/pedrobtz/zutable/issues/22) | | |
