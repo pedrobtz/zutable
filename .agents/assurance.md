@@ -56,6 +56,67 @@ added tests/testthat/test-abi.R (the shared object exports
 by tools/ci/consumer.sh on every OS against the installed header and run
 with zutable removed from the library.
 
+Stage 17 (#19) read the gap lists on 2026-11-19.
+
+- **Native coverage.** `coverage.yaml` now runs with `native: true`.
+  - The routines' own argument checks, which the R layer never trips, are
+    tested in tests/testthat/test-native-guards.R. That file also checks
+    that a refused commit writes nothing.
+  - The ALTREP class's element, inspect and order paths are tested in
+    test-altrep.R.
+  - The Get_region methods were removed: base R asks for a region only
+    when Dataptr_or_null returns NULL, which this class never does.
+  - What the lists still show:
+    - The header's static inline functions are reported once per
+      translation unit, so a copy that one unit never calls is listed as
+      never entered, while another unit runs it in full.
+    - numbers.c:30 is a short-circuit no input can take the other way.
+    - `zt_str_dataptr_or_null` cannot be reached from base R.
+- **Fuzz reach.** The hour's corpus reached 98.6% of the lines of
+  tools/fuzz/invariants.c. `fuzz.yaml` holds it to `reach-floor: 97`. The
+  unreached lines are the abort macro and `cmp_valid`'s returns, which
+  coverage maps to lines no input runs.
+- **Mutation.**
+  - Earlier runs dropped test-sort, whose warm-up outran Mull's
+    per-mutant timeout. The binaries now build with `ZT_TEST_QUICK`
+    (sweeps to 20,000 records, quadratic checks to 1,025), the timeout is
+    120 s, and the fuzz driver runs as a seventh binary.
+  - Run 44490032510 killed 834 mutants. 235 survived every binary.
+  - Mutants that were real gaps, now killed, each applied by hand first
+    and seen failing:
+    - reduce.h:115, the NA bit test (test-reduce.c now has its own
+      oracle, without the kernel's `zt_f64_is_na`);
+    - reduce.h:136, rounding past DBL_MAX;
+    - groups.h:100, the group starts;
+    - key.h:125, keys of zero columns;
+    - sort.h:518, a NaN beside numbers wrongly sent to the hash fallback.
+  - Mull mutates only the header. The new R tests were seen failing on
+    hand-made mutants of src/: the frozen check of commit.c and the int
+    Elt of altrep.c.
+  - The rest are of three kinds:
+    - **Equivalent:**
+      - the size and range thresholds that choose between insertion,
+        counting, pdqsort, LSD, MSD and ska sort (hybrid.inc, radix.inc's
+        digit clamps), and the ports' own heuristics (pivot choice,
+        partition balance, pattern breaking, run detection);
+      - the order of the multikey quicksort's recursion, and its pivot
+        (strsort.h);
+      - hash mixing (key.h:56, 66), prefetch distance, table capacity and
+        load limit (groups.h, join.h, table.h);
+      - the partitioner's sizing and estimates (partition.h);
+      - zero-length compares, and `kmin`, which is always 0 in
+        `zt_counting`;
+      - scratch sizing, including sort.h:100, whose permutation buffer is
+        written only after the counts it would overlap are used;
+      - reduce.h:104, 230 and 244, where a count is used as a flag, and
+        243, ties on int max.
+    - **Out of bounds:** loop bounds turned from `<` to `<=` read or write
+      one past the end. Only ASan sees them, and the C tests run under it
+      in `platforms.yaml`.
+    - **Faster or slower only:** a bound changed so that the work is
+      redone, such as the multikey quicksort resuming from byte `d - 1`.
+  - None is left as a gap.
+
 ## Objects
 
 One row per object that outlives the call that made it. "Sequences" is
