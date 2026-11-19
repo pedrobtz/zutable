@@ -47,6 +47,14 @@ first C (src/numbers.c). `tools/alloc-exercise.R` reaches both routines.
 Stage 9 (#11) wired `mutation` on 2026-11-17 over the kernel's C tests
 (tests/c), the first C that builds without R; `platforms.yaml` builds and
 runs them on every OS, under ASan and UBSan on Linux.
+Stage 15 (#17) added `fuzz.yaml` on 2026-11-19, although the package is
+not `untrusted-input`: the kernel's fuzz target (tools/fuzz/) holds groups,
+sort, join and reduce to invariants and to second routes, with an
+equality of its own, on random key tables of every kind. The same stage
+added tests/testthat/test-abi.R (the shared object exports
+`R_init_zutable` only) and the consumer fixture, tools/zutabletest, built
+by tools/ci/consumer.sh on every OS against the installed header and run
+with zutable removed from the library.
 
 ## Objects
 

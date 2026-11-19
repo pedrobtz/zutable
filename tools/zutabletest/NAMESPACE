@@ -1,0 +1,3 @@
+useDynLib(zutabletest, .registration = TRUE)
+export(zt_consume_groups, zt_consume_order, zt_consume_join, zt_consume_sum,
+       zt_consume_version)

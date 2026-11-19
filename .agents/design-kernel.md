@@ -1014,6 +1014,13 @@ in the kernel is blocked: the rows go in blocks of 4096, and every column
 takes its turn on a block while the block's group ids are in L1; `mean`
 of doubles sweeps twice, for the correction pass.
 
+**Scratch alignment** (2026-11-19). The accumulators `acc` and `acc2`
+are `zt_acc`, long double under `ZT_PRECISION` 1, which wants 16-byte
+alignment on x86_64; the caller aligns them, since some allocators (R's
+`R_alloc()`) promise only 8. `src/reduce.c` and the consumer fixture
+round the pointer up. Found by UBSan on Stage 14's pull request, where the
+C tests' `malloc()` had hidden it.
+
 ## 7. Errors
 
 Every condition inherits from `zutable_error`; tests assert on class, never
@@ -1063,6 +1070,18 @@ random key streams through groups, sort, join and reduce and checks the
 invariants (every row has an identifier, the permutation is a
 permutation and its keys are non-decreasing, every pair's keys are
 equal, sums over groups add up to the total).
+
+Where they live (2026-11-19, Stage 15). The fuzz target is
+`tools/fuzz/`: `invariants.c` decodes an input into a key table of every
+kind, interned strings with the fixture's own interning among them, and
+holds each operation to its invariant or to a second route (the
+partitioned path against the one-pass path, grouping by sort against
+grouping by hash, the join against the nested loop), with an equality of
+its own rather than the kernel's; `fuzz.yaml` runs it, and
+`tools/ci/c-tests.sh` runs 20,000 random inputs on every OS. The
+consumer fixture runs from `tools/ci/consumer.sh`, a step of
+`platforms.yaml`, over a library holding only itself and testthat's
+dependencies.
 
 ## 9. Performance targets
 
