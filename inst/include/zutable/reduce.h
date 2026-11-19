@@ -6,8 +6,10 @@
  * any number of value columns, each with its own statistic, and reduces
  * them all in one sweep over the rows: the rows go in blocks, and every
  * column takes its turn on a block while the block's group ids are in
- * cache (fusion, design-kernel 4.2). `mean` of doubles makes a second
- * sweep, the correction pass base R's mean() makes.
+ * cache (fusion, design-kernel 4.2). `mean` of doubles makes the further
+ * sweeps base R's real_mean() (R >= 4.2) makes: the correction pass, and
+ * where a group's sum is not finite, a sum of x / n and its own
+ * correction.
  *
  *   zt_reduce(ids, n, ng, cols, ncol)   every column, one sweep
  *   zt_reduce_scratch(...)              the scratch a column needs
@@ -24,7 +26,9 @@
  * Accumulation (axis M): ZT_PRECISION 1, the default, sums in long double,
  * as base sum(), prod() and mean() do, so that a group's sum is bit for bit
  * base R's; ZT_PRECISION 0 sums in double. Where long double is double
- * (MSVC, arm64 macOS) the two are the same, as they are for base R.
+ * (MSVC, arm64 macOS) the two are the same, as they are for base R. An R
+ * built without long double (--disable-long-double) sums in double, so its
+ * translation takes ZT_PRECISION 0 to stay bit for bit.
  *
  * Every buffer is the caller's; nothing here allocates.
  */
@@ -192,15 +196,35 @@ ZT_INLINE void zt_reduce_block_sum(zt_reduce_col *c, const zt_row *ids, zt_row l
   }
 }
 
-/* mean's correction sweep (base R's real_mean): acc holds each group's
-   mean in the accumulator's precision. */
-ZT_INLINE void zt_reduce_block_mean2(zt_reduce_col *c, const zt_row *ids, zt_row lo,
-                                     zt_row hi) {
+/* A mean of doubles goes through base R's real_mean() states, one sweep
+   each, kept per group in flag:
+     ZT_RM_CORRECT   sum finite, acc the mean: acc2 += x - acc
+     ZT_RM_RESUM     sum not finite: acc = sum of x / n
+     ZT_RM_CORRECT2  that sum finite: acc2 += (x - acc) / n
+   Others take no sweep. Each test is base R's R_FINITE((double) s). */
+#define ZT_RM_CORRECT 1u
+#define ZT_RM_RESUM 2u
+#define ZT_RM_CORRECT2 3u
+#define ZT_RM_DONE2 4u /* after ZT_RM_CORRECT2: acc + acc2 */
+
+ZT_INLINE int zt_acc_finite(zt_acc s) {
+  double d = (double) s;
+  return d - d == 0;
+}
+
+/* One of mean's later sweeps, rows lo .. hi, for the groups in state. */
+ZT_INLINE void zt_reduce_block_mean(zt_reduce_col *c, const zt_row *ids, zt_row lo,
+                                    zt_row hi, uint8_t state) {
   const double *x = (const double *) c->x;
   for (zt_row i = lo; i < hi; i++) {
     if (c->na_rm && zt_reduce_missing(c, i)) continue;
     zt_row g = ids[i];
-    if (c->flag[g]) c->acc2[g] += (zt_acc) x[i] - c->acc[g];
+    if (c->flag[g] != state) continue;
+    switch (state) {
+    case ZT_RM_CORRECT: c->acc2[g] += (zt_acc) x[i] - c->acc[g]; break;
+    case ZT_RM_RESUM: c->acc[g] += x[i] / (double) c->cnt[g]; break;
+    default: c->acc2[g] += ((zt_acc) x[i] - c->acc[g]) / (zt_acc) c->cnt[g]; break;
+    }
   }
 }
 
@@ -286,16 +310,39 @@ ZT_INLINE void zt_reduce_block(zt_reduce_col *c, const zt_row *ids, zt_row lo, z
   }
 }
 
-/* Between the sweeps: each double mean's first estimate, and whether its
-   correction pass runs (base R corrects only a finite mean). */
-ZT_INLINE void zt_reduce_mid(zt_reduce_col *c, zt_row ng) {
+/* After the first sweep: each double mean's first estimate, or its
+   restart; returns whether any group restarts. */
+ZT_INLINE int zt_reduce_mid(zt_reduce_col *c, zt_row ng) {
+  int resum = 0;
   for (zt_row g = 0; g < ng; g++) {
     c->flag[g] = 0;
     if (!c->cnt[g]) continue;
-    c->acc[g] /= (zt_acc) c->cnt[g];
-    double m = (double) c->acc[g];
-    c->flag[g] = m - m == 0; /* finite */
+    if (zt_acc_finite(c->acc[g])) {
+      c->acc[g] /= (zt_acc) c->cnt[g];
+      c->flag[g] = ZT_RM_CORRECT;
+    } else {
+      c->acc[g] = 0;
+      c->flag[g] = ZT_RM_RESUM;
+      resum = 1;
+    }
   }
+  return resum;
+}
+
+/* After the restarted sum: whether its correction runs; returns whether
+   any group's does. */
+ZT_INLINE int zt_reduce_mid2(zt_reduce_col *c, zt_row ng) {
+  int any = 0;
+  for (zt_row g = 0; g < ng; g++) {
+    if (c->flag[g] != ZT_RM_RESUM) continue;
+    if (zt_acc_finite(c->acc[g])) {
+      c->flag[g] = ZT_RM_CORRECT2;
+      any = 1;
+    } else {
+      c->flag[g] = 0;
+    }
+  }
+  return any;
 }
 
 ZT_INLINE void zt_reduce_finish(zt_reduce_col *c, zt_row ng) {
@@ -314,7 +361,8 @@ ZT_INLINE void zt_reduce_finish(zt_reduce_col *c, zt_row ng) {
       if (c->kind == ZT_KIND_F64) {
         if (!c->cnt[g]) { o[g] = ZT_F64_NA; continue; }
         zt_acc s = c->acc[g];
-        if (c->flag[g]) s += c->acc2[g] / (zt_acc) c->cnt[g];
+        if (c->flag[g] == ZT_RM_CORRECT) s += c->acc2[g] / (zt_acc) c->cnt[g];
+        else if (c->flag[g] == ZT_RM_DONE2) s += c->acc2[g];
         o[g] = (double) s;
       } else {
         o[g] = !c->cnt[g] || (c->flag[g] & ZT_RF_MISS)
@@ -358,21 +406,47 @@ ZT_INLINE void zt_reduce(const zt_row *ids, zt_row n, zt_row ng, zt_reduce_col *
     zt_row hi = n - lo < ZT_REDUCE_BLOCK ? n : lo + ZT_REDUCE_BLOCK;
     for (int k = 0; k < ncol; k++) zt_reduce_block(&cols[k], ids, lo, hi);
   }
-  int second = 0;
+  int mean = 0, resum = 0;
   for (int k = 0; k < ncol; k++) {
     if (cols[k].fn == ZT_FN_MEAN && cols[k].kind == ZT_KIND_F64) {
-      zt_reduce_mid(&cols[k], ng);
-      second = 1;
+      resum |= zt_reduce_mid(&cols[k], ng);
+      mean = 1;
     }
   }
-  if (second) {
+  /* The correction and the restarted sum read the first sweep's state, so
+     they share a sweep; a restarted sum's correction takes one more. */
+  if (mean) {
     for (zt_row lo = 0; lo < n; lo += ZT_REDUCE_BLOCK) {
       zt_row hi = n - lo < ZT_REDUCE_BLOCK ? n : lo + ZT_REDUCE_BLOCK;
       for (int k = 0; k < ncol; k++) {
         if (cols[k].fn == ZT_FN_MEAN && cols[k].kind == ZT_KIND_F64) {
-          zt_reduce_block_mean2(&cols[k], ids, lo, hi);
+          zt_reduce_block_mean(&cols[k], ids, lo, hi, ZT_RM_CORRECT);
+          if (resum) zt_reduce_block_mean(&cols[k], ids, lo, hi, ZT_RM_RESUM);
         }
       }
+    }
+  }
+  int third = 0;
+  if (resum) {
+    for (int k = 0; k < ncol; k++) {
+      if (cols[k].fn == ZT_FN_MEAN && cols[k].kind == ZT_KIND_F64) {
+        third |= zt_reduce_mid2(&cols[k], ng);
+      }
+    }
+  }
+  if (third) {
+    for (zt_row lo = 0; lo < n; lo += ZT_REDUCE_BLOCK) {
+      zt_row hi = n - lo < ZT_REDUCE_BLOCK ? n : lo + ZT_REDUCE_BLOCK;
+      for (int k = 0; k < ncol; k++) {
+        if (cols[k].fn == ZT_FN_MEAN && cols[k].kind == ZT_KIND_F64) {
+          zt_reduce_block_mean(&cols[k], ids, lo, hi, ZT_RM_CORRECT2);
+        }
+      }
+    }
+    for (int k = 0; k < ncol; k++) {
+      zt_reduce_col *c = &cols[k];
+      if (c->fn != ZT_FN_MEAN || c->kind != ZT_KIND_F64) continue;
+      for (zt_row g = 0; g < ng; g++) if (c->flag[g] == ZT_RM_CORRECT2) c->flag[g] = ZT_RM_DONE2;
     }
   }
   for (int k = 0; k < ncol; k++) zt_reduce_finish(&cols[k], ng);

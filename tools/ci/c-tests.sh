@@ -16,6 +16,11 @@ for t in tests/c/test-*.c; do
     -Iinst/include $zinc "$t" -o "$out/$name" -lm
   "$out/$name"
 done
+# The reductions again with double accumulators, as an R without long
+# double has them (src/reduce-double.c).
+$cc -std=c11 -O1 -g -Wall -Wextra -pedantic -Werror ${CFLAGS_EXTRA:-} -DZT_PRECISION=0 \
+  -Iinst/include $zinc tests/c/test-reduce.c -o "$out/test-reduce-double" -lm
+"$out/test-reduce-double"
 $cc -std=c11 -O1 -g -Wall -Wextra -pedantic -Werror ${CFLAGS_EXTRA:-} -DZT_FUZZ_MAIN \
   -Iinst/include $zinc tools/fuzz/harness.c tools/fuzz/invariants.c -o "$out/fuzz-smoke" -lm
 "$out/fuzz-smoke"
