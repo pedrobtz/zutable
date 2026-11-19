@@ -1,0 +1,139 @@
+# Measuring the kernel
+
+``` r
+
+library(zutable)
+```
+
+Beneath the bracket, zutable groups, sorts, joins and reduces with a
+kernel of its own, written in C and usable from R through
+[`grp()`](https://pedrobtz.github.io/zutable/reference/grp.md),
+[`key_order()`](https://pedrobtz.github.io/zutable/reference/key_order.md),
+[`key_sort()`](https://pedrobtz.github.io/zutable/reference/key_sort.md),
+[`grp_join()`](https://pedrobtz.github.io/zutable/reference/grp_join.md),
+[`grp_match()`](https://pedrobtz.github.io/zutable/reference/grp_join.md)
+and
+[`grp_reduce()`](https://pedrobtz.github.io/zutable/reference/grp_reduce.md).
+This article is for readers deciding whether to call those functions
+directly, or wondering what the bracket costs. It says how the kernel
+was measured, where it is ahead and where it is behind, and what each
+number means.
+
+## A number is kept only when the answers agree
+
+A benchmark that times two programs giving different answers measures
+nothing. So the harness reduces every result to a canonical form, such
+as the sorted sizes of the groups, and compares it across every tool
+before it keeps a time. Here is that rule on one row, at 10^6 rows
+instead of the record’s 10^7:
+
+``` r
+
+set.seed(1)
+x <- sample.int(1e5, 1e6, replace = TRUE)
+canon <- function(id) sort(tabulate(match(id, unique(id))))
+results <- list(
+  zutable  = grp(x)$id,
+  collapse = collapse::GRP(x, sort = FALSE)$group.id,
+  base     = match(x, unique(x))
+)
+vapply(results, function(id) identical(canon(id), canon(results$base)), NA)
+#>  zutable collapse     base 
+#>     TRUE     TRUE     TRUE
+```
+
+All three found the same groups, so their times may be compared. The
+first appearance order is the same too: `grp(x)$id` is
+`match(x, unique(x))`, which is the contract of
+[`grp()`](https://pedrobtz.github.io/zutable/reference/grp.md).
+
+``` r
+
+identical(grp(x)$id, match(x, unique(x)))
+#> [1] TRUE
+```
+
+The harness also records the settings each tool was given (one thread
+for data.table, collapse and DuckDB) and the peak memory of each call.
+
+## The record
+
+`tools/run-benchmarks` in the package’s repository ran on 2026-11-19 on
+one x86-64 machine (Intel Core i5-8500B, macOS, R 4.6.2), one thread,
+10^7 rows, median of five, with collapse 2.1.8, data.table 1.18.6.1, kit
+0.0.21, vctrs 0.7.3, bit64 4.8.6, stringi 1.8.9 and DuckDB 2.0.0. The
+ratio is the other tool’s time over the kernel’s, so above 1 the kernel
+is faster. These are a selection of the targets the design set before
+any kernel code existed.
+
+| Operation | Kernel (s) | Other (s) | Ratio |
+|----|---:|---:|---:|
+| groups, one integer key, 10^3 distinct, against kit | 0.170 | 0.163 | 0.96x |
+| groups, one integer key, 10^3 distinct, against collapse | 0.170 | 0.086 | 0.51x |
+| groups, two integer keys, against collapse | 0.515 | 0.273 | 0.53x |
+| groups, symbol and hour of a skewed market-data day, against DuckDB | 0.747 | 0.734 | 0.98x |
+| order, integer, against base radix | 0.237 | 0.337 | 1.42x |
+| order, double, against base radix | 0.495 | 0.378 | 0.76x |
+| order, integer, against data.table | 0.237 | 0.910 | 3.8x |
+| order of 100 values, 10^5 times, against base [`order()`](https://rdrr.io/r/base/order.html) | 0.722 | 2.359 | 3.3x |
+| order, reversed input, against base radix | 0.093 | 0.379 | 4.1x |
+| order, character, all distinct, against base radix | 4.877 | 6.926 | 1.42x |
+| order, character, 10^5 distinct, against base radix | 1.895 | 0.336 | 0.18x |
+| collated sort, 10^6 words, against stringi | 0.096 | 1.100 | 11.5x |
+| collated sort, 10^6 words, against base [`sort()`](https://rdrr.io/r/base/sort.html) | 0.096 | 4.008 | 42x |
+| inner join, one key, against data.table | 1.012 | 1.603 | 1.58x |
+| inner join, two keys, against data.table | 1.059 | 1.351 | 1.28x |
+| match, one key, against base [`match()`](https://rdrr.io/r/base/match.html) | 0.957 | 0.493 | 0.52x |
+| sum, 10^5 groups, against collapse | 0.062 | 0.023 | 0.37x |
+| sum, 10^5 groups, against base [`rowsum()`](https://rdrr.io/r/base/rowsum.html) | 0.062 | 1.692 | 27x |
+| within-group deviation, against collapse | 0.178 | 0.192 | 1.08x |
+
+## What the numbers say
+
+The kernel is ahead of base R wherever base has no specialised path:
+many small sorts, reversed input, collation,
+[`rowsum()`](https://rdrr.io/r/base/rowsum.html), and joins through
+[`merge()`](https://rdrr.io/r/base/merge.html). It is level with DuckDB,
+run at one thread, on the market-data shape, and ahead of data.table’s
+one-key join and its numeric order. It is behind collapse and kit nearly
+everywhere they compete, by 1.1x to 4.5x, and its peak memory is above
+the design’s budget for groups and joins, and above base radix’s for
+sorting.
+
+Three choices explain much of the gap, and each is deliberate:
+
+- **Sums are base R’s, bit for bit.** The kernel accumulates in long
+  double, as base [`sum()`](https://rdrr.io/r/base/sum.html) and
+  [`mean()`](https://rdrr.io/r/base/mean.html) do, so
+  [`grp_reduce()`](https://pedrobtz.github.io/zutable/reference/grp_reduce.md)
+  and the bracket’s aggregates give exactly base R’s answer. collapse
+  sums in double. On x86-64 the long double adds cost 2.3 times as much
+  when the groups fit in cache.
+- **Groups keep first appearance.**
+  [`grp()`](https://pedrobtz.github.io/zutable/reference/grp.md) numbers
+  groups in the order they first appear and returns their sizes, starts
+  and row order as well, whether or not the caller uses them.
+- **Character keys sort in byte order by hashing.** Base R’s radix sort
+  orders strings through scratch space inside R’s string cache, which a
+  package cannot use; the kernel groups the strings first, which costs
+  more when they repeat.
+
+The rest is tuning not yet done: the release was measured, not tuned.
+
+## Reading a number
+
+Each figure is a median of five runs on one machine, so the ratios, not
+the seconds, carry over to another machine. Memory is the peak of R’s
+heap during a call, which counts everything the kernel allocates but
+misses what other packages take from `malloc()`. Above 10^7 rows, or for
+queries that need many operators at once, an engine such as DuckDB is
+the better tool, and the bracket’s plan is designed to be handed to one.
+
+## See also
+
+[Joins without
+surprises](https://pedrobtz.github.io/zutable/articles/joins.md) shows
+what [`join()`](https://pedrobtz.github.io/zutable/reference/join.md)
+and
+[`grp_join()`](https://pedrobtz.github.io/zutable/reference/grp_join.md)
+return, which is what the join rows above time.

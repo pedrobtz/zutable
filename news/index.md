@@ -140,3 +140,7 @@
   with `LinkingTo: zutable` alone, as a test package shows on every OS.
   The accumulators a caller passes to `zt_reduce()` must be aligned for
   `zt_acc` (16 bytes on x86_64, beyond what `R_alloc()` promises).
+- The Get started vignette runs against the package, and two articles
+  join it on the website: “Joins without surprises”, on repeated keys,
+  missing keys and key types, and “Measuring the kernel”, the kernel’s
+  timings against collapse, data.table, kit and base R.

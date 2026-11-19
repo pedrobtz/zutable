@@ -41,9 +41,13 @@ by the maintainer; (M) are the maintainer’s.
 
 ## Current state
 
-Scaffolded 2026-11-16 with `create-pkg.sh` (C via `use_c()`). Stage 0
-(2026-11-17) gave it its identity, conditions and CI; no table
-functionality yet. The roadmap in `.agents/roadmap.md` takes it to
+Scaffolded 2026-11-16 with `create-pkg.sh` (C via `use_c()`). Stages 0
+to 8 (2026-11-17) built the table, the bracket, `:=` and joins over the
+reference executor; Stages 9 to 15 (2026-11-17 to 19) the kernel beneath
+it, its header, consumer fixture and fuzz target; Stage 16 (2026-11-19)
+the benchmark record in `.agents/benchmarks.md`, the README, the
+evaluated Get started vignette and two articles under
+`vignettes/articles/`. The roadmap in `.agents/roadmap.md` takes it to
 v0.1.0; for now 0.1.0 includes the kernel (design D35).
 
 ## Versions and dependents

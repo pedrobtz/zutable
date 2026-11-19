@@ -17,6 +17,11 @@
     <div id="navbar" class="collapse navbar-collapse ms-3">
       <ul class="navbar-nav me-auto"><li class="nav-item"><a class="nav-link" href="../articles/zutable.html">Get started</a></li>
 <li class="nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
+<li class="nav-item dropdown">
+  <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
+  <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/joins.html">Joins without surprises</a></li>
+    <li><a class="dropdown-item" href="../articles/measurements.html">Measuring the kernel</a></li>
+  </ul></li>
 <li class="active nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><form class="form-inline" role="search">
  <input class="form-control" type="search" name="search-input" id="search-input" autocomplete="off" aria-label="Search site" placeholder="Search for" data-search-index="../search.json"></form></li>
@@ -82,6 +87,7 @@
 <code><a href="../reference/grp_reduce.html">grp_reduce()</a></code> computes <code>sum</code>, <code>prod</code>, <code>mean</code>, <code>min</code>, <code>max</code>, <code>count</code>, <code>nobs</code>, <code>first</code> and <code>last</code> by group in one pass, several columns at once, with <code>na.rm</code> and a <code>broadcast</code> back to the rows (<code>"replace"</code>, <code>"subtract"</code>, <code>"divide"</code>). Sums and means are base R’s bit for bit; a group with no values left is <code>NA</code>.</li>
 <li>The bracket’s aggregates, <code>over()</code> and <code>:=</code> with <code>by</code> now reduce every group at once through <code><a href="../reference/grp_reduce.html">grp_reduce()</a></code>’s kernel, rather than evaluating each group in turn: 8 to 130 times faster at 10^6 rows, with the same results.</li>
 <li>The kernel’s header, <code>&lt;zutable.h&gt;</code>, is usable from another package’s C with <code>LinkingTo: zutable</code> alone, as a test package shows on every OS. The accumulators a caller passes to <code>zt_reduce()</code> must be aligned for <code>zt_acc</code> (16 bytes on x86_64, beyond what <code>R_alloc()</code> promises).</li>
+<li>The Get started vignette runs against the package, and two articles join it on the website: “Joins without surprises”, on repeated keys, missing keys and key types, and “Measuring the kernel”, the kernel’s timings against collapse, data.table, kit and base R.</li>
 </ul></div>
   </main></div>
 

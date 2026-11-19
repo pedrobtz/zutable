@@ -10,8 +10,8 @@
 <script src="../deps/bootstrap-5.3.8/bootstrap.bundle.min.js"></script><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
 <link href="../deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet">
 <script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><meta property="og:title" content="Get started with zutable">
-<meta name="description" content="Query, update and plan a typed table through SQL's clauses in the bracket.">
-<meta property="og:description" content="Query, update and plan a typed table through SQL's clauses in the bracket.">
+<meta name="description" content="Query, join, update and explain a typed table through SQL's clauses in the bracket.">
+<meta property="og:description" content="Query, join, update and explain a typed table through SQL's clauses in the bracket.">
 </head>
 <body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
@@ -32,6 +32,13 @@
       <ul class="navbar-nav me-auto">
 <li class="active nav-item"><a class="nav-link" href="../articles/zutable.html">Get started</a></li>
 <li class="nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
+<li class="nav-item dropdown">
+  <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
+  <ul class="dropdown-menu" aria-labelledby="dropdown-articles">
+<li><a class="dropdown-item" href="../articles/joins.html">Joins without surprises</a></li>
+    <li><a class="dropdown-item" href="../articles/measurements.html">Measuring the kernel</a></li>
+  </ul>
+</li>
 <li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
       </ul>
 <ul class="navbar-nav">
@@ -64,10 +71,19 @@
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://pedrobtz.github.io/zutable/">zutable</a></span><span class="op">)</span></span></code></pre></div>
 <p>A data.frame does not know its types: a column can change from
-integer to character with one assignment, and an error surfaces only
+integer to character with one assignment, and the error surfaces only
 when the data reaches the code that breaks. A zutable always knows its
 schema, and every query is checked against it before any data is read.
-This page uses one small table of trades throughout.</p>
+This page builds one small table of trades and takes it through a query,
+a type error, a join, an update and its plan. How the joins behave, and
+how fast the kernel underneath is, are left to the articles.</p>
+<div class="section level2">
+<h2 id="a-table-with-a-schema">A table with a schema<a class="anchor" aria-label="anchor" href="#a-table-with-a-schema"></a>
+</h2>
+<p><code><a href="../reference/zutable.html">zutable()</a></code> builds a table from columns, as
+<code><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame()</a></code> does, and gives each column a logical type.
+<code><a href="../reference/schema.html">schema()</a></code> shows them: the name, the type, and whether the
+column may hold missing values.</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">trades</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/zutable.html">zutable</a></span><span class="op">(</span></span>
 <span>  id       <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1L</span>, <span class="fl">1L</span>, <span class="fl">2L</span>, <span class="fl">2L</span>, <span class="fl">3L</span><span class="op">)</span>,</span>
@@ -83,15 +99,23 @@ This page uses one small table of trades throughout.</p>
 <span><span class="co">#&gt;   px float64</span></span>
 <span><span class="co">#&gt;   qty int32</span></span>
 <span><span class="co">#&gt;   notional float64</span></span></code></pre></div>
+</div>
 <div class="section level2">
 <h2 id="query-with-sqls-clauses">Query with SQL’s clauses<a class="anchor" aria-label="anchor" href="#query-with-sqls-clauses"></a>
 </h2>
 <p>The bracket takes SQL’s clauses as named arguments over bare column
-names, and runs them in SQL’s logical order whatever order they are
-written in.</p>
+names: <code>where</code>, <code>select</code>, <code>by</code>,
+<code>having</code>, <code>order</code>, <code>limit</code> and
+<code>distinct</code>. They run in SQL’s logical order, whatever order
+they are written in. Here the filter drops the first day before the
+volume-weighted price is computed per <code>id</code>. <code>.()</code>
+lists the output columns, and <code>count()</code> and
+<code>desc()</code> are two of the bracket’s functions, listed in
+<code><a href="../reference/vocabulary.html">?vocabulary</a></code>. The string <code>"2026-01-02"</code> is
+compared with a date column, so it is read as an ISO 8601 date; a string
+that is not one is a type error.</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># Open: `.()` against another spelling inside `select` (ergonomics tests)</span></span>
-<span><span class="va">trades</span><span class="op">[</span>where  <span class="op">=</span> <span class="va">day</span> <span class="op">&gt;=</span> <span class="st">"2026-01-02"</span>,</span>
+<code class="sourceCode R"><span><span class="va">trades</span><span class="op">[</span>where  <span class="op">=</span> <span class="va">day</span> <span class="op">&gt;=</span> <span class="st">"2026-01-02"</span>,</span>
 <span>       select <span class="op">=</span> <span class="fu">.</span><span class="op">(</span>vwap <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="va">px</span> <span class="op">*</span> <span class="va">qty</span><span class="op">)</span> <span class="op">/</span> <span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="va">qty</span><span class="op">)</span>, n <span class="op">=</span> <span class="fu">count</span><span class="op">(</span><span class="op">)</span><span class="op">)</span>,</span>
 <span>       by     <span class="op">=</span> <span class="va">id</span>,</span>
 <span>       order  <span class="op">=</span> <span class="fu">desc</span><span class="op">(</span><span class="va">vwap</span><span class="op">)</span><span class="op">]</span></span>
@@ -101,13 +125,16 @@ written in.</p>
 <span><span class="co">#&gt; 1 2       19.625    2</span></span>
 <span><span class="co">#&gt; 2 1       11.000    1</span></span>
 <span><span class="co">#&gt; 3 3       7.000     1</span></span></code></pre></div>
+<p>The result is a zutable too, with a type for every column.
+<code>n</code> is <code>not_null(int32)</code>: a count is never
+missing, and the schema says so.</p>
 </div>
 <div class="section level2">
 <h2 id="schemas-are-known-before-data-is">Schemas are known before data is<a class="anchor" aria-label="anchor" href="#schemas-are-known-before-data-is"></a>
 </h2>
-<p>Every function comes from a closed, typed vocabulary, so the result’s
-schema follows from the input’s. A value that would change a column’s
-type is an error, not a silent conversion.</p>
+<p>Every function in the bracket comes from a closed, typed vocabulary,
+so a result’s schema follows from its input’s. Asking for the schema of
+a query tells you what it will return.</p>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/schema.html">schema</a></span><span class="op">(</span><span class="va">trades</span><span class="op">[</span>select <span class="op">=</span> <span class="fu">.</span><span class="op">(</span><span class="va">.all</span>, value <span class="op">=</span> <span class="va">px</span> <span class="op">*</span> <span class="va">qty</span><span class="op">)</span><span class="op">]</span><span class="op">)</span></span>
 <span><span class="co">#&gt; &lt;zutable_schema&gt; 6 fields</span></span>
@@ -116,18 +143,55 @@ type is an error, not a silent conversion.</p>
 <span><span class="co">#&gt;   px float64</span></span>
 <span><span class="co">#&gt;   qty int32</span></span>
 <span><span class="co">#&gt;   notional float64</span></span>
-<span><span class="co">#&gt;   value float64</span></span>
-<span><span class="va">trades</span><span class="op">[</span>, <span class="op">{</span> <span class="va">qty</span> <span class="op">:=</span> <span class="va">px</span> <span class="op">*</span> <span class="fl">2</span> <span class="op">}</span><span class="op">]</span>   <span class="co"># zutable_schema_error: qty is int32</span></span>
+<span><span class="co">#&gt;   value float64</span></span></code></pre></div>
+<p>A value that would change a column’s type is an error, not a silent
+conversion. <code>qty</code> is an integer column, and
+<code>px * 2</code> is a double.</p>
+<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">trades</span><span class="op">[</span>, <span class="op">{</span> <span class="va">qty</span> <span class="op">:=</span> <span class="va">px</span> <span class="op">*</span> <span class="fl">2</span> <span class="op">}</span><span class="op">]</span></span>
 <span><span class="co">#&gt; <span style="color: #BBBB00; font-weight: bold;">Error</span><span style="font-weight: bold;"> in `[.zutable`:</span></span></span>
 <span><span class="co">#&gt; <span style="color: #BBBB00;">!</span> column `qty` is int32; the update would make it float64</span></span></code></pre></div>
+<p>The error has the class <code>zutable_schema_error</code>, so code
+can catch it without matching its message.</p>
+</div>
+<div class="section level2">
+<h2 id="join-another-table">Join another table<a class="anchor" aria-label="anchor" href="#join-another-table"></a>
+</h2>
+<p><code><a href="../reference/join.html">join()</a></code> matches rows on key columns, as an inner join
+unless <code>how</code> says otherwise. The pairs come in
+<code>x</code>’s row order, and a key that matches several rows of
+<code>y</code> gives every pair unless <code>multiple</code> asks for
+the first, the last, or an error.</p>
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">firms</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/zutable.html">zutable</a></span><span class="op">(</span>id <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1L</span>, <span class="fl">2L</span>, <span class="fl">4L</span><span class="op">)</span>, name <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Acme"</span>, <span class="st">"Globex"</span>, <span class="st">"Initech"</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="fu"><a href="../reference/join.html">join</a></span><span class="op">(</span><span class="va">trades</span>, <span class="va">firms</span>, on <span class="op">=</span> <span class="va">id</span><span class="op">)</span></span>
+<span><span class="co">#&gt; &lt;zutable&gt; 4 rows x 6 columns</span></span>
+<span><span class="co">#&gt;   id      day        px        qty     notional  name</span></span>
+<span><span class="co">#&gt;   &lt;int32&gt; &lt;date&gt;     &lt;float64&gt; &lt;int32&gt; &lt;float64&gt; &lt;string&gt;</span></span>
+<span><span class="co">#&gt; 1 1       2026-01-01 10.5      100     NA        Acme</span></span>
+<span><span class="co">#&gt; 2 1       2026-01-02 11.0      50      NA        Acme</span></span>
+<span><span class="co">#&gt; 3 2       2026-01-03 20.0      10      NA        Globex</span></span>
+<span><span class="co">#&gt; 4 2       2026-01-04 19.5      30      NA        Globex</span></span>
+<span><span class="fu"><a href="../reference/join.html">join</a></span><span class="op">(</span><span class="va">trades</span>, <span class="va">firms</span>, on <span class="op">=</span> <span class="va">id</span>, how <span class="op">=</span> <span class="st">"left"</span><span class="op">)</span></span>
+<span><span class="co">#&gt; &lt;zutable&gt; 5 rows x 6 columns</span></span>
+<span><span class="co">#&gt;   id      day        px        qty     notional  name</span></span>
+<span><span class="co">#&gt;   &lt;int32&gt; &lt;date&gt;     &lt;float64&gt; &lt;int32&gt; &lt;float64&gt; &lt;string&gt;</span></span>
+<span><span class="co">#&gt; 1 1       2026-01-01 10.5      100     NA        Acme</span></span>
+<span><span class="co">#&gt; 2 1       2026-01-02 11.0      50      NA        Acme</span></span>
+<span><span class="co">#&gt; 3 2       2026-01-03 20.0      10      NA        Globex</span></span>
+<span><span class="co">#&gt; 4 2       2026-01-04 19.5      30      NA        Globex</span></span>
+<span><span class="co">#&gt; 5 3       2026-01-05 7.0       200     NA        NA</span></span></code></pre></div>
+<p>The inner join drops <code>id</code> 3, which has no firm; the left
+join keeps it with a missing <code>name</code>.</p>
 </div>
 <div class="section level2">
 <h2 id="update-in-place-then-freeze">Update in place, then freeze<a class="anchor" aria-label="anchor" href="#update-in-place-then-freeze"></a>
 </h2>
 <p><code>:=</code> writes into existing columns in place, and never adds
-one. A block is checked as a whole and committed at once.
-<code><a href="../reference/zutable-update.html">freeze()</a></code> marks where a table’s values are final.</p>
-<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+one. A block of updates is checked as a whole before anything is
+written. <code><a href="../reference/zutable-update.html">freeze()</a></code> marks the point where a table’s values
+are final; a later update is an error.</p>
+<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">trades</span><span class="op">[</span>, <span class="op">{</span></span>
 <span>  <span class="va">notional</span> <span class="op">:=</span> <span class="va">px</span> <span class="op">*</span> <span class="va">qty</span></span>
 <span><span class="op">}</span><span class="op">]</span></span>
@@ -151,22 +215,35 @@ one. A block is checked as a whole and committed at once.
 <span><span class="co">#&gt; 5 3       2026-01-05 7.0       200     1400</span></span></code></pre></div>
 </div>
 <div class="section level2">
-<h2 id="one-plan-several-engines">One plan, several engines<a class="anchor" aria-label="anchor" href="#one-plan-several-engines"></a>
+<h2 id="see-how-a-table-was-made">See how a table was made<a class="anchor" aria-label="anchor" href="#see-how-a-table-was-made"></a>
 </h2>
-<p>A lazy table records steps instead of running them.
-<code><a href="../reference/explain.html">explain()</a></code> shows the plan with each step’s schema, and
-<code>collect()</code> runs it locally or as SQL.</p>
-<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">r</span> <span class="op">&lt;-</span> <span class="fu">lazy</span><span class="op">(</span><span class="va">trades</span><span class="op">)</span><span class="op">[</span>select <span class="op">=</span> <span class="fu">.</span><span class="op">(</span>n <span class="op">=</span> <span class="fu">count</span><span class="op">(</span><span class="op">)</span><span class="op">)</span>, by <span class="op">=</span> <span class="va">id</span><span class="op">]</span></span>
-<span><span class="fu"><a href="../reference/explain.html">explain</a></span><span class="op">(</span><span class="va">r</span><span class="op">)</span></span>
-<span><span class="fu">collect</span><span class="op">(</span><span class="va">r</span><span class="op">)</span></span>
-<span><span class="fu">collect</span><span class="op">(</span><span class="va">r</span>, engine <span class="op">=</span> <span class="st">"duckdb"</span><span class="op">)</span></span></code></pre></div>
+<p>Each table keeps the plan that made it. <code><a href="../reference/explain.html">explain()</a></code> prints
+it one step per line: the source with its schema, the update made
+earlier, then the filter of this query. The plan is a record of how the
+values came to be; printing it runs nothing.</p>
+<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">big</span> <span class="op">&lt;-</span> <span class="va">trades</span><span class="op">[</span>where <span class="op">=</span> <span class="va">qty</span> <span class="op">&gt;</span> <span class="fl">20L</span><span class="op">]</span></span>
+<span><span class="fu"><a href="../reference/explain.html">explain</a></span><span class="op">(</span><span class="va">big</span><span class="op">)</span></span>
+<span><span class="co">#&gt; source  &lt;anonymous table&gt;  id int32, day date, px float64, qty int32, notional float64</span></span>
+<span><span class="co">#&gt; update  notional := (px * qty)</span></span>
+<span><span class="co">#&gt; filter  (qty &gt; 20L)</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="where-next">Where next<a class="anchor" aria-label="anchor" href="#where-next"></a>
 </h2>
-<p>Every function is in the <a href="https://pedrobtz.github.io/zutable/reference/index.html">reference
-index</a>.</p>
+<ul>
+<li>
+<a href="https://pedrobtz.github.io/zutable/articles/joins.html">Joins
+without surprises</a>: what <code>multiple</code>, missing keys and key
+types do in a join.</li>
+<li>
+<a href="https://pedrobtz.github.io/zutable/articles/measurements.html">Measuring
+the kernel</a>: how the grouping, sorting, join and reduction kernel
+compares with collapse, data.table and base R, and how the numbers are
+checked.</li>
+<li>The <a href="https://pedrobtz.github.io/zutable/reference/index.html">reference
+index</a> lists every function.</li>
+</ul>
 </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside>

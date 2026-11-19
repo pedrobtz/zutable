@@ -1,11 +1,23 @@
 # zutable
 
-The goal of zutable is to …
+zutable is a typed table for R: a data frame that knows each column’s
+type, queried through a bracket whose arguments are SQL’s clauses.
+
+- Every column has a logical type from [Apache
+  Arrow](https://arrow.apache.org/docs/format/Columnar.html) and a
+  nullability, and a query’s result schema and type errors are known
+  before any data is read.
+- `:=` updates existing columns in place and never changes a table’s
+  schema.
+- Grouping, sorting, joins and reductions run on a C kernel whose header
+  other packages can use through `LinkingTo`.
+- It imports no other package;
+  [zufast](https://github.com/pedrobtz/zufast), on CRAN, is needed only
+  to build it, and `pak` installs it for you.
 
 ## Installation
 
-You can install the development version of zutable from
-[GitHub](https://github.com/) with:
+zutable is not on CRAN yet. Install the development version from GitHub:
 
 ``` r
 
@@ -13,12 +25,46 @@ You can install the development version of zutable from
 pak::pak("pedrobtz/zutable")
 ```
 
-## Example
+## Usage
 
-This is a basic example which shows you how to solve a common problem:
+Build a table, then ask the bracket for the volume-weighted price of
+each `id` after the first day:
 
 ``` r
 
 library(zutable)
-## basic example code
+trades <- zutable(
+  id  = c(1L, 1L, 2L, 2L, 3L),
+  day = as.Date("2026-01-01") + 0:4,
+  px  = c(10.5, 11, 20, 19.5, 7),
+  qty = c(100L, 50L, 10L, 30L, 200L)
+)
+trades[where = day >= "2026-01-02",
+       select = .(vwap = sum(px * qty) / sum(qty)),
+       by = id]
+#> <zutable> 3 rows x 2 columns
+#>   id      vwap
+#>   <int32> <float64>
+#> 1 1       11.000
+#> 2 2       19.625
+#> 3 3       7.000
 ```
+
+zutable also joins, updates in place, freezes and explains tables; Get
+started shows each.
+
+## Learn more
+
+- [Get
+  started](https://pedrobtz.github.io/zutable/articles/zutable.html):
+  one table taken through a query, a type error, a join, an update and
+  its plan.
+- [Joins without
+  surprises](https://pedrobtz.github.io/zutable/articles/joins.html):
+  repeated keys, missing keys and key types.
+- [Measuring the
+  kernel](https://pedrobtz.github.io/zutable/articles/measurements.html):
+  the kernel’s timings against collapse, data.table and base R.
+- The [reference
+  index](https://pedrobtz.github.io/zutable/reference/index.html) lists
+  every function.
