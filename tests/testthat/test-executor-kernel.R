@@ -48,7 +48,7 @@ test_that("ordered queries agree, kernel and reference", {
   )
   for (i in seq_along(queries)) {
     expect_identical(plain(with_executor("kernel", queries[[i]]())),
-                     plain(with_executor("reference", queries[[i]]())), info = i)
+                     plain(with_executor("reference", queries[[i]]())), info = paste("query", i))
   }
 })
 
@@ -150,9 +150,9 @@ test_that("every aggregate of the vocabulary agrees, kernel and reference (Stage
     r <- copy(u)
     with_executor("kernel", u[px > -2, { w := px - mean(px); v := count() }, by = .(g, flag)])
     with_executor("reference", r[px > -2, { w := px - mean(px); v := count() }, by = .(g, flag)])
-    expect_identical(plain(u), plain(r), info = n)
+    expect_identical(plain(u), plain(r), info = paste("rows", n))
     with_executor("kernel", u[, w := sum(x) / max(px)])
     with_executor("reference", r[, w := sum(x) / max(px)])
-    expect_identical(plain(u), plain(r), info = n)
+    expect_identical(plain(u), plain(r), info = paste("rows", n))
   }
 })
