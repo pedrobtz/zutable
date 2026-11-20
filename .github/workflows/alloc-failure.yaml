@@ -16,7 +16,10 @@ jobs:
       # exercise, not in library()'s find.package(): with R's startup alone
       # as the floor, 300 allocations never left library() (Stage 18).
       baseline-run: Rscript -e 'library(zutable)'
-      expect-pattern: "cannot allocate|memory exhausted"
+      # Base R words a failed allocation four ways: R_Calloc's "could not
+      # allocate", radix order()'s "Could not allocate saveds", PCRE's
+      # "failed to allocate heap memory" (Stage 18).
+      expect-pattern: "cannot allocate|memory exhausted|[Cc]ould not allocate|failed to allocate"
       # R's own TRE regex and gzfile() segfault on a failed allocation; a
       # crash under .Call() into zutable never has these as its top frame.
       ignore-crash-pattern: "^ 1: (grepl?|sub|gsub|regexpr|gregexpr|strsplit|gzfile)\\("

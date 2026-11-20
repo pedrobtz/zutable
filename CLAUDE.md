@@ -130,7 +130,8 @@ valgrind, lto, rchk, analyzers, cran-special; valgrind reads
 in DuckDB, the test oracle, and has 180 minutes for a cold cache), `gctorture.yaml` (step 2000 on pull requests, step 20 daily and on dispatch), `alloc-failure.yaml`
 (weekly, through `tools/alloc-exercise.R`, which must reach every native
 routine; its floor is R with zutable attached, and crashes whose top frame
-is base R's regex or `gzfile()` are R's own), `coverage.yml` (badge on `gh-pages`; `native: true`, so it lists
+is base R's regex or `gzfile()` are R's own, as are its errors that word
+a failed allocation as "could not" or "failed to allocate"), `coverage.yml` (badge on `gh-pages`; `native: true`, so it lists
 the C functions no test enters and the conditions taken one way),
 `mutation.yaml` (Mull over the six C test binaries, built with
 `ZT_TEST_QUICK` by `tools/ci/mutation-build.sh`, and the fuzz driver;
