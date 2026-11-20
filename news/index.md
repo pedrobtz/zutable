@@ -129,8 +129,10 @@
   computes `sum`, `prod`, `mean`, `min`, `max`, `count`, `nobs`, `first`
   and `last` by group in one pass, several columns at once, with `na.rm`
   and a `broadcast` back to the rows (`"replace"`, `"subtract"`,
-  `"divide"`). Sums and means are base R’s bit for bit; a group with no
-  values left is `NA`.
+  `"divide"`). Sums and means are base R’s bit for bit, in an R built
+  without long double too, and a mean whose sum overflows is finite
+  where base [`mean()`](https://rdrr.io/r/base/mean.html) is; a group
+  with no values left is `NA`.
 - The bracket’s aggregates, `over()` and `:=` with `by` now reduce every
   group at once through
   [`grp_reduce()`](https://pedrobtz.github.io/zutable/reference/grp_reduce.md)’s

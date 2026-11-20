@@ -92,10 +92,14 @@ it, with the R join kept as its oracle under
 `options(zutable.executor = "reference")`.
 [src/reduce.c](https://pedrobtz.github.io/zutable/src/reduce.c) is
 [`grp_reduce()`](https://pedrobtz.github.io/zutable/reference/grp_reduce.md)’s
-translation of `zutable/reduce.h`; the executor’s aggregates, `over()`
-and `:=` with `by` rewrite each aggregate call into a column of
-per-group values (`zt_eval_groups()` in `R/execute.R`), keeping the loop
-over groups as their oracle, and the loop for an
+translation of `zutable/reduce.h`, built again with double accumulators
+by
+[src/reduce-double.c](https://pedrobtz.github.io/zutable/src/reduce-double.c)
+for an R without long double (`zt_long_double()` chooses); the
+executor’s aggregates, `over()` and `:=` with `by` rewrite each
+aggregate call into a column of per-group values (`zt_eval_groups()` in
+`R/execute.R`), keeping the loop over groups as their oracle, and the
+loop for an
 [`r()`](https://pedrobtz.github.io/zutable/reference/vocabulary.md)
 node. The kernel’s header goes under `inst/include/` and `src/` stays a
 thin R translation over it (design-kernel §4).
@@ -141,30 +145,35 @@ plus in the full profile a Windows R-devel row, `nosuggests` and `nold`;
 weekly on Mondays 02:41 UTC), `native-checks.yaml` (sanitizers with
 ASan, valgrind, lto, rchk, analyzers, cran-special; valgrind reads
 `tools/valgrind.supp`, which suppresses only findings whose top frame is
-in DuckDB, the test oracle), `gctorture.yaml` (step 2000 on pull
-requests, step 20 daily and on dispatch), `alloc-failure.yaml` (weekly,
-through `tools/alloc-exercise.R`, which must reach every native
-routine), `coverage.yml` (badge on `gh-pages`; `native: true`, so it
-lists the C functions no test enters and the conditions taken one way),
-`mutation.yaml` (Mull over the six C test binaries, built with
-`ZT_TEST_QUICK` by `tools/ci/mutation-build.sh`, and the fuzz driver; a
-survivor is real only when no binary kills it) and `assurance.yml`
-(`ungated-jobs: fail`), plus r-lib’s pkgdown workflow. Dispatch
-gctorture at step 20 on the branch
+in DuckDB, the test oracle, and has 180 minutes for a cold cache),
+`gctorture.yaml` (step 2000 on pull requests, step 20 daily and on
+dispatch), `alloc-failure.yaml` (weekly, through
+`tools/alloc-exercise.R`, which must reach every native routine; its
+floor is R with zutable attached, and crashes whose top frame is base
+R’s regex or [`gzfile()`](https://rdrr.io/r/base/connections.html) are
+R’s own, as are its errors that word a failed allocation as “could not”
+or “failed to allocate”), `coverage.yml` (badge on `gh-pages`;
+`native: true`, so it lists the C functions no test enters and the
+conditions taken one way), `mutation.yaml` (Mull over the six C test
+binaries, built with `ZT_TEST_QUICK` by `tools/ci/mutation-build.sh`,
+and the fuzz driver; a survivor is real only when no binary kills it)
+and `assurance.yml` (`ungated-jobs: fail`), plus r-lib’s pkgdown
+workflow. Dispatch gctorture at step 20 on the branch
 (`gh workflow run gctorture.yaml --ref <branch>`) before merging a
 change to `PROTECT`s. Step 20 sets `ZUTABLE_GCTORTURE=true`, under which
-the pure-R typing sweep, the many-size sort sweeps, the kernel join
-differential and the million-row tests do less
+the pure-R typing sweep, the many-size sort sweeps, the kernel
+differentials and the million-row tests do less, and the DuckDB
+conformance tests (but the double parser’s) are skipped
 (`tests/testthat/helper-0-torture.R`): the whole suite outgrew the
-240-minute job by Stage 11, and again by Stage 13. `platforms.yaml` runs
-`tools/ci/platform.sh` on each OS: `check-headers`, the C tests with the
-fuzz target’s 20,000-input smoke, and the consumer fixture
-(`tools/ci/consumer.sh`, which builds `tools/zutabletest` against the
-installed header and runs it with zutable gone from the library).
-`fuzz.yaml` runs the kernel’s fuzz target (`tools/fuzz/`, without R) for
-30 seconds on a pull request and an hour weekly and on dispatch, with
-`reach-floor: 97`. Stages marked `full` in the roadmap: 3, 6, 10, 11,
-12, 18, 19, 20.
+240-minute job by Stage 11, again by Stage 13, and at Stage 18.
+`platforms.yaml` runs `tools/ci/platform.sh` on each OS:
+`check-headers`, the C tests with the fuzz target’s 20,000-input smoke,
+and the consumer fixture (`tools/ci/consumer.sh`, which builds
+`tools/zutabletest` against the installed header and runs it with
+zutable gone from the library). `fuzz.yaml` runs the kernel’s fuzz
+target (`tools/fuzz/`, without R) for 30 seconds on a pull request and
+an hour weekly and on dispatch, with `reach-floor: 97`. Stages marked
+`full` in the roadmap: 3, 6, 10, 11, 12, 18, 19, 20.
 
 Tests run shuffled everywhere: `tests/testthat.R` and
 `tools/ci-run-tests.R` print their seed, and `ZUTABLE_TEST_SEED` replays
