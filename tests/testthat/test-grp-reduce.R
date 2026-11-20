@@ -89,8 +89,10 @@ test_that("an R without long double gets sums and means in double, as base R's",
     expect_identical(zt_reduce_ids(g$id, g$n, list(v), fn)[[1L]], want, info = fn)
   }
   # Where R has a wider long double the double sums differ from it, so the
-  # test cannot pass by summing in long double.
-  if (isTRUE(capabilities("long.double")) && .Machine$sizeof.longdouble > 8) {
+  # test cannot pass by summing in long double. The probe is base R's own
+  # long double sum, not sizeof: valgrind runs x87 long double at double's
+  # 53 bits, so there the two agree.
+  if (isTRUE(capabilities("long.double")) && sum(c(1, 2^-60, -1)) != 0) {
     expect_true(any(grp_reduce(x, g, "sum") != reduce_oracle(x, g$id, g$n, "sum", TRUE)))
   }
 })
