@@ -102,14 +102,31 @@ static void reference(zt_fn fn, int kind, const void *x, int na_rm, int nan_miss
     break;
   case ZT_FN_MEAN:
     if (!cnt || any_miss) { *dv = ZT_F64_NA; break; }
-    s /= (zt_acc) cnt;
-    if (kind == ZT_KIND_F64 && isfinite((double) s)) {
+    if (kind != ZT_KIND_F64) { *dv = (double) (s / (zt_acc) cnt); break; }
+    /* Base R's real_mean() (R >= 4.2), as written there: a sum that is not
+       finite is redone over x / n, and each finite estimate corrected. */
+    if (isfinite((double) s)) {
+      s /= (zt_acc) cnt;
       zt_acc t = 0;
       for (zt_row i = 0; i < n; i++) {
         if (ids[i] != g || (na_rm && miss(kind, x, i, nan_missing))) continue;
         t += (zt_acc) val(kind, x, i) - s;
       }
       s += t / (zt_acc) cnt;
+    } else {
+      s = 0;
+      for (zt_row i = 0; i < n; i++) {
+        if (ids[i] != g || (na_rm && miss(kind, x, i, nan_missing))) continue;
+        s += val(kind, x, i) / (double) cnt;
+      }
+      if (isfinite((double) s)) {
+        zt_acc t = 0;
+        for (zt_row i = 0; i < n; i++) {
+          if (ids[i] != g || (na_rm && miss(kind, x, i, nan_missing))) continue;
+          t += ((zt_acc) val(kind, x, i) - s) / (zt_acc) cnt;
+        }
+        s += t;
+      }
     }
     *dv = (double) s;
     break;
@@ -179,7 +196,10 @@ int main(void) {
       int32_t *xi = malloc(sizeof(int32_t) * (size_t) (n + 1));
       int32_t *xl = malloc(sizeof(int32_t) * (size_t) (n + 1));
       double *xd = malloc(sizeof(double) * (size_t) (n + 1));
-      double pool[] = {0.0, -0.0, 1.5, 0.1, -2.25, 1e300, -1e300, 1e-300, 3.0, 7.0};
+      /* 1.5e308, a tenth of the rows: its sums pass DBL_MAX where zt_acc
+         is double (ZT_PRECISION 0, arm64 macOS, MSVC), so mean restarts
+         its sum (real_mean); an x86 long double holds them. */
+      double pool[] = {0.0, -0.0, 1.5, 0.1, -2.25, 1e300, -1e300, 1e-300, 3.0, 1.5e308};
       double not_na;
       { uint64_t b = 0x40000000000007a2ull; memcpy(&not_na, &b, sizeof not_na); }
       for (zt_row i = 0; i < n; i++) {
@@ -190,7 +210,8 @@ int main(void) {
         /* r == 5: an ordinary number whose low word is NA's, 1954. */
         xd[i] = r == 2 ? ZT_F64_NA : r == 3 ? ZT_F64_NAN : r == 4 ? INFINITY :
                 r == 5 ? not_na :
-                pool[next() % 10] * (double) (1 + next() % 7);
+                (r == 6 || r == 7) ? pool[9] :
+                pool[next() % 9] * (double) (1 + next() % 7);
       }
       /* Every statistic, kind and missing rule, alone. */
       spec all[9 * 3 * 4];

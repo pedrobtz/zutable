@@ -900,6 +900,17 @@ the default branch's code.
 
 **Design.** [design-kernel §12](design-kernel.md#12-acceptance-criteria-for-the-kernel).
 
+**Deviation (2026-11-19).** [#45](https://github.com/pedrobtz/zutable/pull/45)
+merged before its exit criteria were met: its diff was `CLAUDE.md` alone,
+so the docs-only gate skipped every check, and closed #20. The full runs
+dispatched on its branch had found: means not base R's on arm64 macOS
+(no overflow restart, R >= 4.2's `real_mean()`) and under `nold` (long
+double sums where R sums in double); every symbol exported on Windows;
+alloc-failure sweeping only `library()`'s own allocations, 27 crashes in
+base R's regex and `gzfile()`; valgrind out of time on a cold cache;
+step-20 gctorture past 240 minutes. #20 is reopened and the fixes land
+in a second pull request, which meets the exit criteria above.
+
 ## Stage 19 — v0.1.0 readiness
 
 **Issue.** [#21](https://github.com/pedrobtz/zutable/issues/21), sub-issue of

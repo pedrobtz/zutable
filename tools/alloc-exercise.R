@@ -44,9 +44,13 @@ rd <- grp_reduce(list(c(1.5, NA, 3), c(2L, NA, 4L), c(TRUE, NA, FALSE)), c("a", 
 rd2 <- lapply(c("prod", "min", "count", "nobs", "first", "last"),
               function(f) grp_reduce(c(1, 2, NaN), c(1L, 1L, 2L), f, na.rm = FALSE))
 rd3 <- grp_reduce(c("b", "a", NA), c(1L, 1L, 2L), "min", broadcast = "replace")
+# The double-accumulator build (zt_reduce_r_double), for an R without long
+# double; a group whose sum overflows takes mean's later sweeps.
+rd4 <- .Call(zutable:::zt_reduce_r_double, c(1L, 1L, 1L, 2L), 2L,
+             list(c(1e308, 1e308, -1e308, 2)), 2L, TRUE, TRUE)
 za <- zutable(g = c("x", "y", "x"), v = c(1, 2, 3), w = c(0, 0, 0))
 ra <- za[, .(s = sum(v), d = count_distinct(v), hi = max(g)), by = g, having = s > 0]
 ro <- za[select = .(v, m = over(mean(v), by = g))]
 za[, w := v - mean(v), by = g]
-invisible(list(d, z2, g1, g2, o, r, os, v2, vs, u, m, j1, j2, j3, jm, jt, rd, rd2, rd3,
+invisible(list(d, z2, g1, g2, o, r, os, v2, vs, u, m, j1, j2, j3, jm, jt, rd, rd2, rd3, rd4,
                ra, ro, za))

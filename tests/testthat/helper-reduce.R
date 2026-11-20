@@ -55,3 +55,48 @@ expect_reduce_equal <- function(got, want, fn, na.rm, info = NULL) {
   }
   testthat::expect_identical(got, want, info = info)
 }
+
+# Base R's rsum(), rprod() and real_mean() as an R built without long
+# double runs them (R CMD check's nold leg): every sum in double, in row
+# order. R's own arithmetic is double, so a loop is the oracle.
+sum_double <- function(v) {
+  s <- 0
+  for (e in as.double(v)) s <- s + e
+  s
+}
+prod_double <- function(v) {
+  s <- 1
+  for (e in as.double(v)) s <- s * e
+  s
+}
+mean_double <- function(v) {
+  if (!is.double(v)) return(sum_double(v) / length(v))
+  n <- length(v)
+  s <- sum_double(v)
+  if (is.finite(s)) {
+    s <- s / n
+    t <- 0
+    for (e in v) t <- t + (e - s)
+    return(s + t / n)
+  }
+  # R >= 4.2: an infinite sum may have overflowed; sum the smaller terms.
+  s <- 0
+  for (e in v) s <- s + e / n
+  if (is.finite(s)) {
+    t <- 0
+    for (e in v) t <- t + (e - s) / n
+    s <- s + t
+  }
+  s
+}
+
+# reduce_oracle() for sum, prod and mean in double, groups 1 .. ng, na.rm.
+reduce_oracle_double <- function(x, id, ng, fn) {
+  f <- switch(fn, sum = sum_double, prod = prod_double, mean = mean_double)
+  rows <- split(seq_along(id), factor(id, levels = seq_len(ng)))
+  vapply(rows, function(r) {
+    v <- x[r]
+    v <- v[!is.na(v)]
+    if (!length(v)) NA_real_ else f(if (is.logical(v)) as.integer(v) else v)
+  }, 0, USE.NAMES = FALSE)
+}

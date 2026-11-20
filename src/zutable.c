@@ -18,6 +18,7 @@ SEXP zt_strings_rank(SEXP x);
 SEXP zt_sorted_wrap(SEXP x, SEXP sorted, SEXP no_na);
 SEXP zt_sorted_meta(SEXP x);
 SEXP zt_reduce_r(SEXP id, SEXP ng, SEXP xs, SEXP fns, SEXP narm, SEXP nanmiss);
+SEXP zt_reduce_r_double(SEXP id, SEXP ng, SEXP xs, SEXP fns, SEXP narm, SEXP nanmiss);
 SEXP zt_join(SEXP xkeys, SEXP ykeys, SEXP i64, SEXP type, SEXP multiple,
              SEXP xmask, SEXP ymask);
 void zt_init_altrep(DllInfo *dll);
@@ -41,6 +42,7 @@ static const R_CallMethodDef call_methods[] = {
   {"zt_sorted_meta", (DL_FUNC) &zt_sorted_meta, 1},
   {"zt_join", (DL_FUNC) &zt_join, 7},
   {"zt_reduce_r", (DL_FUNC) &zt_reduce_r, 6},
+  {"zt_reduce_r_double", (DL_FUNC) &zt_reduce_r_double, 6},
   {NULL, NULL, 0}
 };
 

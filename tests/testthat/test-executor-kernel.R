@@ -28,9 +28,11 @@ test_that("aggregate queries agree, kernel and reference", {
 
 test_that("ordered queries agree, kernel and reference", {
   withr::local_seed(48)
-  df <- bracket_frame(3000L)
-  df$x <- sample(c(NaN, NA, -0, 0, Inf, -Inf, stats::rnorm(40)), 3000L, TRUE)
-  df$f <- factor(sample(c("lo", "mid", "hi", NA), 3000L, TRUE), levels = c("lo", "mid", "hi"))
+  # Past pdqsort's 1000 either way; 3000 outside step-20 gctorture.
+  n <- if (under_torture()) 1200L else 3000L
+  df <- bracket_frame(n)
+  df$x <- sample(c(NaN, NA, -0, 0, Inf, -Inf, stats::rnorm(40)), n, TRUE)
+  df$f <- factor(sample(c("lo", "mid", "hi", NA), n, TRUE), levels = c("lo", "mid", "hi"))
   z <- as_zutable(df)
   queries <- list(
     function() z[order = k],
@@ -48,7 +50,7 @@ test_that("ordered queries agree, kernel and reference", {
   )
   for (i in seq_along(queries)) {
     expect_identical(plain(with_executor("kernel", queries[[i]]())),
-                     plain(with_executor("reference", queries[[i]]())), info = i)
+                     plain(with_executor("reference", queries[[i]]())), info = paste("query", i))
   }
 })
 
@@ -110,7 +112,7 @@ test_that("joins agree, kernel and reference, for every how, multiple and na_equ
 test_that("every aggregate of the vocabulary agrees, kernel and reference (Stage 14)", {
   withr::local_seed(145)
   latin <- iconv("é", "UTF-8", "latin1")
-  for (n in c(0L, 1L, 70L, 5000L)) {
+  for (n in c(0L, 1L, 70L, if (under_torture()) 700L else 5000L)) {
     df <- bracket_frame(n)
     df$x <- sample(c(NaN, NA, -0, 0, Inf, -Inf, 1e300, stats::rnorm(30)), n, TRUE)
     df$s <- sample(c(NA, "a", "", "B", "é", latin, "中"), n, TRUE)
@@ -150,9 +152,9 @@ test_that("every aggregate of the vocabulary agrees, kernel and reference (Stage
     r <- copy(u)
     with_executor("kernel", u[px > -2, { w := px - mean(px); v := count() }, by = .(g, flag)])
     with_executor("reference", r[px > -2, { w := px - mean(px); v := count() }, by = .(g, flag)])
-    expect_identical(plain(u), plain(r), info = n)
+    expect_identical(plain(u), plain(r), info = paste("rows", n))
     with_executor("kernel", u[, w := sum(x) / max(px)])
     with_executor("reference", r[, w := sum(x) / max(px)])
-    expect_identical(plain(u), plain(r), info = n)
+    expect_identical(plain(u), plain(r), info = paste("rows", n))
   }
 })

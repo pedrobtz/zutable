@@ -85,7 +85,7 @@ grp_reduce <- function(x, by, fn = "sum", na.rm = TRUE, broadcast = "none") {
     }
     prep[[k]] <- zt_reduce_prepare(v, fn[[k]], na.rm, broadcast, k, call)
   }
-  res <- .Call(zt_reduce_r, g$id, as.integer(g$n), lapply(prep, function(p) p$x),
+  res <- .Call(zt_reduce_routine(), g$id, as.integer(g$n), lapply(prep, function(p) p$x),
                match(fn, zt_reduce_fns) - 1L, rep(na.rm, length(xs)),
                rep(TRUE, length(xs)))
   out <- vector("list", length(xs))
@@ -179,10 +179,16 @@ zt_reduce_prepare <- function(v, fn, na_rm, broadcast, k, call) {
   )
 }
 
+# Base sum(), prod() and mean() accumulate in long double unless R was
+# built without it (capabilities("long.double") FALSE, R CMD check's nold
+# leg), and then in double; the kernel takes the same, to stay bit for bit.
+zt_long_double <- function() isTRUE(capabilities("long.double"))
+zt_reduce_routine <- function() if (zt_long_double()) zt_reduce_r else zt_reduce_r_double
+
 # The executor's reductions (design 5.3, D46): SQL's null rules, so NA is
 # missing and dropped, and NaN is a value. id: group ids 1 .. ng; xs: the
 # columns the kernel reads, as zt_reduce_prepare() makes them.
 zt_reduce_ids <- function(id, ng, xs, fns, na_rm = TRUE) {
-  .Call(zt_reduce_r, id, as.integer(ng), xs, match(fns, zt_reduce_fns) - 1L,
+  .Call(zt_reduce_routine(), id, as.integer(ng), xs, match(fns, zt_reduce_fns) - 1L,
         rep_len(na_rm, length(xs)), rep(FALSE, length(xs)))
 }

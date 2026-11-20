@@ -81,7 +81,9 @@ shared, and every write drops its marks. [src/join.c](src/join.c) is
 `grp_join()`'s translation of `zutable/join.h`; `join()` runs on it, with
 the R join kept as its oracle under `options(zutable.executor =
 "reference")`. [src/reduce.c](src/reduce.c) is `grp_reduce()`'s
-translation of `zutable/reduce.h`; the executor's aggregates, `over()`
+translation of `zutable/reduce.h`, built again with double accumulators
+by [src/reduce-double.c](src/reduce-double.c) for an R without long
+double (`zt_long_double()` chooses); the executor's aggregates, `over()`
 and `:=` with `by` rewrite each aggregate call into a column of
 per-group values (`zt_eval_groups()` in `R/execute.R`), keeping the
 loop over groups as their oracle, and the loop for an `r()` node. The
@@ -125,9 +127,11 @@ in the full profile a Windows R-devel row, `nosuggests` and `nold`; weekly
 on Mondays 02:41 UTC), `native-checks.yaml` (sanitizers with ASan,
 valgrind, lto, rchk, analyzers, cran-special; valgrind reads
 `tools/valgrind.supp`, which suppresses only findings whose top frame is
-in DuckDB, the test oracle), `gctorture.yaml` (step 2000 on pull requests, step 20 daily and on dispatch), `alloc-failure.yaml`
+in DuckDB, the test oracle, and has 180 minutes for a cold cache), `gctorture.yaml` (step 2000 on pull requests, step 20 daily and on dispatch), `alloc-failure.yaml`
 (weekly, through `tools/alloc-exercise.R`, which must reach every native
-routine), `coverage.yml` (badge on `gh-pages`; `native: true`, so it lists
+routine; its floor is R with zutable attached, and crashes whose top frame
+is base R's regex or `gzfile()` are R's own, as are its errors that word
+a failed allocation as "could not" or "failed to allocate"), `coverage.yml` (badge on `gh-pages`; `native: true`, so it lists
 the C functions no test enters and the conditions taken one way),
 `mutation.yaml` (Mull over the six C test binaries, built with
 `ZT_TEST_QUICK` by `tools/ci/mutation-build.sh`, and the fuzz driver;
@@ -136,9 +140,10 @@ a survivor is real only when no binary kills it) and `assurance.yml`
 at step 20 on the branch (`gh workflow run gctorture.yaml --ref <branch>`)
 before merging a change to `PROTECT`s. Step 20 sets `ZUTABLE_GCTORTURE=true`,
 under which the pure-R typing sweep, the many-size sort sweeps, the
-kernel join differential and the million-row tests do less
+kernel differentials and the million-row tests do less, and the DuckDB
+conformance tests (but the double parser's) are skipped
 (`tests/testthat/helper-0-torture.R`): the whole suite outgrew the
-240-minute job by Stage 11, and again by Stage 13. `platforms.yaml` runs
+240-minute job by Stage 11, again by Stage 13, and at Stage 18. `platforms.yaml` runs
 `tools/ci/platform.sh` on each OS: `check-headers`, the C tests with the
 fuzz target's 20,000-input smoke, and the consumer fixture
 (`tools/ci/consumer.sh`, which builds `tools/zutabletest` against the

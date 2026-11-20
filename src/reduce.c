@@ -2,6 +2,14 @@
 // zutable/reduce.h. A thin translation (design-kernel section 4): check
 // the columns, give each its output and scratch, call the header once for
 // all of them. Scratch comes from R_alloc, so an R error frees it.
+//
+// It is built twice: here with ZT_PRECISION 1, long double, as zt_reduce_r,
+// and by reduce-double.c with ZT_PRECISION 0 as zt_reduce_r_double, for an
+// R built without long double, whose sum() and mean() sum in double. R
+// chooses by capabilities("long.double") (zt_long_double()).
+#ifndef ZT_REDUCE_ENTRY
+#define ZT_REDUCE_ENTRY zt_reduce_r
+#endif
 #define R_NO_REMAP
 #include <R.h>
 #include <Rinternals.h>
@@ -26,7 +34,7 @@ static zt_acc *zt_alloc_acc(int ng) {
 // prod and mean; integer or double, as the column, for min and max;
 // integer for count and nobs; for first and last the 1-based row, NA for
 // none.
-SEXP zt_reduce_r(SEXP id, SEXP ng_, SEXP xs, SEXP fns, SEXP narm, SEXP nanmiss) {
+SEXP ZT_REDUCE_ENTRY(SEXP id, SEXP ng_, SEXP xs, SEXP fns, SEXP narm, SEXP nanmiss) {
   R_xlen_t nl = XLENGTH(id);
   if (TYPEOF(id) != INTSXP || nl > ZT_MAX_ROWS) Rf_error("zt_reduce: bad group ids");
   zt_row n = (zt_row) nl;

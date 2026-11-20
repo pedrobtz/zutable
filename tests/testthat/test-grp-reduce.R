@@ -56,6 +56,47 @@ test_that("sums and means are base R's bit for bit, overflow included", {
   expect_identical(grp_reduce(i, one(3), "mean"), mean(i))
 })
 
+test_that("a mean whose sum overflows takes base R's second route", {
+  # Base mean() (R >= 4.2) re-sums x / n when the sum is not finite, then
+  # corrects by (x - s) / n; a long double sum past DBL_MAX takes it too.
+  x <- c(1e308, 1e308, 1e308, -1e308, 1e308, 1e308, -1e308, 5, 1e308, 1e308, Inf, 1)
+  id <- c(1L, 1L, 1L, 1L, 2L, 2L, 2L, 2L, 3L, 3L, 3L, 3L)
+  g <- grp(id)
+  expect_identical(grp_reduce(x, g, "mean"), reduce_oracle(x, g$id, g$n, "mean", TRUE))
+  expect_identical(grp_reduce(x, g, "mean")[[3L]], Inf)
+  withr::local_seed(147)
+  m <- if (under_torture()) 150L else 600L
+  y <- c(stats::runif(m, 0.5, 1.8) * 1e308, stats::rnorm(m))
+  h <- grp(sample(1:40, length(y), TRUE))
+  expect_identical(grp_reduce(y, h, "mean"), reduce_oracle(y, h$id, h$n, "mean", TRUE))
+})
+
+test_that("an R without long double gets sums and means in double, as base R's", {
+  local_mocked_bindings(zt_long_double = function() FALSE)
+  withr::local_seed(148)
+  m <- if (under_torture()) 400L else 4000L
+  x <- c(stats::rnorm(m) * 10^sample(-8:12, m, TRUE), 1e308, 1e308, -1e308, 7)
+  id <- sample(1:30, length(x), TRUE)
+  id[m + 1:4] <- 31L
+  i <- sample(c(NA, -50:50, .Machine$integer.max), m + 4L, TRUE)
+  g <- grp(id)
+  for (fn in c("sum", "mean", "prod")) {
+    v <- if (fn == "prod") x / 1e3 else x
+    want <- reduce_oracle_double(v, g$id, g$n, fn)
+    expect_identical(grp_reduce(v, g, fn), want, info = fn)
+    expect_identical(grp_reduce(i, g, fn), reduce_oracle_double(i, g$id, g$n, fn), info = fn)
+    # The executor's route (NaN a value) sums the same way.
+    expect_identical(zt_reduce_ids(g$id, g$n, list(v), fn)[[1L]], want, info = fn)
+  }
+  # Where R has a wider long double the double sums differ from it, so the
+  # test cannot pass by summing in long double. The probe is base R's own
+  # long double sum, not sizeof: valgrind runs x87 long double at double's
+  # 53 bits, so there the two agree.
+  if (isTRUE(capabilities("long.double")) && sum(c(1, 2^-60, -1)) != 0) {
+    expect_true(any(grp_reduce(x, g, "sum") != reduce_oracle(x, g$id, g$n, "sum", TRUE)))
+  }
+})
+
 test_that("a group with no values left is NA, not base's 0 or Inf", {
   x <- c(NA, NA, 1)
   g <- grp(c(1L, 1L, 2L))
@@ -169,17 +210,19 @@ test_that("refusals", {
 })
 
 test_that("the kernel's entry point refuses what R never sends it, without a crash", {
-  r <- function(...) .Call(zutable:::zt_reduce_r, ...)
-  ok <- list(1:3, 3L, list(c(1, 2, 3)), 0L, TRUE, TRUE)
-  expect_identical(do.call(r, ok), list(c(1, 2, 3)))
-  bad <- list(
-    list(c(1, 2, 3), 3L, list(1:3), 0L, TRUE, TRUE),      # ids not integer
-    list(1:3, NA_integer_, list(1:3), 0L, TRUE, TRUE),    # group count NA
-    list(1:3, 3L, list(1:3), c(0L, 1L), TRUE, TRUE),      # two statistics, one column
-    list(c(1L, 4L, 2L), 3L, list(1:3), 0L, TRUE, TRUE),   # id past the group count
-    list(1:3, 3L, list(1:3), 9L, TRUE, TRUE),             # unknown statistic
-    list(1:3, 3L, list(letters[1:3]), 0L, TRUE, TRUE),    # a character column
-    list(1:3, 3L, list(1:2), 0L, TRUE, TRUE)              # a column of the wrong length
-  )
-  for (b in bad) expect_error(do.call(r, b), "zt_reduce")
+  for (entry in c("zt_reduce_r", "zt_reduce_r_double")) {
+    r <- function(...) .Call(get(entry, asNamespace("zutable")), ...)
+    ok <- list(1:3, 3L, list(c(1, 2, 3)), 0L, TRUE, TRUE)
+    expect_identical(do.call(r, ok), list(c(1, 2, 3)))
+    bad <- list(
+      list(c(1, 2, 3), 3L, list(1:3), 0L, TRUE, TRUE),      # ids not integer
+      list(1:3, NA_integer_, list(1:3), 0L, TRUE, TRUE),    # group count NA
+      list(1:3, 3L, list(1:3), c(0L, 1L), TRUE, TRUE),      # two statistics, one column
+      list(c(1L, 4L, 2L), 3L, list(1:3), 0L, TRUE, TRUE),   # id past the group count
+      list(1:3, 3L, list(1:3), 9L, TRUE, TRUE),             # unknown statistic
+      list(1:3, 3L, list(letters[1:3]), 0L, TRUE, TRUE),    # a character column
+      list(1:3, 3L, list(1:2), 0L, TRUE, TRUE)              # a column of the wrong length
+    )
+    for (b in bad) expect_error(do.call(r, b), "zt_reduce", info = entry)
+  }
 })
