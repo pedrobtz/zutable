@@ -184,6 +184,14 @@ static void test_dbl_max(void) {
   x[1] = DBL_MAX;
   zt_reduce(ids, 2, 1, &c, 1);
   CHECK(out[0] == INFINITY);
+  /* And below: exactly -DBL_MAX is itself (#76), past it -Inf. */
+  x[0] = -DBL_MAX;
+  x[1] = 0.0;
+  zt_reduce(ids, 2, 1, &c, 1);
+  CHECK(out[0] == -DBL_MAX);
+  x[1] = -DBL_MAX;
+  zt_reduce(ids, 2, 1, &c, 1);
+  CHECK(out[0] == -INFINITY);
 }
 
 /* zt_reduce() over n rows near 2^31 - 1 (#53): its sweeps stepped

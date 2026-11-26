@@ -51,6 +51,12 @@ test_that("sums and means are base R's bit for bit, overflow included", {
   one <- function(n) grp(rep(1L, n))
   expect_identical(grp_reduce(c(1e308, 1e308), one(2), "sum"), sum(c(1e308, 1e308)))
   expect_identical(grp_reduce(c(1e308, 10), one(2), "prod"), prod(c(1e308, 10)))
+  # Exactly the largest double, either sign, is itself (#76).
+  for (v in c(-1, 1) * .Machine$double.xmax) {
+    expect_identical(grp_reduce(c(v, 0), one(2), "sum"), sum(c(v, 0)))
+    expect_identical(grp_reduce(v, one(1), "mean"), mean(v))
+    expect_identical(grp_reduce(c(v, v), one(2), "sum"), sum(c(v, v)))
+  }
   i <- c(.Machine$integer.max, .Machine$integer.max, 1L)
   expect_identical(grp_reduce(i, one(3), "sum"), sum(as.double(i)))
   expect_identical(grp_reduce(i, one(3), "mean"), mean(i))
