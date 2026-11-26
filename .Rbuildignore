@@ -16,5 +16,5 @@
 ^docs$
 ^pkgdown$
 ^tools$
-^build$
+^build/(?!vignette\.rds$)
 ^README\.Rmd$
