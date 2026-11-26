@@ -107,7 +107,31 @@ static void check_all(const zt_key *x, zt_row nx, const zt_key *y, zt_row ny) {
   free(rx); free(ry); free(ox); free(oy);
 }
 
+/* A table too small for the build side (a header consumer's own size):
+   zt_join_build() says so, -1, rather than leave rows without a group
+   (#86); one of zt_table_capacity(n) slots takes every row. */
+static void test_build_undersized(void) {
+  enum { N = 100 };
+  int32_t a[N];
+  for (int i = 0; i < N; i++) a[i] = i;
+  zt_column col = {ZT_KIND_INT32, a};
+  zt_key k = {&col, 1};
+  uint64_t h[N];
+  zt_key_hash(&k, N, h);
+  zt_row ids[N], first[N];
+  uint64_t cap = 16;
+  zt_table t;
+  void *mem = malloc(zt_table_bytes(zt_table_capacity(N)));
+  zt_table_init(&t, mem, cap);
+  CHECK(zt_join_build(&k, h, N, &t, ids, first) == -1);
+  cap = zt_table_capacity(N);
+  zt_table_init(&t, mem, cap);
+  CHECK(zt_join_build(&k, h, N, &t, ids, first) == N);
+  free(mem);
+}
+
 int main(void) {
+  test_build_undersized();
   static const zt_row sizes[][2] = {{0, 0}, {0, 5}, {5, 0}, {1, 1}, {7, 300},
                                     {300, 7}, {200, 200}, {1000, 30}};
   for (size_t s = 0; s < sizeof sizes / sizeof sizes[0]; s++) {

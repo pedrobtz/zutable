@@ -3,6 +3,7 @@
  * random keys against a quadratic reference, the partitioned path against
  * the one-pass path, and the limits of the row index.
  */
+#include "zeros.h"
 #define ZT_STANDALONE 1
 #include <zutable.h>
 #include <stdio.h>
@@ -93,8 +94,37 @@ static void test_zero_columns(void) {
   CHECK(h[0] != 1 || h[4] != 5);
 }
 
+/* zt_groups_one() over m rows near 2^31 - 1 (#53): its prefetch looks
+   eight rows ahead, and `r + 8 < m` overflowed within eight rows of the
+   limit, so rows[r + 8] read past the end. rows[] is zeros mapped from a
+   sparse file, every row row 0, so only ids[0] and h[0] are touched. */
+static void test_max_rows(void) {
+#if ZT_HAVE_ZEROS
+  const zt_row *rows = zt_test_zeros(((size_t) INT32_MAX + 1) * sizeof(zt_row));
+  CHECK(rows != NULL);
+  if (rows == NULL) return;
+  static const zt_row ms[] = {INT32_MAX, INT32_MAX - 9, INT32_MAX - 8, INT32_MAX - 1};
+  for (size_t j = 0; j < zt_test_limit_cases(sizeof ms / sizeof ms[0]); j++) {
+    zt_key k = {NULL, 0};
+    uint64_t h[1] = {0};
+    zt_row ids[1], first[1], ng = 0;
+    uint64_t cap = 16;
+    void *mem = malloc(zt_table_bytes(cap));
+    zt_table t;
+    zt_table_init(&t, mem, cap);
+    zt_row done = zt_groups_one(&k, h, rows, 0, ms[j], &t, ids, first, 0, &ng);
+    CHECK(done == ms[j]);
+    CHECK(ng == 1);
+    free(mem);
+  }
+#else
+  printf("test-groups: the 2^31 - 1 row case needs POSIX mmap(); skipped\n");
+#endif
+}
+
 int main(void) {
   test_zero_columns();
+  test_max_rows();
   enum { N = 3000 };
   static int32_t a[N], ids[N], first[N], ref[N];
   static double d[N];

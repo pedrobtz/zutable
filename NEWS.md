@@ -11,6 +11,7 @@
 * `grp_reduce()` checks a `grp()` result's shape (`id`, `n`, `sizes`, `starts`, `order`, `keys`) and raises a `zutable_type_error` or `zutable_value_error` for a hand-edited one, never coercing `n` (#68).
 * `key_order(collate =)` is checked for one plain vector too, and `key_sort()` of a data frame or list of columns is a `zutable_type_error` (#68).
 * The native grouping and join routines check every key column's length, not only the first's (#85).
+* The kernel's reductions, grouping and join probe stay in range at 2^31 - 1 rows (#53), and `zt_join_build()` in the header returns -1 for a table too small for its rows (#86).
 
 * `zutable_info()` reports the package version.
 * Every condition the package raises inherits from `zutable_error`.

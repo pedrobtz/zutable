@@ -4,6 +4,7 @@
  * sides of the block; and the columns reduced together against each
  * reduced alone, bit for bit.
  */
+#include "zeros.h"
 #define ZT_STANDALONE 1
 #include <zutable.h>
 #include <stdio.h>
@@ -185,8 +186,54 @@ static void test_dbl_max(void) {
   CHECK(out[0] == INFINITY);
 }
 
+/* zt_reduce() over n rows near 2^31 - 1 (#53): its sweeps stepped
+   `lo += ZT_REDUCE_BLOCK` past INT32_MAX after the last block once n was
+   within a block of the limit. ids and x are zeros mapped from a sparse
+   file (one group, every value 0), so no memory is used. A count, which
+   takes the first sweep, and a double mean, which takes the second
+   (zeros.h has which cases run). */
+static void test_max_rows(void) {
+  /* Once: the double build's sweeps are the same loops. */
+  if (ZT_PRECISION == 0) return;
+#if ZT_HAVE_ZEROS
+  size_t rows = (size_t) INT32_MAX + 1;
+  const zt_row *ids = zt_test_zeros(rows * sizeof(zt_row));
+  const double *x = zt_test_zeros(rows * sizeof(double));
+  CHECK(ids != NULL && x != NULL);
+  if (ids == NULL || x == NULL) return;
+  static const zt_row ns[] = {INT32_MAX, INT32_MAX - 4097, INT32_MAX - 4096, INT32_MAX - 1};
+  for (size_t j = 0; j < zt_test_limit_cases(sizeof ns / sizeof ns[0]); j++) {
+    zt_row n = ns[j];
+    int32_t cnt_out[1];
+    double mean_out[1];
+    int a, a2, cn, fl;
+    zt_acc acc[1], acc2[1];
+    zt_row cnt[1];
+    uint8_t flag[1];
+    zt_reduce_col c[2];
+    memset(c, 0, sizeof c);
+    c[0].fn = ZT_FN_COUNT;
+    c[0].kind = ZT_KIND_INT32;
+    c[0].out = cnt_out;
+    /* The mean's second sweep only with ZT_TEST_LIMITS=all, at the limit:
+       its passes over 16 GB of holes take a minute. */
+    int ncol = n == INT32_MAX && zt_test_limit_cases(2) == 2 ? 2 : 1;
+    zt_reduce_scratch(ZT_FN_MEAN, ZT_KIND_F64, &a, &a2, &cn, &fl);
+    zt_reduce_col m = {ZT_FN_MEAN, ZT_KIND_F64, x, 1, 1, mean_out,
+                       a ? acc : NULL, a2 ? acc2 : NULL, cn ? cnt : NULL, fl ? flag : NULL};
+    c[1] = m;
+    zt_reduce(ids, n, 1, c, ncol);
+    CHECK(cnt_out[0] == n);
+    if (ncol == 2) CHECK(mean_out[0] == 0.0);
+  }
+#else
+  printf("test-reduce: the 2^31 - 1 row case needs POSIX mmap(); skipped\n");
+#endif
+}
+
 int main(void) {
   test_dbl_max();
+  test_max_rows();
   static const zt_row sizes[] = {0, 1, 7, 300, 4095, 4096, 4097, 10000};
   static const zt_row groups[] = {1, 3, 50, 2000};
   for (size_t si = 0; si < sizeof sizes / sizeof sizes[0]; si++) {

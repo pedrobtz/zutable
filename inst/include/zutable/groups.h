@@ -25,7 +25,8 @@
    which may already hold groups g0 .. g0 + *ng; ids[i] receives the group,
    first[g] the first row of each new group. Stops before the insert that
    would pass the table's load limit, 7/8, and returns how many rows it
-   processed; the caller grows the table (zt_table_grow) and continues.
+   processed; the caller grows the table (zt_table_rehash() into a larger
+   one) and continues.
    Prefetches the slot eight rows ahead (section 4.1). */
 ZT_INLINE zt_row zt_groups_one(const zt_key *k, const uint64_t *h,
                                const zt_row *rows, zt_row base, zt_row m,
@@ -35,7 +36,8 @@ ZT_INLINE zt_row zt_groups_one(const zt_key *k, const uint64_t *h,
   for (zt_row r = 0; r < m; r++) {
     if ((uint64_t) t->count >= limit) return r;
     zt_row i = rows ? rows[r] : base + r;
-    if (r + 8 < m) {
+    /* r < m - 8, not r + 8 < m, which overflows near INT32_MAX (#53). */
+    if (r < m - 8) {
       zt_row ahead = rows ? rows[r + 8] : base + r + 8;
       ZT_PREFETCH(&t->meta[(uint32_t) h[ahead] & t->mask]);
     }
