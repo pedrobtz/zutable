@@ -2,20 +2,6 @@
 # checked before data is read. Over generated queries, the plan's schema
 # describes the executed result exactly.
 
-# The R vector each logical type is held in, by base R's predicates: an
-# oracle apart from vector_problem() (#72).
-base_type_is <- function(v, id) {
-  plain_class <- is.null(oldClass(v))
-  switch(id,
-    int32 = is.integer(v) && plain_class,
-    float64 = is.double(v) && plain_class,
-    bool = is.logical(v) && plain_class,
-    string = is.character(v) && plain_class,
-    date = is.double(v) && identical(oldClass(v), "Date"),
-    stop("no base reading for ", id)
-  )
-}
-
 test_that("the plan's schema describes the executed result exactly", {
   withr::local_seed(7)
   df <- bracket_frame()

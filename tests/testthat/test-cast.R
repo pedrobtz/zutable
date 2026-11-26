@@ -1,4 +1,3 @@
-
 test_that("exact casts round-trip", {
   expect_identical(ec(c(1L, NA, -3L), quote(float64)), c(1, NA, -3))
   expect_identical(ec(c(1, NA, -3), quote(int32)), c(1L, NA, -3L))
@@ -111,27 +110,6 @@ test_that("int32 to int64 without zuint is a type error naming it (#67)", {
   err <- expect_error(z[select = .(c = cast(j, int64))], class = "zutable_type_error")
   expect_identical(err$package, "zuint")
 })
-
-# The nearest whole microsecond of each double, from its exact decimal
-# expansion (a double's expansion is finite and %.60f prints all of it), so
-# no floating-point product decides the rounding. No double lies exactly
-# halfway between two microseconds.
-us_oracle <- function(x) {
-  vapply(x, function(v) {
-    s <- sprintf("%.60f", abs(v))
-    whole <- as.double(sub("\\..*$", "", s))
-    frac <- sub("^[^.]*\\.", "", s)
-    us <- as.double(substr(frac, 1L, 6L)) + (substr(frac, 7L, 7L) >= "5")
-    sign(v) * (whole * 1e6 + us)
-  }, 0)
-}
-
-us_text <- function(us) {
-  sec <- floor(us / 1e6)
-  micro <- us - sec * 1e6
-  frac <- ifelse(micro == 0, "", sub("0+$", "", sprintf(".%06d", as.integer(micro))))
-  paste0(format(.POSIXct(sec, "UTC"), "%Y-%m-%d %H:%M:%S", tz = "UTC"), frac)
-}
 
 test_that("a timestamp's text carries the second its microseconds round to (#51)", {
   ks <- c(0, 1, 1700000001, -86400 * 400, -1)

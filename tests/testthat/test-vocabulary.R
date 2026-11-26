@@ -2,7 +2,6 @@
 # not simply R's defaults: the overflow rule, NaN as a value, byte order,
 # SQL's null rules for aggregates, and NA propagation.
 
-
 test_that("int32 arithmetic is straddled at the overflow limit", {
   big <- .Machine$integer.max
   expect_identical(ev(quote(a + b), a = big - 1L, b = 1L), big)
@@ -160,102 +159,6 @@ test_that("SQL literals do not change under a hostile session", {
   expect_match(plain_sql, "CAST(12345678.9 AS DOUBLE)", fixed = TRUE)
   expect_match(plain_sql, "CAST(0.10000000000000001 AS DOUBLE)", fixed = TRUE)
 })
-
-# Truncation in a zone across DST, each answer computed by hand from D63:
-# the local wall clock; a wall time in a gap is the first instant after
-# it; a repeated one keeps the input's offset when it exists there, else
-# the earlier. Inputs and answers are UTC instants.
-dst_cases <- function() {
-  u <- c("second", "minute", "hour", "day", "week", "month", "quarter", "year")
-  row <- function(tz, at, ...) {
-    want <- c(...)
-    stopifnot(identical(names(want), u))
-    list(tz = tz, at = at, want = want)
-  }
-  list(
-    # New York, fall-back 2018-11-04 06:00 UTC: 01:30 EDT, then 01:30 EST.
-    row("America/New_York", "2018-11-04 05:30:00",
-        second = "2018-11-04 05:30:00", minute = "2018-11-04 05:30:00",
-        hour = "2018-11-04 05:00:00", day = "2018-11-04 04:00:00",
-        week = "2018-10-29 04:00:00", month = "2018-11-01 04:00:00",
-        quarter = "2018-10-01 04:00:00", year = "2018-01-01 05:00:00"),
-    row("America/New_York", "2018-11-04 06:30:00",
-        second = "2018-11-04 06:30:00", minute = "2018-11-04 06:30:00",
-        hour = "2018-11-04 06:00:00", day = "2018-11-04 04:00:00",
-        week = "2018-10-29 04:00:00", month = "2018-11-01 04:00:00",
-        quarter = "2018-10-01 04:00:00", year = "2018-01-01 05:00:00"),
-    row("America/New_York", "2018-11-04 06:59:59.75",
-        second = "2018-11-04 06:59:59", minute = "2018-11-04 06:59:00",
-        hour = "2018-11-04 06:00:00", day = "2018-11-04 04:00:00",
-        week = "2018-10-29 04:00:00", month = "2018-11-01 04:00:00",
-        quarter = "2018-10-01 04:00:00", year = "2018-01-01 05:00:00"),
-    # New York, spring-forward 2018-03-11 07:00 UTC: 03:30 EDT.
-    row("America/New_York", "2018-03-11 07:30:00",
-        second = "2018-03-11 07:30:00", minute = "2018-03-11 07:30:00",
-        hour = "2018-03-11 07:00:00", day = "2018-03-11 05:00:00",
-        week = "2018-03-05 05:00:00", month = "2018-03-01 05:00:00",
-        quarter = "2018-01-01 05:00:00", year = "2018-01-01 05:00:00"),
-    # Sao Paulo, spring-forward at midnight 2018-11-04 03:00 UTC: that
-    # day's midnight does not exist, so the day starts at 01:00 -02.
-    row("America/Sao_Paulo", "2018-11-04 15:00:00",
-        second = "2018-11-04 15:00:00", minute = "2018-11-04 15:00:00",
-        hour = "2018-11-04 15:00:00", day = "2018-11-04 03:00:00",
-        week = "2018-10-29 03:00:00", month = "2018-11-01 03:00:00",
-        quarter = "2018-10-01 03:00:00", year = "2018-01-01 02:00:00"),
-    # Sao Paulo, fall-back 2019-02-17 02:00 UTC: 23:30 -02, then 23:30 -03
-    # on 2019-02-16 (a Saturday).
-    row("America/Sao_Paulo", "2019-02-17 01:30:00",
-        second = "2019-02-17 01:30:00", minute = "2019-02-17 01:30:00",
-        hour = "2019-02-17 01:00:00", day = "2019-02-16 02:00:00",
-        week = "2019-02-11 02:00:00", month = "2019-02-01 02:00:00",
-        quarter = "2019-01-01 02:00:00", year = "2019-01-01 02:00:00"),
-    row("America/Sao_Paulo", "2019-02-17 02:30:00",
-        second = "2019-02-17 02:30:00", minute = "2019-02-17 02:30:00",
-        hour = "2019-02-17 02:00:00", day = "2019-02-16 02:00:00",
-        week = "2019-02-11 02:00:00", month = "2019-02-01 02:00:00",
-        quarter = "2019-01-01 02:00:00", year = "2019-01-01 02:00:00"),
-    # London, fall-back 2018-10-28 01:00 UTC (a Sunday): 01:30 BST, then
-    # 01:30 GMT.
-    row("Europe/London", "2018-10-28 00:30:00",
-        second = "2018-10-28 00:30:00", minute = "2018-10-28 00:30:00",
-        hour = "2018-10-28 00:00:00", day = "2018-10-27 23:00:00",
-        week = "2018-10-21 23:00:00", month = "2018-09-30 23:00:00",
-        quarter = "2018-09-30 23:00:00", year = "2018-01-01 00:00:00"),
-    row("Europe/London", "2018-10-28 01:30:00",
-        second = "2018-10-28 01:30:00", minute = "2018-10-28 01:30:00",
-        hour = "2018-10-28 01:00:00", day = "2018-10-27 23:00:00",
-        week = "2018-10-21 23:00:00", month = "2018-09-30 23:00:00",
-        quarter = "2018-09-30 23:00:00", year = "2018-01-01 00:00:00"),
-    # London, spring-forward 2018-03-25 01:00 UTC (a Sunday): 02:30 BST.
-    row("Europe/London", "2018-03-25 01:30:00",
-        second = "2018-03-25 01:30:00", minute = "2018-03-25 01:30:00",
-        hour = "2018-03-25 01:00:00", day = "2018-03-25 00:00:00",
-        week = "2018-03-19 00:00:00", month = "2018-03-01 00:00:00",
-        quarter = "2018-01-01 00:00:00", year = "2018-01-01 00:00:00"),
-    # Lord Howe, half-hour spring-forward 2018-10-06 15:30 UTC (02:00
-    # +10:30 to 02:30 +11): 02:45 +11's hour, 02:00, is in the gap.
-    row("Australia/Lord_Howe", "2018-10-06 15:45:00",
-        second = "2018-10-06 15:45:00", minute = "2018-10-06 15:45:00",
-        hour = "2018-10-06 15:30:00", day = "2018-10-06 13:30:00",
-        week = "2018-09-30 13:30:00", month = "2018-09-30 13:30:00",
-        quarter = "2018-09-30 13:30:00", year = "2017-12-31 13:00:00"),
-    # Lord Howe, half-hour fall-back 2018-03-31 15:00 UTC (02:00 +11 to
-    # 01:30 +10:30): 01:45 +11, then 01:45 +10:30, whose hour 01:00 exists
-    # only at +11.
-    row("Australia/Lord_Howe", "2018-03-31 14:45:00",
-        second = "2018-03-31 14:45:00", minute = "2018-03-31 14:45:00",
-        hour = "2018-03-31 14:00:00", day = "2018-03-31 13:00:00",
-        week = "2018-03-25 13:00:00", month = "2018-03-31 13:00:00",
-        quarter = "2018-03-31 13:00:00", year = "2017-12-31 13:00:00"),
-    row("Australia/Lord_Howe", "2018-03-31 15:20:30.5",
-        second = "2018-03-31 15:20:30", minute = "2018-03-31 15:20:00",
-        hour = "2018-03-31 14:00:00", day = "2018-03-31 13:00:00",
-        week = "2018-03-25 13:00:00", month = "2018-03-31 13:00:00",
-        quarter = "2018-03-31 13:00:00", year = "2017-12-31 13:00:00")
-  )
-}
-
-utc <- function(s) as.double(as.POSIXct(s, tz = "UTC", format = "%Y-%m-%d %H:%M:%OS"))
 
 test_that("date_trunc() in a zone follows the wall clock across DST (#58)", {
   # Nothing depends on the session's zone.

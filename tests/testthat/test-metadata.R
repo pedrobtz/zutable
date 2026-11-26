@@ -2,14 +2,6 @@
 # field's, renamed or not; a computed expression gets none; a plan over
 # one source keeps the table's; a join keeps x's; rbind() its first's.
 
-meta_table <- function() {
-  s <- schema(id = not_null(int32), px = field(float64, metadata = c(unit = "USD")),
-              g = field(string, metadata = c(role = "group")), .metadata = c(src = "x"))
-  as_zutable(data.frame(id = 1:3, px = c(1, 2, 3), g = c("a", "b", "a")), s)
-}
-
-field_meta <- function(x, name) schema(x)$fields[[name]]$metadata
-
 test_that("bare references keep field metadata through every clause (#66)", {
   for (ex in c("kernel", "reference")) {
     withr::local_options(zutable.executor = ex)

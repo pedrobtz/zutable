@@ -147,25 +147,6 @@ test_that("a saved key_sort() result reads back where zutable is not installed (
   expect_identical(got, list(i = 1:3, s = c("a", "b"), f = factor(c("x", "y"))))
 })
 
-# An ALTREP record of zutable's sorted class, as an earlier version wrote
-# it (class, package, type, then the state, a list of the payload and the
-# marks), in the ASCII serialization format, built by hand: since #80
-# nothing writes one, and only such a stream reaches the unserialize
-# method.
-sorted_stream <- function(cls, type, payload, marks) {
-  head <- strsplit(rawToChar(serialize(NULL, NULL, ascii = TRUE)), "\n")[[1L]]
-  head <- head[seq_len(length(head) - 1L)]
-  body <- function(x) {
-    lines <- strsplit(rawToChar(serialize(x, NULL, ascii = TRUE)), "\n")[[1L]]
-    lines[-seq_along(head)]
-  }
-  sym <- function(s) c("1", "262153", as.character(nchar(s)), s)
-  lines <- c(head, "238",
-             "2", sym(cls), "2", sym("zutable"), "2", "13", "1", as.character(type), "254",
-             "19", "2", body(payload), body(marks), "254")
-  charToRaw(paste0(paste(lines, collapse = "\n"), "\n"))
-}
-
 test_that("the unserialize method trusts no mark from a stream (#52)", {
   # A well-formed stream gives the payload, unmarked.
   ok <- unserialize(sorted_stream("zt_sorted_int", 13L, c(1L, 2L, 3L), c(1L, 1L)))

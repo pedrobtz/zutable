@@ -4,16 +4,6 @@
 # string is built from its bytes; it is alone in its vector, as a latin1
 # element beside it would force the translation and hide the bug.
 
-native_jose <- function() {
-  x <- rawToChar(as.raw(c(0x4a, 0x6f, 0x73, 0xc3, 0xa9)))
-  Encoding(x) <- "unknown"
-  x
-}
-
-skip_unless_utf8_locale <- function() {
-  skip_if_not(isTRUE(l10n_info()[["UTF-8"]]), "not a UTF-8 locale")
-}
-
 test_that("an unknown-encoded key equals its UTF-8 twin in the kernel (#50)", {
   skip_unless_utf8_locale()
   nat <- native_jose()

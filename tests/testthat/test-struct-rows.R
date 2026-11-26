@@ -1,32 +1,6 @@
 # Struct (data.frame) columns are taken and assigned by row (#55): a
 # per-row loop over plain lists is the oracle, under both executors.
 
-struct_rows <- function(st) {
-  lapply(seq_len(nrow(st)), function(i) lapply(st, function(col) col[[i]]))
-}
-
-struct_from_rows <- function(rows, like) {
-  out <- lapply(names(like), function(nm) {
-    v <- vapply(rows, function(r) r[[nm]], like[[nm]][0][NA_integer_])
-    attributes(v) <- NULL
-    storage.mode(v) <- storage.mode(like[[nm]])
-    v
-  })
-  structure(out, names = names(like), class = "data.frame",
-            row.names = c(NA_integer_, -length(rows)))
-}
-
-struct_null <- function(r) all(vapply(r, is.na, NA))
-
-struct_table <- function() {
-  zutable(
-    id = c(1L, 1L, 2L, 3L, 3L),
-    flag = c(TRUE, FALSE, NA, TRUE, FALSE),
-    st = data.frame(a = c(1L, NA, 3L, NA, 5L), b = c("x", NA, "z", NA, "v")),
-    st2 = data.frame(a = 6:10, b = c("p", "q", "r", "s", "t"))
-  )
-}
-
 test_that("coalesce(), ifelse() and case() take struct values by row (#55)", {
   for (ex in c("kernel", "reference")) {
     withr::local_options(zutable.executor = ex)

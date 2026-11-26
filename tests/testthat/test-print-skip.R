@@ -2,15 +2,6 @@
 # skipped. Each sequence runs at top level in its own Rscript, and the
 # oracle is what it prints: the number of table headers after each mark.
 
-headers_after_marks <- function(out) {
-  marks <- grep("^@@", out)
-  ends <- c(marks[-1L] - 1L, length(out))
-  stats::setNames(vapply(seq_along(marks), function(k) {
-    seg <- out[seq_len(ends[[k]] - marks[[k]]) + marks[[k]]]
-    sum(grepl("^<zutable>", seg))
-  }, 0L), sub("^@@ ?", "", out[marks]))
-}
-
 test_that("only the autoprint of a top-level update is skipped (#61)", {
   skip_on_cran()
   out <- run_script(c(
