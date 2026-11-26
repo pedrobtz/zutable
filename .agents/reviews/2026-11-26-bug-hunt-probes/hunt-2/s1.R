@@ -1,0 +1,5 @@
+source("pre.R")
+w <- key_sort(c(3L, 1L, 2L))
+a <- rawToChar(serialize(w, NULL, ascii = TRUE)); cat(a)
+saveRDS(w, "w_int.rds"); saveRDS(key_sort(c("b", NA, "a", "é", "z")), "w_str.rds"); saveRDS(zutable(k = key_sort(c(3, NA, 1)), o = 1:3), "tab.rds")
+f <- key_sort(factor(c("b","a",NA))); saveRDS(f, "w_fct.rds")

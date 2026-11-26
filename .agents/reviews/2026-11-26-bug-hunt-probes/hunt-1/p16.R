@@ -1,0 +1,7 @@
+source("pre.R")
+s <- key_sort(c(3, 1, NA, 2)); p <- c(1, 2, 3, NA)
+print(sort(s)); print(sort(p)); print(identical(sort(s), sort(p)))
+print(sort(key_sort(c(3L, NA, 1L), decreasing = TRUE), decreasing = TRUE)); print(length(sort(key_sort(c(3L, NA, 1L)))))
+g <- grp(c(2, NA, 1, 2), sort = TRUE); print(g$keys[[1]]); print(sort(g$keys[[1]])); print(median(g$keys[[1]], na.rm = TRUE)); print(quantile(g$keys[[1]], 0.5, na.rm = TRUE)); print(sort(g$keys[[1]], na.last = NA))
+x <- zutable(g = c(2, NA, 1, 2), v = 1:4)
+r <- x[by = g, select = .(n = .N)]; print(sort(r$g)); r2 <- x[order = g]; print(sort(r2$g)); print(length(sort(x[order = g]$g)))
