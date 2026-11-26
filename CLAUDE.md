@@ -46,7 +46,9 @@ it, its header, consumer fixture and fuzz target; Stage 16 (2026-11-19)
 the benchmark record in `.agents/benchmarks.md`, the README, the
 evaluated Get started vignette and two articles under
 `vignettes/articles/`; Stage 17 (2026-11-19) the assurance pass over
-native coverage, fuzz reach and mutation survivors. The roadmap in `.agents/roadmap.md` takes it to
+native coverage, fuzz reach and mutation survivors; Stage 18 (2026-11-20)
+the full set's fixes; Stage 19 (2026-11-26) `Version: 0.1.0`,
+`cran-comments.md` and the kernel retrospective. The roadmap in `.agents/roadmap.md` takes it to
 v0.1.0; for now 0.1.0 includes the kernel (design D35).
 
 ## Versions and dependents

@@ -14,9 +14,14 @@ static int failures = 0;
   failures++; } } while (0)
 
 int main(void) {
+  /* A release has no dev part (DEV is 0), as tools/zutabletest expects. */
   char want[32];
-  snprintf(want, sizeof want, "%d.%d.%d.%d", ZUTABLE_VERSION_MAJOR,
-           ZUTABLE_VERSION_MINOR, ZUTABLE_VERSION_PATCH, ZUTABLE_VERSION_DEV);
+  if (ZUTABLE_VERSION_DEV > 0)
+    snprintf(want, sizeof want, "%d.%d.%d.%d", ZUTABLE_VERSION_MAJOR,
+             ZUTABLE_VERSION_MINOR, ZUTABLE_VERSION_PATCH, ZUTABLE_VERSION_DEV);
+  else
+    snprintf(want, sizeof want, "%d.%d.%d", ZUTABLE_VERSION_MAJOR,
+             ZUTABLE_VERSION_MINOR, ZUTABLE_VERSION_PATCH);
   CHECK(strcmp(want, ZUTABLE_VERSION) == 0);
   CHECK(ZT_MAX_ROWS == 2147483647);
   CHECK(sizeof(zt_row) == 4);

@@ -1240,8 +1240,9 @@ same day. Numbers are `Rdatatable/data.table` issues.
   (§9.2) needs a guard, and what it costs.
 - **Q6.** Answered on 2026-11-16 by D35: 0.1.0 includes the kernel for
   now. Whether it also includes the lazy scans stays open.
-- **Q7.** Is 0.1.0 a CRAN submission or a GitHub release? The board's
-  `CRAN intent` records the answer; this RFC assumes `Planned`.
+- **Q7.** Answered on 2026-11-26, Stage 19: 0.1.0 is a CRAN submission.
+  The board's `CRAN intent` is `Planned`, and `zufast`, the one
+  `LinkingTo`, is on CRAN.
 
 **Ergonomics tests (D15).** Done on 2026-11-17, Stage 8: the
 computations and the comparison are in

@@ -41,8 +41,8 @@ fewer: held, in 2 days; the whole kernel, Stage 9 to Stage 15, in 3.
 | 15 | [Consumer fixture, ABI and fuzz](#stage-15--consumer-fixture-abi-and-fuzz) | quick | [#17](https://github.com/pedrobtz/zutable/issues/17) | [#42](https://github.com/pedrobtz/zutable/pull/42) | 2026-11-19 |
 | 16 | [Benchmarks and documentation](#stage-16--benchmarks-and-documentation) | quick | [#18](https://github.com/pedrobtz/zutable/issues/18) | [#43](https://github.com/pedrobtz/zutable/pull/43) | 2026-11-19 |
 | 17 | [Assurance](#stage-17--assurance) | quick | [#19](https://github.com/pedrobtz/zutable/issues/19) | [#44](https://github.com/pedrobtz/zutable/pull/44) | 2026-11-19 |
-| 18 | [Full CI](#stage-18--full-ci) | full | [#20](https://github.com/pedrobtz/zutable/issues/20) | | |
-| 19 | [v0.1.0 readiness](#stage-19--v010-readiness) | full | [#21](https://github.com/pedrobtz/zutable/issues/21) | | |
+| 18 | [Full CI](#stage-18--full-ci) | full | [#20](https://github.com/pedrobtz/zutable/issues/20) | [#45](https://github.com/pedrobtz/zutable/pull/45), [#47](https://github.com/pedrobtz/zutable/pull/47) | 2026-11-20 |
+| 19 | [v0.1.0 readiness](#stage-19--v010-readiness) | full | [#21](https://github.com/pedrobtz/zutable/issues/21) | [#49](https://github.com/pedrobtz/zutable/pull/49) | 2026-11-26 |
 | 20 | [Review](#stage-20--review) | full | [#22](https://github.com/pedrobtz/zutable/issues/22) | | |
 
 ## Stage 0 — Package identity
@@ -970,6 +970,63 @@ CRAN review.
 
 **Design.** None.
 
+## Kernel retrospective
+
+Written on 2026-11-26, Stage 19, as
+[design-kernel §10](design-kernel.md#10-the-experiment-how-fast-can-a-kernel-be-built-from-the-blocks)
+asks. The dates are the merge dates of the stage pull requests.
+
+**Elapsed.** The first kernel commit (Stage 9, #35) was 2026-11-17. The
+join worked on 2026-11-18 (Stage 13, #40), so the hypothesis of 14 calendar
+days or fewer held, in 2. The last kernel piece (Stage 15, #42) merged on
+2026-11-19, so the whole kernel took 3 days. The full set's fixes to it
+(Stage 18, #47) merged on 2026-11-20, which makes 4 days.
+
+**Longest piece.** The sort (Stage 11, #38) took longest. It had the largest
+diff of any stage (+3,671 lines), three ports with their differential tests
+against the C++ originals, and the regime ladder. Its pull request was open
+for 7 hours, and no other kernel stage's was open for more than 5.
+
+**What saved time.**
+
+- `zufast/hash.h` gave groups and joins their hashing, so the kernel wrote
+  none.
+- The reference executor in R (D29) existed before any kernel code. Every
+  kernel stage therefore had its differential oracle on its first day.
+- The r-actions callers and the `pkg-*` skills set CI and the stage loop up
+  once. Each kernel stage ran the same gate, tiers and checks without
+  setting any of them up.
+- Running all the per-OS checks as one job per OS (`tools/ci/platform.sh`)
+  let the C tests, ports and consumer fixture run on macOS and Windows
+  inside the runner budget.
+
+**What cost time.**
+
+- Platform defects surfaced only in the full set at Stage 18. Means
+  differed from base R on arm64 macOS and under `nold`, and every symbol
+  was exported from the Windows DLL. Fixing them took a second Stage 18
+  pull request (#47, 9 commits).
+- The CI budgets were outgrown three times. Step-20 gctorture ran past its
+  240-minute job at Stages 11, 13 and 18, and each time the suite had to
+  be trimmed under `ZUTABLE_GCTORTURE`. Valgrind also needed 180 minutes
+  to build DuckDB on a cold cache.
+- The measurement records needed corrections afterwards. The memory column
+  changed from heap growth to peak at Stage 16, and Stage 13's machine was
+  misattributed until Stage 14.
+- #45 had a `CLAUDE.md`-only diff, so the docs-only gate skipped every
+  check and the pull request merged before Stage 18's exit criteria held.
+
+**What a second kernel would do differently.**
+
+- Give the first numeric stage the `full` tier, so that `nold`, arm64 and
+  Windows R-devel see the arithmetic when it is written, not at the end.
+- Put the gctorture budget helper (`helper-0-torture.R`) in place at the
+  first kernel stage, and time step 20 at each `full` stage.
+- Have the benchmark harness record peak heap and the machine itself from
+  the first stage.
+- Record the arm64 benchmark numbers that D15 asks for. They are still
+  missing from `.agents/benchmarks.md`.
+
 ## After 0.1.0
 
 - [§8.1](design.md#81-two-kinds-of-table) lazy tables,
@@ -987,6 +1044,5 @@ CRAN review.
 
 ## Blocking open questions
 
-- [§19 Q7](design.md#19-open-questions-and-the-ergonomics-tests) blocks
-  Stage 19: CRAN submission or GitHub release; the board's `CRAN intent`
-  records it, assumed `Planned`.
+None. [§19 Q7](design.md#19-open-questions-and-the-ergonomics-tests),
+which blocked Stage 19, was answered on 2026-11-26: a CRAN submission.
