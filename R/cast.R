@@ -118,13 +118,15 @@ zt_cast_value <- function(x, from, to) {
       bool = ifelse(x, "true", "false"),
       int32 = as.character(x),
       float64 = zt_format_double(x),
-      date = format(x, "%Y-%m-%d"),
+      date = zt_format_date(x),
       timestamp = zt_format_timestamp(x, from$tz %||% "UTC"),
       enum = as.character(x)
     ),
     date = {
       if (f == "timestamp") {
-        return(as.Date(format(x, "%Y-%m-%d", tz = from$tz %||% "UTC")))
+        wall <- zt_wall_clock(floor(posixct_to_us(x, "timestamp", zt_eval_call()) / 1e6),
+                              from$tz %||% "UTC")
+        return(zt_as_date(floor(wall / 86400)))
       }
       d <- zt_lit_adapt(x, to)
       if (is.null(d)) {
@@ -140,9 +142,8 @@ zt_cast_value <- function(x, from, to) {
         return(x)
       }
       if (f == "date") {
-        out <- as.POSIXct(format(x, "%Y-%m-%d"), tz = tz, format = "%Y-%m-%d")
-        attr(out, "tzone") <- tz
-        return(out)
+        # D63: the first instant of the day on the local wall clock.
+        return(.POSIXct(zt_wall_to_instant(zt_strip(unclass(x)) * 86400, tz), tz))
       }
       out <- zt_parse_timestamp(x, tz)
       if (is.null(out)) {
@@ -198,6 +199,12 @@ zt_civil_from_days <- function(z) {
   d <- doy - (153 * mp + 2) %/% 5 + 1
   m <- mp + ifelse(mp < 10, 3, -9)
   list(y = yoe + era * 400 + (m <= 2), m = m, d = d)
+}
+
+# A date's ISO 8601 text through zufast: YYYY-MM-DD for years 0000 to 9999,
+# the expanded form with a sign and six digits otherwise (#58).
+zt_format_date <- function(x) {
+  .Call(zt_format_date_days, as.double(zt_strip(unclass(x))))
 }
 
 # The wall clock in `tz` at whole-second instants `t`, as seconds counted

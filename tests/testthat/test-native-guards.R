@@ -45,6 +45,9 @@ test_that("zt_freeze() and zt_copy() take only a table", {
 test_that("the number routines take only their own type", {
   expect_error(.Call(zutable:::zt_parse_f64, 1), "zt_parse_f64")
   expect_error(.Call(zutable:::zt_format_f64, "1"), "zt_format_f64")
+  expect_error(.Call(zutable:::zt_format_date_days, 1L), "zt_format_date_days")
+  expect_identical(.Call(zutable:::zt_format_date_days, c(0, NA, 0.5, Inf, 3e9)),
+                   c("1970-01-01", NA, NA, NA, NA))
   expect_identical(.Call(zutable:::zt_parse_f64, c(NA, "", "1.5", "1.5x")), c(NA, NA, 1.5, NA))
 })
 

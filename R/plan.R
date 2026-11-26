@@ -517,7 +517,7 @@ zt_format_lit <- function(v, type) {
     float64 = sprintf("%.15g", v),
     int32 = sprintf("%dL", v),
     bool = if (v) "TRUE" else "FALSE",
-    date = sprintf("date \"%s\"", format(v, "%Y-%m-%d")),
+    date = sprintf("date \"%s\"", zt_format_date(v)),
     timestamp = sprintf("timestamp \"%s\"", zt_format_timestamp(v, type$tz %||% "UTC")),
     enum = encodeString(as.character(v), quote = '"'),
     format(v)

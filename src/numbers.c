@@ -7,6 +7,7 @@
 #include <Rinternals.h>
 #include <string.h>
 #include <zufast/number.h>
+#include <zufast/datetime.h>
 
 // Rf_error here is unreachable from R (#68): R/cast.R passes a character
 // vector to zt_parse_f64 and a double one to zt_format_f64; the checks
@@ -51,6 +52,29 @@ SEXP zt_format_f64(SEXP x) {
       continue;
     }
     size_t len = zuf_format_f64(buf, sizeof buf, px[i]);
+    SET_STRING_ELT(out, i, Rf_mkCharLenCE(buf, (int) len, CE_UTF8));
+  }
+  UNPROTECT(1);
+  return out;
+}
+
+// Each day count from 1970-01-01 as its ISO 8601 date (#58): YYYY-MM-DD for
+// years 0000 to 9999, otherwise the expanded form with a sign and at least
+// six digits. NA, a non-finite value or a count outside int32 gives NA;
+// R/cast.R passes whole days.
+SEXP zt_format_date_days(SEXP x) {
+  if (TYPEOF(x) != REALSXP) Rf_error("zt_format_date_days: a double vector is required");
+  R_xlen_t n = XLENGTH(x);
+  const double *px = REAL(x);
+  SEXP out = PROTECT(Rf_allocVector(STRSXP, n));
+  char buf[32];
+  for (R_xlen_t i = 0; i < n; i++) {
+    double v = px[i];
+    if (!R_FINITE(v) || v < -2147483648.0 || v > 2147483647.0 || v != (double) (int32_t) v) {
+      SET_STRING_ELT(out, i, NA_STRING);
+      continue;
+    }
+    size_t len = zuf_format_date(buf, sizeof buf, (int32_t) v);
     SET_STRING_ELT(out, i, Rf_mkCharLenCE(buf, (int) len, CE_UTF8));
   }
   UNPROTECT(1);

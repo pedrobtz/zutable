@@ -198,41 +198,38 @@ zt_num1 <- function(name, f, sqlf, synonyms = character(), keep_int = FALSE,
 
 zt_trunc_unit <- function(unit, x, type) {
   if (identical(type$id, "date")) {
-    lt <- as.POSIXlt(x, tz = "UTC")
-    y <- lt$year + 1900L
-    m <- lt$mon + 1L
+    day <- zt_strip(unclass(x))
+    ymd <- zt_civil_from_days(day)
     out <- switch(unit,
-      year = sprintf("%04d-01-01", y),
-      quarter = sprintf("%04d-%02d-01", y, (m - 1L) %/% 3L * 3L + 1L),
-      month = sprintf("%04d-%02d-01", y, m),
-      week = NULL,
-      day = NULL
+      year = zt_days_from_civil(ymd$y, 1, 1),
+      quarter = zt_days_from_civil(ymd$y, (ymd$m - 1) %/% 3 * 3 + 1, 1),
+      month = zt_days_from_civil(ymd$y, ymd$m, 1),
+      week = day - (day + 3) %% 7,
+      day = day
     )
-    if (unit == "week") return(x - (lt$wday + 6L) %% 7L)
-    if (unit == "day") return(x)
-    out[is.na(x)] <- NA
-    return(as.Date(out))
+    return(zt_as_date(out))
   }
+  # D63: truncate the local wall clock, then find its instant; no local
+  # time is formatted to text and read back (#58).
   tz <- type$tz %||% "UTC"
-  lt <- as.POSIXlt(x, tz = tz)
-  fmt <- switch(unit,
-    year = "%Y-01-01 00:00:00", quarter = NULL, month = "%Y-%m-01 00:00:00",
-    week = NULL, day = "%Y-%m-%d 00:00:00", hour = "%Y-%m-%d %H:00:00",
-    minute = "%Y-%m-%d %H:%M:00", second = "%Y-%m-%d %H:%M:%S"
+  secs <- floor(posixct_to_us(x, "timestamp", zt_eval_call()) / 1e6)
+  wall <- zt_wall_clock(secs, tz)
+  day <- floor(wall / 86400)
+  tod <- wall - day * 86400
+  ymd <- zt_civil_from_days(day)
+  start <- switch(unit,
+    year = zt_days_from_civil(ymd$y, 1, 1) * 86400,
+    quarter = zt_days_from_civil(ymd$y, (ymd$m - 1) %/% 3 * 3 + 1, 1) * 86400,
+    month = zt_days_from_civil(ymd$y, ymd$m, 1) * 86400,
+    # 1970-01-01 was a Thursday: Monday is day -3 modulo 7.
+    week = (day - (day + 3) %% 7) * 86400,
+    day = day * 86400,
+    hour = day * 86400 + tod %/% 3600 * 3600,
+    minute = day * 86400 + tod %/% 60 * 60,
+    second = wall
   )
-  if (unit == "quarter") {
-    q <- (lt$mon %/% 3L) * 3L + 1L
-    s <- sprintf("%04d-%02d-01 00:00:00", lt$year + 1900L, q)
-  } else if (unit == "week") {
-    d <- as.Date(format(x, "%Y-%m-%d", tz = tz)) - (lt$wday + 6L) %% 7L
-    s <- paste(format(d), "00:00:00")
-  } else {
-    s <- format(x, fmt, tz = tz)
-  }
-  s[is.na(x)] <- NA
-  out <- as.POSIXct(s, tz = tz, format = "%Y-%m-%d %H:%M:%S")
-  attr(out, "tzone") <- tz
-  out
+  out <- zt_wall_to_instant(start, tz, prefer = wall - secs)
+  .POSIXct(out, tz)
 }
 
 zt_date_part <- function(part, x, type) {

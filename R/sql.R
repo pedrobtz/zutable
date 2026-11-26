@@ -16,6 +16,14 @@ zt_sql_type <- function(type, call = NULL) {
   )
 }
 
+# A date literal; a year outside 0000 to 9999 as days from 1970, since SQL
+# has no expanded ISO form (#58).
+zt_sql_date <- function(v) {
+  text <- zt_format_date(v)
+  if (grepl("^[0-9]", text)) return(sprintf("DATE '%s'", text))
+  sprintf("(DATE '1970-01-01' + CAST(%.0f AS INTEGER))", unclass(v))
+}
+
 zt_sql_literal <- function(value, type, call = NULL) {
   one <- function(v) {
     if (zt_is_null(v)) {
@@ -29,7 +37,7 @@ zt_sql_literal <- function(value, type, call = NULL) {
           if (v == -Inf) "CAST('-inf' AS DOUBLE)" else
             sprintf("CAST(%.17g AS DOUBLE)", v),
       string = zt_quote_sql_string(v),
-      date = sprintf("DATE '%s'", format(v, "%Y-%m-%d")),
+      date = zt_sql_date(v),
       timestamp = sprintf("TIMESTAMP '%s'", zt_format_timestamp(v, "UTC")),
       enum = zt_quote_sql_string(as.character(v)),
       zutable_abort("engine", sprintf("no SQL literal for %s", format(type)), call = call)

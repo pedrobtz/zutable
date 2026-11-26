@@ -6,6 +6,7 @@
 
 SEXP zt_parse_f64(SEXP x);
 SEXP zt_format_f64(SEXP x);
+SEXP zt_format_date_days(SEXP x);
 SEXP zt_commit(SEXP x, SEXP which, SEXP cols, SEXP plan);
 SEXP zt_freeze(SEXP x);
 SEXP zt_copy(SEXP x);
@@ -30,6 +31,7 @@ void zt_init_altrep(DllInfo *dll);
 static const R_CallMethodDef call_methods[] = {
   {"zt_parse_f64", (DL_FUNC) &zt_parse_f64, 1},
   {"zt_format_f64", (DL_FUNC) &zt_format_f64, 1},
+  {"zt_format_date_days", (DL_FUNC) &zt_format_date_days, 1},
   {"zt_commit", (DL_FUNC) &zt_commit, 4},
   {"zt_freeze", (DL_FUNC) &zt_freeze, 1},
   {"zt_copy", (DL_FUNC) &zt_copy, 1},
