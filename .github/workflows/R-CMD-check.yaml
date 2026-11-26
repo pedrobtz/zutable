@@ -46,10 +46,13 @@ jobs:
       pre-install: Rscript tools/ci-binaries.R
       # r-actions' default runners, plus Windows on R-devel: CRAN checks
       # Windows on R-devel and nothing else in CI does (the containers are
-      # Linux). Runs in the full profile only.
+      # Linux). And Ubuntu on R 4.1, the `Depends` floor (design D64, #74):
+      # it builds altrep.c's branch for R before 4.5, which no other leg
+      # does. Runs in the full profile only.
       runners: >-
         [{"os": "macos-latest", "r": "release"},
          {"os": "windows-latest", "r": "release"},
          {"os": "windows-latest", "r": "devel"},
          {"os": "ubuntu-latest", "r": "release"},
-         {"os": "ubuntu-latest", "r": "oldrel-1"}]
+         {"os": "ubuntu-latest", "r": "oldrel-1"},
+         {"os": "ubuntu-latest", "r": "4.1"}]
