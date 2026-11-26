@@ -9,11 +9,18 @@ test_that("explain() prints one step per line", {
 })
 
 test_that("dplyr::explain() reaches the same method (D50)", {
-  # By name, so that dplyr, a large package, need not be in Suggests.
-  pkg <- "dplyr"
-  skip_if_not_installed(pkg)
-  dplyr_explain <- getExportedValue(pkg, "explain")
+  # dplyr is in Suggests so that the full legs install it and run this
+  # (#75); explain.zutable is registered on dplyr's generic when it loads.
+  skip_if_not_installed("dplyr")
+  dplyr_explain <- dplyr::explain
   z <- zutable(id = 1:3)
   out <- utils::capture.output(dplyr_explain(z[id > 1]))
   expect_identical(out, utils::capture.output(explain(z[id > 1])))
+  # Dispatched from where zutable's functions are out of sight, so only the
+  # method registered on dplyr's generic can answer (#75).
+  methods <- asNamespace("dplyr")[[".__S3MethodsTable__."]]
+  expect_true(is.function(get0("explain.zutable", envir = methods, inherits = FALSE)))
+  bare <- list2env(list(f = dplyr_explain, q = z[id > 1]), parent = baseenv())
+  out2 <- utils::capture.output(eval(quote(f(q)), bare))
+  expect_identical(out2, out)
 })

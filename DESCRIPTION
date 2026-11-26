@@ -33,6 +33,7 @@ Suggests:
     collapse,
     DBI,
     decimal,
+    dplyr,
     duckdb,
     knitr,
     rmarkdown,
