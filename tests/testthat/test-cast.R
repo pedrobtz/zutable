@@ -111,3 +111,46 @@ test_that("int32 to int64 without zuint is a type error naming it (#67)", {
   err <- expect_error(z[select = .(c = cast(j, int64))], class = "zutable_type_error")
   expect_identical(err$package, "zuint")
 })
+
+# The nearest whole microsecond of each double, from its exact decimal
+# expansion (a double's expansion is finite and %.60f prints all of it), so
+# no floating-point product decides the rounding. No double lies exactly
+# halfway between two microseconds.
+us_oracle <- function(x) {
+  vapply(x, function(v) {
+    s <- sprintf("%.60f", abs(v))
+    whole <- as.double(sub("\\..*$", "", s))
+    frac <- sub("^[^.]*\\.", "", s)
+    us <- as.double(substr(frac, 1L, 6L)) + (substr(frac, 7L, 7L) >= "5")
+    sign(v) * (whole * 1e6 + us)
+  }, 0)
+}
+
+us_text <- function(us) {
+  sec <- floor(us / 1e6)
+  micro <- us - sec * 1e6
+  frac <- ifelse(micro == 0, "", sub("0+$", "", sprintf(".%06d", as.integer(micro))))
+  paste0(format(.POSIXct(sec, "UTC"), "%Y-%m-%d %H:%M:%S", tz = "UTC"), frac)
+}
+
+test_that("a timestamp's text carries the second its microseconds round to (#51)", {
+  ks <- c(0, 1, 1700000001, -86400 * 400, -1)
+  x <- as.vector(outer(c(-0.5e-6, -0.4e-6, 0.5e-6, -0.6e-6, 0.4e-6), ks, `+`))
+  us <- us_oracle(x)
+  want <- us_text(us)
+  z <- zutable(t = .POSIXct(x, "UTC"))
+  got <- z[select = .(a = cast(t, string))]$a
+  expect_identical(got, want)
+  # The text reads back as the same microsecond.
+  back <- zutable(a = got)[select = .(t = cast(a, timestamp("us", "UTC")))]$t
+  expect_identical(posixct_to_us(back), us)
+  # explain() and the SQL literal write the same text.
+  for (i in seq_along(x)) {
+    lit <- .POSIXct(x[[i]], "UTC")
+    out <- utils::capture.output(explain(z[t == lit]))
+    expect_true(any(grepl(sprintf('timestamp "%s"', want[[i]]), out, fixed = TRUE)),
+                info = want[[i]])
+  }
+  expect_identical(zt_sql_literal(.POSIXct(0.9999996, "UTC"), zt_timestamp("us", "UTC")),
+                   "TIMESTAMP '1970-01-01 00:00:01'")
+})

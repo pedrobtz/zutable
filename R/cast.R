@@ -65,10 +65,14 @@ zt_parse_double <- function(x) {
   .Call(zt_parse_f64, enc2utf8(trimws(as.character(x))))
 }
 
+# The nearest whole microsecond first (§4.1), then split, so a fraction that
+# rounds to 10^6 microseconds carries into the second (#51). The count is an
+# exactly integral double below 2^53 within the limit of posixct_to_us().
 zt_format_timestamp <- function(x, tz) {
   secs <- zt_strip(unclass(x))
-  whole <- floor(secs)
-  us <- round((secs - whole) * 1e6)
+  count <- posixct_to_us(secs, "timestamp", zt_eval_call())
+  whole <- floor(count / 1e6)
+  us <- count - whole * 1e6
   base <- format(.POSIXct(whole, tz), "%Y-%m-%d %H:%M:%S", tz = tz)
   frac <- ifelse(us == 0, "", sub("0+$", "", sprintf(".%06d", as.integer(us))))
   out <- paste0(base, frac)
