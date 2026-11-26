@@ -250,7 +250,7 @@ zt_join_build <- function(x, y, keys, pairs, how, suffix, call) {
       # A row only y has takes y's key.
       from_y <- zt_take(y[[keys$y[[ki]]]], yi)
       fill <- is.na(xi)
-      v[fill] <- zt_take(from_y, which(fill))
+      v <- zt_assign(v, fill, zt_take(from_y, which(fill)))
       nullable <- f$nullable || sy$fields[[keys$y[[ki]]]]$nullable
     }
     cols[[x_names[[k]]]] <- v

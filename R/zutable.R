@@ -328,8 +328,40 @@ print.zutable <- function(x, n = 10L, ...) {
   invisible(x)
 }
 
+# Rows `idx` of a column. A struct (data.frame) is taken by row, field by
+# field (#55); a vector class with no `[` method gets its attributes back,
+# as na_of() does (#57).
 zt_take <- function(col, idx) {
-  if (is.data.frame(col)) col[idx, , drop = FALSE] else col[idx]
+  if (is.data.frame(col)) {
+    if (is.logical(idx)) idx <- which(rep_len(idx, zt_nrow_of(col)))
+    out <- lapply(col, zt_take, idx = idx)
+    return(structure(out, names = names(col), class = class(col),
+                     row.names = .set_row_names(length(idx))))
+  }
+  out <- col[idx]
+  if (is.object(col) && !identical(class(out), class(col))) {
+    nm <- names(out)
+    attrs <- attributes(col)
+    attrs$names <- NULL
+    attributes(out) <- attrs
+    names(out) <- nm
+  }
+  out
+}
+
+# `col` with rows `idx` replaced by the rows of `value` (as many rows as
+# `idx` selects, or one, recycled): a struct by row, field by field (#55).
+zt_assign <- function(col, idx, value) {
+  if (is.logical(idx)) idx <- which(rep_len(idx, zt_nrow_of(col)))
+  if (!length(idx)) return(col)
+  if (zt_nrow_of(value) == 1L && length(idx) != 1L) value <- zt_take(value, rep(1L, length(idx)))
+  if (is.data.frame(col)) {
+    for (j in seq_along(col)) col[[j]] <- zt_assign(col[[j]], idx, value[[j]])
+    return(col)
+  }
+  # A list value keeps its NULL elements: `[<-` deletes only for NULL itself.
+  col[idx] <- value
+  col
 }
 
 zt_format_cells <- function(col) {

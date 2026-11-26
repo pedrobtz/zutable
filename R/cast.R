@@ -149,15 +149,12 @@ zt_cast_value <- function(x, from, to) {
 zt_eval_case <- function(node, cols, n) {
   k <- node$n_conds
   conds <- lapply(node$args[seq_len(k)], function(a) rep_len(zt_eval(a, cols, n), n))
-  values <- lapply(node$args[-seq_len(k)], function(a) {
-    v <- zt_eval(a, cols, n)
-    if (zt_nrow_of(v) == 1L && n != 1L) rep(v, length.out = n) else v
-  })
+  values <- lapply(node$args[-seq_len(k)], function(a) zt_recycle_n(zt_eval(a, cols, n), n))
   out <- values[[k + 1L]]
   done <- rep(FALSE, n)
   for (i in seq_len(k)) {
     take <- !done & conds[[i]] %in% TRUE
-    out[take] <- values[[i]][take]
+    out <- zt_assign(out, take, zt_take(values[[i]], take))
     done <- done | take
   }
   out

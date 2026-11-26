@@ -3,7 +3,7 @@
 
 test_that("aggregate queries agree, kernel and reference", {
   withr::local_seed(47)
-  df <- bracket_frame(500L)
+  df <- bracket_frame(500L, struct = TRUE)
   z <- as_zutable(df)
   queries <- list(
     function() z[, .(n = count(), s = sum(px)), by = g],
@@ -13,7 +13,10 @@ test_that("aggregate queries agree, kernel and reference", {
     function() z[, .(n = count()), by = .(mon = date_trunc("month", day))],
     function() z[select = .(.all, s = over(sum(px), by = g))],
     function() z[by = .(g, k)],
-    function() z[, .(d = count_distinct(g)), by = flag]
+    function() z[, .(d = count_distinct(g)), by = flag],
+    function() z[, .(f = first(st), l = last(st), n = count(st)), by = g],
+    function() z[select = .(id, f = over(first(st), by = k), c = coalesce(st, st))],
+    function() z[, .(f = first(st), m = r(sum(k), int32)), by = k]
   )
   for (q in queries) {
     expect_identical(plain(with_executor("kernel", q())),

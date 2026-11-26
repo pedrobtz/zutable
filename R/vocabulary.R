@@ -449,13 +449,12 @@ zt_vocab_list <- list(
     doc = "missing; NaN is a value, not missing"),
   vocab_entry("coalesce", list(sig("T", "T", variadic = TRUE, T = zt_value_types)),
     impl = function(v, t, r, n) {
-      out <- v[[1L]]
-      if (length(out) == 1L && n != 1L) out <- rep(out, length.out = n)
+      out <- zt_recycle_n(v[[1L]], n)
       for (x in v[-1L]) {
-        if (length(x) == 1L && n != 1L) x <- rep(x, length.out = n)
-        miss <- zt_is_null(out)
-        if (!any(miss)) break
-        out[miss] <- x[miss]
+        miss <- which(zt_is_null(out))
+        if (!length(miss)) break
+        x <- zt_recycle_n(x, n)
+        out <- zt_assign(out, miss, zt_take(x, miss))
       }
       out
     },
@@ -464,14 +463,11 @@ zt_vocab_list <- list(
   vocab_entry("ifelse", list(sig(c("bool", "T", "T"), "T", T = zt_value_types)),
     impl = function(v, t, r, n) {
       cond <- rep_len(v[[1L]], n)
-      yes <- v[[2L]]
-      no <- v[[3L]]
-      out <- if (length(no) == 1L) rep(no, length.out = n) else no
-      if (length(yes) == 1L) yes <- rep(yes, length.out = n)
-      take <- cond %in% TRUE
-      out[take] <- yes[take]
-      out[is.na(cond)] <- na_of(r)
-      out
+      yes <- zt_recycle_n(v[[2L]], n)
+      out <- zt_recycle_n(v[[3L]], n)
+      take <- which(cond %in% TRUE)
+      out <- zt_assign(out, take, zt_take(yes, take))
+      zt_assign(out, which(is.na(cond)), na_of(r))
     },
     sql = function(a, t, r) sprintf(
       "(CASE WHEN %1$s IS NULL THEN NULL WHEN %1$s THEN %2$s ELSE %3$s END)",

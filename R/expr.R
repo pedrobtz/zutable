@@ -268,7 +268,7 @@ zt_lit_adapt <- function(value, type) {
   if (is.logical(value) && !is.object(value) && all(is.na(value))) {
     na <- tryCatch(na_of(type), error = function(e) NULL)
     if (is.null(na)) return(NULL)
-    return(rep(na, length.out = length(value)))
+    return(zt_take(na, rep(1L, length(value))))
   }
   fitted <- zt_fit_literal(value, type)
   if (!is.null(fitted)) {
@@ -362,7 +362,7 @@ zt_eval_window <- function(node, cols, n) {
   for (rows in zt_group_rows(g)) {
     if (!length(rows)) next
     v <- zt_eval(node$agg, zt_take_rows(cols, rows), length(rows))
-    out[rows] <- zt_take(v, rep(1L, length(rows)))
+    out <- zt_assign(out, rows, zt_take(v, 1L))
   }
   out
 }
@@ -513,9 +513,7 @@ zt_type_case <- function(expr, ctx) {
 zt_eval_r <- function(node, cols, n) {
   mask <- list2env(cols[node$columns], parent = node$env)
   out <- eval(node$expr, mask)
-  if (zt_nrow_of(out) == 1L && n != 1L) {
-    out <- if (is.data.frame(out)) out[rep(1L, n), , drop = FALSE] else rep(out, length.out = n)
-  }
+  out <- zt_recycle_n(out, n)
   p <- if (zt_nrow_of(out) != n) sprintf("%d values for %d rows", zt_nrow_of(out), n) else
     vector_problem(out, node$type)
   if (!is.null(p)) {

@@ -357,8 +357,7 @@ zt_update_kernel <- function(up, cols, rows, scoped, keys, call) {
     work[[s$name]] <- v
     if (s$kind == "set") {
       col <- new[[s$name]]
-      if (is.data.frame(col)) col[rows, ] <- v else col[rows] <- v
-      new[[s$name]] <- col
+      new[[s$name]] <- zt_assign(col, rows, v)
     }
   }
   new

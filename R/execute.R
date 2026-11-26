@@ -4,7 +4,7 @@
 
 zt_recycle_n <- function(v, n) {
   if (zt_nrow_of(v) == 1L && n != 1L) {
-    if (is.data.frame(v)) v[rep(1L, n), , drop = FALSE] else rep(v, length.out = n)
+    zt_take(v, rep(1L, n))
   } else {
     v
   }
@@ -156,7 +156,7 @@ zt_group_rows <- function(g) {
 # A vector of `type` of length n, all missing.
 zt_empty <- function(type, n) {
   na <- na_of(type)
-  if (is.data.frame(na)) na[rep(1L, n), , drop = FALSE] else rep(na, length.out = n)
+  zt_take(na, rep(1L, n))
 }
 
 zt_run_aggregate <- function(st, cols, n) {
@@ -177,7 +177,7 @@ zt_run_aggregate <- function(st, cols, n) {
     for (i in seq_along(groups)) {
       rows <- groups[[i]]
       v <- zt_eval(node, zt_take_rows(cols, rows), length(rows))
-      if (zt_nrow_of(v)) res[i] <- zt_take(v, 1L)
+      if (zt_nrow_of(v)) res <- zt_assign(res, i, zt_take(v, 1L))
     }
     out[[nm]] <- res
   }

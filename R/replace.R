@@ -163,10 +163,7 @@ zt_fit <- function(value, field, n, call) {
       zt_describe_value(value)
     ), call = call)
   }
-  if (len == 1L && n != 1L) {
-    fitted <- if (is.data.frame(fitted)) fitted[rep(1L, n), , drop = FALSE] else
-      rep(fitted, length.out = n)
-  }
+  if (len == 1L && n != 1L) fitted <- zt_take(fitted, rep(1L, n))
   zt_normalise(fitted, field, call)
 }
 
@@ -183,8 +180,7 @@ zt_fit_literal <- function(value, type) {
   if (is.logical(value) && !is.object(value) && all(is.na(value))) {
     na <- tryCatch(na_of(type), error = function(e) NULL)
     if (is.null(na)) return(NULL)
-    return(if (is.data.frame(na)) na[rep(1L, length(value)), , drop = FALSE]
-           else rep(na, length.out = length(value)))
+    return(zt_take(na, rep(1L, length(value))))
   }
   switch(type$id,
     float64 = if (is.integer(value) && !is.object(value)) as.double(value),
@@ -308,13 +304,7 @@ zt_set_column <- function(x, pos, value) {
       new <- zt_fit(values[[k]], f, n, call)
     } else {
       part <- zt_fit(values[[k]], f, length(rows), call)
-      new <- x[[pos]]
-      if (is.data.frame(new)) {
-        new[rows, ] <- part
-      } else {
-        new[rows] <- part
-      }
-      new <- zt_normalise(new, f, call)
+      new <- zt_normalise(zt_assign(x[[pos]], rows, part), f, call)
     }
     x <- zt_set_column(x, pos, new)
   }
