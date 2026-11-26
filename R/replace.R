@@ -44,8 +44,12 @@ zt_aware <- function(env) {
   name == "zutable" || "zutable" %in% names(getNamespaceImports(top))
 }
 
+# What leaves the class through D43's route is a plain data frame (D60):
+# no schema, plan, frozen mark or properties.
 zt_plain <- function(x) {
   attr(x, "schema") <- NULL
+  attr(x, "plan") <- NULL
+  attr(x, "frozen") <- NULL
   attr(x, "properties") <- NULL
   class(x) <- "data.frame"
   x
@@ -271,6 +275,15 @@ zt_set_column <- function(x, pos, value) {
   pos <- zt_column_position(x, i, call)
   f <- attr(x, "schema")$fields[[pos]]
   zt_set_column(x, pos, zt_fit(value, f, .row_names_info(x, 2L), call))
+}
+
+#' @rdname zutable-indexing
+#' @export
+`is.na<-.zutable` <- function(x, value) {
+  # D60: a user's replacement on the table, through the typed `[<-`, so
+  # freeze(), not_null and the column types hold.
+  x[value] <- NA
+  x
 }
 
 #' @rdname zutable-indexing

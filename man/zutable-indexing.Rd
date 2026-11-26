@@ -4,12 +4,15 @@
 \alias{zutable-indexing}
 \alias{$<-.zutable}
 \alias{[[<-.zutable}
+\alias{is.na<-.zutable}
 \alias{[<-.zutable}
 \title{Replace values in a zutable}
 \usage{
 \method{$}{zutable}(x, name) <- value
 
 \method{[[}{zutable}(x, i, j) <- value
+
+\method{is.na}{zutable}(x) <- value
 
 \method{[}{zutable}(x, i, j) <- value
 }
