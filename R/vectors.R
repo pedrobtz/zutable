@@ -18,6 +18,9 @@ infer_type_raw <- function(x, what, call) {
     s <- infer_schema(x, call)
     return(zt_type("struct", fields = s$fields))
   }
+  if (!is.null(dim(x))) {
+    bad("a matrix or array is not a column; give one vector per column")
+  }
   if (is.factor(x)) {
     return(zt_type("enum", levels = levels(x)))
   }
@@ -120,6 +123,7 @@ decimal_digits <- function(x) {
 # Element-wise checks of list and struct types make nested types enforced
 # (§4.1).
 vector_problem <- function(x, type) {
+  if (!is.data.frame(x) && !is.null(dim(x))) return("a matrix or array, not a vector")
   plain <- function(test) if (test && !is.object(x)) NULL else "wrong vector"
   switch(type$id,
     bool = plain(is.logical(x)),
@@ -277,6 +281,17 @@ na_of <- function(type, call = NULL) {
       out
     }
   )
+}
+
+# A column as it enters (#62): a bit64 integer64 vector holds int64 in
+# zu_int64's own layout (§4.1), so it becomes zu_int64, the same bits.
+zt_entry_column <- function(x) {
+  if (is.data.frame(x)) {
+    for (j in seq_along(x)) x[[j]] <- zt_entry_column(x[[j]])
+  } else if (inherits(x, "integer64") && !inherits(x, "zu_int64")) {
+    class(x) <- c("zu_int64", "integer64")
+  }
+  x
 }
 
 # INT64_MIN, bit64's NA, as the double whose bits it is.

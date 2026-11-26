@@ -161,6 +161,7 @@ zt_constant_value <- function(value, expr, ctx, allow_vector = FALSE) {
     # A bare NA is the missing value of whatever type the context needs.
     return(zt_lit_node(value, type = NULL))
   }
+  value <- zt_entry_column(value)
   type <- infer_type(value, "constant", ctx$call)
   if (is.character(value)) value <- enc2utf8(value)
   zt_lit_node(value, type = type)

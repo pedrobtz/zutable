@@ -109,3 +109,42 @@ test_that("as.data.frame() leaves the class", {
   df$b <- 1
   expect_identical(ncol(df), 2L)
 })
+
+test_that("a bit64 integer64 column enters as int64, by every constructor (#62)", {
+  skip_if_not_installed("bit64")
+  skip_if_not_installed("zuint")
+  v <- bit64::as.integer64(c(1, NA, -3))
+  want <- zuint::int64(c(1, NA, -3))
+  d <- data.frame(i = 1:3)
+  d$v <- v
+  for (z in list(zutable(i = 1:3, v = v), as_zutable(d), as_zutable(list(i = 1:3, v = v)),
+                 as_zutable(d, schema(i = int32, v = int64)))) {
+    expect_no_error(conform(z, schema(z)))
+    expect_identical(schema(z)$fields$v$type$id, "int64")
+    expect_identical(as.character(z$v), as.character(want))
+    expect_s3_class(z$v, "zu_int64")
+    expect_identical(as.character(z[2:3]$v), as.character(want[2:3]))
+    expect_output(print(z), "int64")
+  }
+  expect_identical(schema(d)$fields$v$type$id, "int64")
+  z <- zutable(v = want)
+  z$v <- v
+  expect_identical(as.character(z$v), as.character(want))
+  z[1, "v"] <- bit64::as.integer64(7)
+  expect_identical(as.character(z$v[[1L]]), "7")
+  expect_no_error(conform(z, schema(z)))
+})
+
+test_that("matrix and array columns are refused, by every constructor (#62)", {
+  d <- data.frame(a = 1:2)
+  d$m <- matrix(1:4, 2)
+  expect_error(as_zutable(d), class = "zutable_type_error")
+  expect_error(as_zutable(d, schema(a = int32, m = int32)), class = "zutable_schema_error")
+  expect_error(schema(d), class = "zutable_type_error")
+  expect_error(zutable(m = matrix(1:4, 2)), class = "zutable_type_error")
+  expect_error(zutable(m = array(1:8, c(2, 2, 2))), class = "zutable_type_error")
+  expect_error(as_zutable(list(m = matrix(1:4, 2))), class = "zutable_type_error")
+  z <- zutable(a = 1:2)
+  expect_error(z$a <- matrix(1:2, 2), class = "zutable_schema_error")
+  expect_error(conform(d, schema(a = int32, m = int32)), class = "zutable_schema_error")
+})

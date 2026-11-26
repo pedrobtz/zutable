@@ -108,7 +108,9 @@ test_that("int64's missing value is bit64's NA", {
   local_packages("zuint")
   x <- na(int64)
   expect_s3_class(x, c("zu_int64", "integer64"), exact = TRUE)
-  expect_true(bit64::is.na.integer64(x))
+  # bit64 keeps the other classes on the result: zu_int64, whose methods
+  # (once zuint is loaded) cannot format a logical.
+  expect_identical(unclass(bit64::is.na.integer64(x)), TRUE)
   expect_identical(
     unclass(x),
     unclass(bit64::NA_integer64_)

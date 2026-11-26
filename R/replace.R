@@ -174,6 +174,7 @@ zt_describe_value <- function(value) {
 }
 
 zt_fit_literal <- function(value, type) {
+  value <- zt_entry_column(value)
   if (is.null(vector_problem(value, type))) {
     return(value)
   }

@@ -112,6 +112,7 @@ zt_from_columns <- function(cols, schema, call, n = NULL) {
     zutable_abort("schema", "column names must be unique and non-empty",
                   call = call)
   }
+  cols <- lapply(cols, zt_entry_column)
   if (is.null(schema)) {
     fields <- lapply(seq_along(cols), function(i) {
       new_field(nms[[i]], infer_type(cols[[i]], nms[[i]], call))
