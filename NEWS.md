@@ -13,6 +13,7 @@
 * The native grouping and join routines check every key column's length, not only the first's (#85).
 * The kernel's reductions, grouping and join probe stay in range at 2^31 - 1 rows (#53), and `zt_join_build()` in the header returns -1 for a table too small for its rows (#86).
 * `coalesce()`, `ifelse()`, `case()`, `first()`, `last()` and `over()` take a struct column's values by row, under both executors (#55).
+* An extension or `r_class()` column keeps its class and attributes through `where`, value forms, `order`, `limit`, `distinct`, `join()`, `head()` and `rbind()` (#57).
 
 * `zutable_info()` reports the package version.
 * Every condition the package raises inherits from `zutable_error`.
