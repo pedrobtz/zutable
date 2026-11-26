@@ -157,7 +157,7 @@ zt_fit <- function(value, field, n, call) {
     ), call = call)
   }
   value <- zt_entry_column(value, sprintf("column `%s`", what), call)
-  fitted <- zt_fit_literal(value, type)
+  fitted <- zt_fit_literal(value, type, call)
   if (is.null(fitted) || !is.null(vector_problem(fitted, type))) {
     zutable_abort("schema", sprintf(
       "column `%s` is %s; the value would make it %s", what, format(type),
@@ -174,7 +174,7 @@ zt_describe_value <- function(value) {
   t
 }
 
-zt_fit_literal <- function(value, type) {
+zt_fit_literal <- function(value, type, call = NULL) {
   value <- zt_entry_column(value)
   if (is.null(vector_problem(value, type))) {
     return(value)
@@ -190,6 +190,11 @@ zt_fit_literal <- function(value, type) {
       ok <- is.na(value) | (is.finite(value) & value == trunc(value) &
                               abs(value) <= .Machine$integer.max)
       if (all(ok) && !any(is.nan(value))) as.integer(value)
+    },
+    # int32 widens to int64 (§4.3); its vector lives in zuint.
+    int64 = if (is.integer(value) && !is.object(value)) {
+      zt_require_type_package(type, call)
+      zt_int32_to_int64(value)
     },
     enum = if (is.character(value) && !is.object(value) &&
                all(is.na(value) | value %in% type$levels)) {

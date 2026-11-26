@@ -167,16 +167,18 @@ zt_plan_update <- function(x, e, where, by, env, call) {
 }
 
 # The value of `col := node` as the column's type: the same type, an exact
-# widening (int32 into float64), or a literal that is exactly representable
+# widening (int32 into float64 or int64), or a literal that is exactly representable
 # there (§4.3). Anything else is a schema error (§6.1).
 zt_fit_node <- function(node, field, call) {
   type <- field$type
   if (zt_is_lit(node)) {
+    if (identical(type$id, "int64") && is.integer(node$value)) zt_require_type_package(type, call)
     v <- zt_lit_adapt(node$value, type)
     if (!is.null(v)) return(zt_lit_node(v, type))
   } else if (identical(node$type, type)) {
     return(node)
-  } else if (identical(node$type$id, "int32") && identical(type$id, "float64")) {
+  } else if (identical(node$type$id, "int32") && type$id %in% c("float64", "int64")) {
+    zt_require_type_package(type, call)
     return(zt_node("call", fn = "cast", args = list(node), type = type,
                    nullable = node$nullable, aggregate = node$aggregate))
   }

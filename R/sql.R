@@ -8,7 +8,7 @@ zt_sql_ident <- function(x) paste0('"', gsub('"', '""', x, fixed = TRUE), '"')
 zt_sql_type <- function(type) {
   switch(type$id,
     bool = "BOOLEAN", int32 = "INTEGER", float64 = "DOUBLE",
-    string = "VARCHAR", date = "DATE",
+    string = "VARCHAR", date = "DATE", int64 = "BIGINT",
     timestamp = "TIMESTAMP",
     zutable_abort("engine", sprintf("no SQL type for %s", format(type)))
   )

@@ -53,3 +53,61 @@ test_that("unsupported casts are type errors", {
   expect_error(ec(1, quote(date)), class = "zutable_type_error")
   expect_error(ec(list(1L), quote(string)), class = "zutable_type_error")
 })
+
+test_that("int32 widens to int64 where implicit (#67)", {
+  skip_if_not_installed("zuint")
+  i64 <- zuint::int64
+  base <- function() zutable(i = i64(c(1L, 2L)), j = c(5L, NA))
+  # Oracle: the same route with an explicit int64 value.
+  same <- function(got, want) expect_identical(as.character(got$i), as.character(want$i))
+  for (ex in c("kernel", "reference")) {
+    withr::local_options(zutable.executor = ex)
+    a <- base(); b <- base()
+    a[, i := j]
+    b[, i := r(i64(j), int64)]
+    same(a, b)
+    a <- base(); b <- base()
+    a[, i := 7L]
+    b[, i := r(i64(7L), int64)]
+    same(a, b)
+    a <- base(); b <- base()
+    a[j > 1L, i := j * 2L]
+    b[j > 1L, i := r(i64(j * 2L), int64)]
+    same(a, b)
+    expect_identical(as.character(base()[select = .(c = cast(j, int64))]$c),
+                     as.character(i64(c(5L, NA))))
+    expect_identical(as.character(base()[select = .(c = cast(i, int64))]$c),
+                     as.character(i64(c(1L, 2L))))
+    expect_identical(schema(base()[select = .(c = cast(j, int64))])$fields$c$type$id, "int64")
+  }
+  a <- base(); b <- base()
+  a$i <- 7L
+  b$i <- i64(7L)
+  same(a, b)
+  a <- base(); b <- base()
+  a[2, "i"] <- NA_integer_
+  b[2, "i"] <- i64(NA)
+  same(a, b)
+  a <- base(); b <- base()
+  a[["i"]] <- c(3L, 4L)
+  b[["i"]] <- i64(c(3L, 4L))
+  same(a, b)
+  expect_no_error(conform(a, schema(a)))
+  # Not the other way: int64 to int32 is a cast, never implicit.
+  z <- base()
+  expect_error(z[, j := i], class = "zutable_schema_error")
+})
+
+test_that("int32 to int64 without zuint is a type error naming it (#67)", {
+  z <- zutable(j = 1:2)
+  local_packages(character())
+  x <- new_zutable(list(i = zu_int64_of(1:2), j = 1:2),
+                   new_schema(list(new_field("i", zt_type("int64")), new_field("j", zt_type("int32")))),
+                   2L)
+  err <- expect_error(x[, i := j], class = "zutable_type_error")
+  expect_identical(err$package, "zuint")
+  err <- expect_error(x$i <- 7L, class = "zutable_type_error")
+  expect_identical(err$package, "zuint")
+  err <- expect_error(z[select = .(c = cast(j, int64))], class = "zutable_type_error")
+  expect_identical(err$package, "zuint")
+})

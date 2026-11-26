@@ -3,7 +3,8 @@
 
 zt_cast_targets <- list(
   bool = c("bool", "int32", "float64", "string"),
-  int32 = c("int32", "bool", "float64", "string"),
+  int32 = c("int32", "bool", "float64", "string", "int64"),
+  int64 = "int64",
   float64 = c("float64", "int32", "string"),
   string = c("string", "bool", "int32", "float64", "date", "timestamp",
              "enum"),
@@ -23,8 +24,16 @@ zt_type_cast <- function(x, to, ctx) {
     zutable_abort("type", sprintf("cast() from %s to %s is not supported",
                                   format(from), format(to)), call = ctx$call)
   }
+  # int64's vector lives in zuint (§4.1): absent, a type error naming it.
+  zt_require_type_package(to, ctx$call)
   zt_node("call", fn = "cast", args = list(x), type = to,
           nullable = x$nullable, aggregate = x$aggregate)
+}
+
+# int32 into int64, exact (§4.3), as zuint's vector.
+zt_int32_to_int64 <- function(x) {
+  attributes(x) <- NULL
+  getExportedValue("zuint", "int64")(x)
 }
 
 zt_cast_fail <- function(x, ok, from, to) {
@@ -72,6 +81,7 @@ zt_cast_value <- function(x, from, to) {
   t <- to$id
   if (f == t && t != "timestamp" && t != "enum") return(x)
   switch(t,
+    int64 = zt_int32_to_int64(x),
     bool = {
       if (f == "int32") return(x != 0L)
       v <- tolower(trimws(x))

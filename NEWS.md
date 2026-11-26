@@ -21,6 +21,7 @@
 * Strings enter as UTF-8 by D58's rule, for column values, literals, enum levels and column and field names: an unknown-encoded non-ASCII string in a C or POSIX locale is a `zutable_value_error` naming the column, and a string marked `"bytes"` is refused (#64).
 * A `left`, `right` or `full` join makes the side it does not preserve nullable from the schemas alone, so the result's schema never depends on which rows matched (#65).
 * Metadata follows D59: `select`, `by` keys and `join()` keep a bare column's field metadata, renamed or not, a computed column has none, a query keeps its table's metadata, and a join keeps `x`'s (#66).
+* `int32` widens to `int64` where implicit: `:=`, `$<-`, `[[<-` and `[<-` into an `int64` column, and `cast(x, int64)`; without zuint it is a `zutable_type_error` naming it (#67).
 
 * `zutable_info()` reports the package version.
 * Every condition the package raises inherits from `zutable_error`.
