@@ -1173,6 +1173,10 @@ maintainer's agreement to the recommendations of 2026-11-26.
       UTC offset when the truncated time exists at that offset, and takes
       the earlier one otherwise.
     - No cast or truncation gives a silent `NA`.
+    - A string naming a local time follows the same rule when cast to a
+      zoned timestamp. That keeps one rule for every route, although
+      PostgreSQL and ICU read a time in a gap with the offset from before
+      the change.
   - **`NaN` behind a date or timestamp.** It is not a value (D47 is
     `float64`'s rule), so it is refused on entry as a
     `zutable_value_error`.
