@@ -72,3 +72,44 @@ test_that("an error evaluating limit, by or .col() keeps its message (#82)", {
     expect_true(grepl(marker, conditionMessage(err), fixed = TRUE), info = deparse(e))
   }
 })
+
+test_that("conditions name the exported function's call, never a helper's (#84)", {
+  head_of <- function(e) {
+    cl <- conditionCall(e)
+    if (is.null(cl)) NULL else as.character(cl[[1L]])
+  }
+  z <- zutable(s = c("1", "x"), i = c(1L, 50000L), d = as.Date("2026-01-01") + 0:1)
+  bracket <- c("[", "[.zutable")
+  for (ex in c("kernel", "reference")) {
+    withr::local_options(zutable.executor = ex)
+    sites <- list(
+      cast = quote(z[select = .(c = cast(s, int32))]),
+      overflow = quote(z[select = .(v = i * i)]),
+      r_type = quote(z[select = .(v = r("a", int32))]),
+      r_nan_date = quote(z[select = .(v = r(structure(c(NaN, 1), class = "Date"), date))]),
+      date_trunc = quote(z[select = .(v = date_trunc("hour", d))]),
+      update = quote(copy(z)[, i := i * i]),
+      grouped = quote(z[by = s, select = .(v = sum(cast(s, int32)))])
+    )
+    for (nm in names(sites)) {
+      err <- expect_error(eval(sites[[nm]]), class = "zutable_error")
+      expect_true(head_of(err) %in% bracket, info = paste(ex, nm, head_of(err)))
+    }
+  }
+  expect_identical(head_of(expect_error(copy(1), class = "zutable_type_error")), "copy")
+  expect_identical(head_of(expect_error(freeze(1), class = "zutable_type_error")), "freeze")
+  expect_identical(head_of(expect_error(field(int32, nullable = NA), class = "zutable_type_error")),
+                   "field")
+  expect_identical(head_of(expect_error(register_extension_type("", structure(double(), class = "c"),
+                                                                float64),
+                                        class = "zutable_type_error")),
+                   "register_extension_type")
+  if (!isNamespaceLoaded("dplyr")) {
+    expect_true(head_of(expect_error(explain(1), class = "zutable_type_error")) %in%
+                  c("explain", "explain.default"))
+  }
+  expect_identical(head_of(expect_error(grp(1:2, sort = NA), class = "zutable_type_error")), "grp")
+  # The SQL emitter has no exported entry yet: it names no call (D62).
+  node <- zt_translate(quote(r(1, int32)), schema(a = int32), environment(), NULL)
+  expect_null(conditionCall(expect_error(zt_sql_expr(node), class = "zutable_engine_error")))
+})

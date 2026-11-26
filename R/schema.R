@@ -161,12 +161,13 @@ schema <- function(..., .metadata = NULL) {
 #' @rdname schema
 #' @export
 field <- function(type, nullable = TRUE, metadata = NULL) {
-  f <- parse_field(substitute(type), "", parent.frame(), sys.call())
+  call <- sys.call()
+  f <- parse_field(substitute(type), "", parent.frame(), call)
   if (!is.logical(nullable) || length(nullable) != 1L || is.na(nullable)) {
-    zutable_abort("type", "field() nullable must be TRUE or FALSE")
+    zutable_abort("type", "field() nullable must be TRUE or FALSE", call = call)
   }
   f$nullable <- f$nullable && nullable
-  f$metadata <- check_metadata(metadata, "field")
+  f$metadata <- check_metadata(metadata, "field", call)
   f
 }
 

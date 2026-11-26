@@ -5,19 +5,21 @@
 
 zt_sql_ident <- function(x) paste0('"', gsub('"', '""', x, fixed = TRUE), '"')
 
-zt_sql_type <- function(type) {
+# The emitter has no exported entry point yet; `call` is the one that will
+# reach it (D62), NULL until then.
+zt_sql_type <- function(type, call = NULL) {
   switch(type$id,
     bool = "BOOLEAN", int32 = "INTEGER", float64 = "DOUBLE",
     string = "VARCHAR", date = "DATE", int64 = "BIGINT",
     timestamp = "TIMESTAMP",
-    zutable_abort("engine", sprintf("no SQL type for %s", format(type)))
+    zutable_abort("engine", sprintf("no SQL type for %s", format(type)), call = call)
   )
 }
 
-zt_sql_literal <- function(value, type) {
+zt_sql_literal <- function(value, type, call = NULL) {
   one <- function(v) {
     if (zt_is_null(v)) {
-      return(sprintf("CAST(NULL AS %s)", zt_sql_type(type)))
+      return(sprintf("CAST(NULL AS %s)", zt_sql_type(type, call)))
     }
     switch(type$id,
       bool = if (isTRUE(v)) "TRUE" else "FALSE",
@@ -30,23 +32,23 @@ zt_sql_literal <- function(value, type) {
       date = sprintf("DATE '%s'", format(v, "%Y-%m-%d")),
       timestamp = sprintf("TIMESTAMP '%s'", zt_format_timestamp(v, "UTC")),
       enum = zt_quote_sql_string(as.character(v)),
-      zutable_abort("engine", sprintf("no SQL literal for %s", format(type)))
+      zutable_abort("engine", sprintf("no SQL literal for %s", format(type)), call = call)
     )
   }
   parts <- vapply(seq_along(value), function(i) one(zt_take(value, i)), "")
   if (length(parts) == 1L) parts else sprintf("(%s)", paste(parts, collapse = ", "))
 }
 
-zt_sql_expr <- function(node) {
+zt_sql_expr <- function(node, call = NULL) {
   switch(node$kind,
     col = zt_sql_ident(node$name),
-    lit = zt_sql_literal(node$value, node$type),
+    lit = zt_sql_literal(node$value, node$type, call),
     r = zutable_abort("engine", paste(
       "an r() expression runs in the local executor only; it cannot be",
       "sent to an engine"
-    )),
+    ), call = call),
     call = {
-      args <- vapply(node$args, zt_sql_expr, "")
+      args <- vapply(node$args, zt_sql_expr, "", call = call)
       if (node$fn == "case") {
         k <- node$n_conds
         whens <- sprintf("WHEN %s THEN %s", args[seq_len(k)], args[k + seq_len(k)])
@@ -55,9 +57,9 @@ zt_sql_expr <- function(node) {
       }
       if (node$fn == "cast") {
         if (identical(node$type$id, "enum")) {
-          zutable_abort("engine", "cast() to an enum has no SQL spelling yet")
+          zutable_abort("engine", "cast() to an enum has no SQL spelling yet", call = call)
         }
-        return(sprintf("CAST(%s AS %s)", args[[1L]], zt_sql_type(node$type)))
+        return(sprintf("CAST(%s AS %s)", args[[1L]], zt_sql_type(node$type, call)))
       }
       entry <- zt_vocab[[node$fn]]
       types <- lapply(node$args, function(a) a$type)

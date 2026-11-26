@@ -45,20 +45,22 @@ NULL
 #' @rdname zutable-update
 #' @export
 copy <- function(x) {
+  call <- sys.call()
   if (!is_zutable(x)) {
-    zutable_abort("type", "copy() takes a zutable")
+    zutable_abort("type", "copy() takes a zutable", call = call)
   }
-  zt_validate(x)
+  zt_validate(x, call)
   .Call(zt_copy, x)
 }
 
 #' @rdname zutable-update
 #' @export
 freeze <- function(x) {
+  call <- sys.call()
   if (!is_zutable(x)) {
-    zutable_abort("type", "freeze() takes a zutable")
+    zutable_abort("type", "freeze() takes a zutable", call = call)
   }
-  zt_validate(x)
+  zt_validate(x, call)
   .Call(zt_freeze, x)
   invisible(x)
 }
@@ -189,6 +191,10 @@ zt_fit_node <- function(node, field, call) {
 }
 
 zt_run_update <- function(x, up, call) {
+  zt_with_eval_call(call, zt_run_update_plan(x, up, call))
+}
+
+zt_run_update_plan <- function(x, up, call) {
   zt_check_not_frozen(x, call)
   schema <- attr(x, "schema", exact = TRUE)
   cols <- unclass(x)

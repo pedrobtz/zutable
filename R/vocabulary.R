@@ -46,7 +46,7 @@ zt_int_result <- function(x) {
     zutable_abort("value", sprintf(
       "int32 overflow: %s is outside +/-(2^31 - 1); cast to float64 first",
       format(x[bad][[1L]], digits = 15L)
-    ))
+    ), call = zt_eval_call())
   }
   as.integer(x)
 }
@@ -554,7 +554,7 @@ zt_vocab_list <- list(
                                              "second") ||
           identical(t[[2L]]$id, "date") && unit %in% c("hour", "minute", "second")) {
         zutable_abort("value", sprintf("date_trunc() has no unit \"%s\" for %s",
-                                       unit, format(t[[2L]])))
+                                       unit, format(t[[2L]])), call = zt_eval_call())
       }
       zt_trunc_unit(unit, v[[2L]], t[[2L]])
     },

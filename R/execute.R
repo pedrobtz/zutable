@@ -13,6 +13,10 @@ zt_recycle_n <- function(v, n) {
 zt_take_rows <- function(cols, idx) lapply(cols, zt_take, idx = idx)
 
 zt_execute <- function(x, plan, call) {
+  zt_with_eval_call(call, zt_execute_plan(x, plan, call))
+}
+
+zt_execute_plan <- function(x, plan, call) {
   cols <- unclass(x)
   attributes(cols) <- list(names = names(x))
   n <- .row_names_info(x, 2L)

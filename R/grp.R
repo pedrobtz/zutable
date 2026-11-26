@@ -29,11 +29,11 @@ grp <- function(..., sort = FALSE) {
   if (!is.logical(sort) || length(sort) != 1L || is.na(sort)) {
     zutable_abort("type", "`sort` is TRUE or FALSE", call = call)
   }
-  zt_grp_build(keys, sort)
+  zt_grp_build(keys, sort, call)
 }
 
 # grp() of checked key columns (zt_key_columns()).
-zt_grp_build <- function(keys, sort) {
+zt_grp_build <- function(keys, sort, call = NULL) {
   n <- if (length(keys)) length(keys[[1L]]) else 0L
   if (isTRUE(sort)) {
     g <- zt_grp_sort_route(keys, n)
@@ -44,7 +44,7 @@ zt_grp_build <- function(keys, sort) {
               order = g$order,
               keys = lapply(keys, zt_take, idx = g$first))
   if (isTRUE(sort)) {
-    if (g$n > 1L) out <- zt_grp_sorted(out, n)
+    if (g$n > 1L) out <- zt_grp_sorted(out, n, call)
     out <- zt_mark_first_key(out)
   }
   out
@@ -145,8 +145,8 @@ zt_check_text <- function(x, what, call) {
 # kernel's sort over the distinct keys, for the keys and sizes the sort
 # route (zt_grp_sort_route) leaves to hashing. NA and NaN are separate
 # groups that tie in the order, so they keep first appearance.
-zt_grp_sorted <- function(g, n) {
-  k <- zt_sort_keys(g$keys, FALSE, sys.call())
+zt_grp_sorted <- function(g, n, call = NULL) {
+  k <- zt_sort_keys(g$keys, FALSE, call)
   if (k$strings) k <- zt_string_codes(k)
   o <- .Call(zt_key_order, k$keys, k$i64, k$dec, 1L)
   newid <- integer(g$n)

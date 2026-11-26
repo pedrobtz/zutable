@@ -241,14 +241,15 @@ zt_registry$extensions <- list()
 #' register_extension_type("example.celsius", structure(double(), class = "celsius"), float64)
 #' schema(t = extension("example.celsius"))
 register_extension_type <- function(name, ptype, storage) {
+  call <- sys.call()
   if (!is.character(name) || length(name) != 1L || is.na(name) ||
       !nzchar(name)) {
-    zutable_abort("type", "the extension name must be one non-empty string")
+    zutable_abort("type", "the extension name must be one non-empty string", call = call)
   }
   if (!is.object(ptype) || length(ptype) != 0L) {
-    zutable_abort("type", "the prototype must be a zero-length classed vector")
+    zutable_abort("type", "the prototype must be a zero-length classed vector", call = call)
   }
-  storage <- parse_type(substitute(storage), parent.frame())
+  storage <- parse_type(substitute(storage), parent.frame(), call)
   zt_registry$extensions[[name]] <- list(
     name = name, ptype = ptype, class = class(ptype)[[1L]], storage = storage
   )
@@ -259,7 +260,7 @@ zt_extension_type <- function(name, bad = NULL) {
   entry <- zt_registry$extensions[[name]]
   if (is.null(entry)) {
     msg <- sprintf("extension type \"%s\" is not registered", name)
-    if (is.null(bad)) zutable_abort("type", msg) else bad(msg)
+    if (is.null(bad)) zutable_abort("type", msg, call = NULL) else bad(msg)
   }
   zt_type("extension", name = name, storage = entry$storage)
 }

@@ -524,15 +524,15 @@ zt_eval_r <- function(node, cols, n) {
   if (!is.null(p)) {
     zutable_abort("type", sprintf("r(%s) was declared %s: %s",
                                   paste(deparse(node$expr), collapse = " "),
-                                  format(node$type), p))
+                                  format(node$type), p), call = zt_eval_call())
   }
   zt_check_time_nan(out, node$type, sprintf("r(%s)", paste(deparse(node$expr), collapse = " ")),
-                    NULL)
+                    zt_eval_call())
   # Strings leave r() in UTF-8, as a table's do, so a key's text, not its
   # encoding, decides equality (#50).
   if (is.character(out) && !is.object(out)) {
     out <- enc2utf8(zt_check_text(out, sprintf("r(%s)", paste(deparse(node$expr), collapse = " ")),
-                                  NULL))
+                                  zt_eval_call()))
   }
   out
 }

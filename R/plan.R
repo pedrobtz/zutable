@@ -402,12 +402,12 @@ explain.default <- function(x, ...) {
   if (isNamespaceLoaded("dplyr")) {
     return(getExportedValue("dplyr", "explain")(x, ...))
   }
-  zutable_abort("type", "explain() takes a zutable")
+  zutable_abort("type", "explain() takes a zutable", call = sys.call())
 }
 
 #' @export
 explain.zutable <- function(x, ...) {
-  zt_validate(x)
+  zt_validate(x, sys.call())
   cat(zt_explain_lines(x), sep = "\n")
   invisible(x)
 }

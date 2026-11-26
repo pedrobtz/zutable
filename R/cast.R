@@ -43,7 +43,7 @@ zt_cast_fail <- function(x, ok, from, to) {
       "cast() from %s to %s: value %d, %s, cannot be represented",
       format(from), format(to), bad[[1L]],
       encodeString(as.character(zt_take(x, bad[[1L]])), quote = '"')
-    ))
+    ), call = zt_eval_call())
   }
 }
 
