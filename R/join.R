@@ -10,8 +10,11 @@
 #' `x`'s names; for a row only `y` has, they take `y`'s values.
 #'
 #' @param x,y Zutables.
-#' @param on The keys: a column, `.(a, b)`, or `.(id == customer_id)`
-#'   where the names differ. Each pair of keys must have the same type.
+#' @param on The keys: a column, `.(a, b)` or `c(a, b)`, or
+#'   `.(id == customer_id)` where the names differ. A quoted string, or
+#'   `c()` of them, names columns literally; names held in a variable
+#'   `keys` are passed as `..keys`, evaluated in the caller's frame. Each
+#'   pair of keys must have the same type.
 #' @param how `"inner"`, `"left"`, `"right"`, `"full"`, `"semi"` (the rows
 #'   of `x` with a match) or `"anti"` (those without).
 #' @param multiple When a row of `x` matches several rows of `y` (for a
@@ -51,7 +54,7 @@ join <- function(x, y, on, how = "inner", multiple = "all", na_equal = TRUE,
                            anyNA(suffix) || identical(suffix[[1L]], suffix[[2L]]))) {
     zutable_abort("syntax", "`suffix` is two different strings", call = call)
   }
-  keys <- zt_parse_on(substitute(on), x, y, call)
+  keys <- zt_parse_on(substitute(on), x, y, call, parent.frame())
   pairs <- if (zt_kernel_executor(call)) {
     zt_join_pairs_kernel(x, y, keys, how, multiple, na_equal, call)
   } else {
@@ -69,12 +72,34 @@ zt_choice <- function(v, choices, what, call) {
   v
 }
 
-# on = id, .(a, b), .(id == customer_id), or c("a", "b"): pairs of names.
-zt_parse_on <- function(e, x, y, call) {
+# on = id, .(a, b), c(a, b), .(id == customer_id), "a", c("a", "b") or
+# ..keys (D61): pairs of names. Bare names are columns, a quoted string a
+# column's name, and `..keys` the names `keys` holds in the caller's frame
+# `env`.
+zt_parse_on <- function(e, x, y, call, env) {
   bad <- function(msg) zutable_abort("syntax", msg, call = call)
-  if (is.character(e) || (is.call(e) && identical(e[[1L]], as.name("c")))) {
-    v <- eval(e)
-    e <- as.call(c(as.name("."), lapply(v, as.name)))
+  names_of <- function(v, what) {
+    if (!is.character(v) || !length(v) || anyNA(v) || any(!nzchar(v))) {
+      bad(sprintf("%s holds the names of key columns, a character vector", what))
+    }
+    as.call(c(as.name("."), lapply(v, as.name)))
+  }
+  if (is.symbol(e) && grepl("^\\.\\..", as.character(e))) {
+    var <- substring(as.character(e), 3L)
+    v <- tryCatch(get(var, envir = env), error = function(err) {
+      bad(sprintf("`on = %s` names a variable `%s`: %s", as.character(e), var,
+                  conditionMessage(err)))
+    })
+    e <- names_of(v, sprintf("`%s`", var))
+  } else if (is.character(e)) {
+    e <- names_of(e, "`on`")
+  } else if (is.call(e) && identical(e[[1L]], as.name("c"))) {
+    items <- as.list(e)[-1L]
+    ok <- vapply(items, function(it) is.symbol(it) || (is.character(it) && length(it) == 1L), NA)
+    if (!length(items) || !all(ok)) {
+      bad("`on = c(...)` takes column names, bare or quoted")
+    }
+    e <- names_of(vapply(items, as.character, ""), "`on`")
   }
   items <- if (is.call(e) && identical(e[[1L]], as.name("."))) as.list(e)[-1L] else list(e)
   if (!length(items)) bad("`on` names at least one key")

@@ -9,8 +9,11 @@ join(x, y, on, how = "inner", multiple = "all", na_equal = TRUE, suffix = NULL)
 \arguments{
 \item{x, y}{Zutables.}
 
-\item{on}{The keys: a column, \code{.(a, b)}, or \code{.(id == customer_id)}
-where the names differ. Each pair of keys must have the same type.}
+\item{on}{The keys: a column, \code{.(a, b)} or \code{c(a, b)}, or
+\code{.(id == customer_id)} where the names differ. A quoted string, or
+\code{c()} of them, names columns literally; names held in a variable
+\code{keys} are passed as \code{..keys}, evaluated in the caller's frame. Each
+pair of keys must have the same type.}
 
 \item{how}{\code{"inner"}, \code{"left"}, \code{"right"}, \code{"full"}, \code{"semi"} (the rows
 of \code{x} with a match) or \code{"anti"} (those without).}

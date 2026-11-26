@@ -192,3 +192,28 @@ test_that("a join's nullability comes from the schemas, not the data (#65)", {
   expect_true(schema(join(a, bn, on = k, how = "full"))$fields$k$nullable)
   expect_true(schema(join(a, bn, on = k, how = "right"))$fields$k$nullable)
 })
+
+test_that("join(on =) is spelled as the bracket is (#83)", {
+  x <- zutable(k = c(1L, 2L, 3L), j = c("a", "b", "a"), xv = 1:3)
+  y <- zutable(k = c(1L, 3L), j = c("a", "a"), yv = c(10, 30))
+  want_k <- join(x, y, on = .(k == k), suffix = c(".x", ".y"))
+  want_kj <- join(x, y, on = .(k == k, j == j))
+  # A variable named like a column: bare names are columns, never it.
+  k <- "j"
+  j <- "nothing"
+  expect_identical(join(x, y, on = k, suffix = c(".x", ".y")), want_k)
+  expect_identical(join(x, y, on = c(k, j)), want_kj)
+  expect_identical(join(x, y, on = "k", suffix = c(".x", ".y")), want_k)
+  expect_identical(join(x, y, on = c("k", "j")), want_kj)
+  keys <- c("k", "j")
+  expect_identical(join(x, y, on = ..keys), want_kj)
+  f <- function(tab, by) join(tab, y, on = ..by)
+  expect_identical(f(x, c("k", "j")), want_kj)
+  one <- "k"
+  expect_identical(join(x, y, on = ..one, suffix = c(".x", ".y")), want_k)
+  expect_error(join(x, y, on = ..no_such_variable), class = "zutable_syntax_error")
+  bad <- 3
+  expect_error(join(x, y, on = ..bad), class = "zutable_syntax_error")
+  expect_error(join(x, y, on = c(k + 1)), class = "zutable_syntax_error")
+  expect_error(join(x, y, on = "nope"), class = "zutable_schema_error")
+})
