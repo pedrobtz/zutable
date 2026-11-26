@@ -1102,6 +1102,87 @@ overturn it.
   two spellings design-kernel §2 and §4 gave. Its version is the
   package's, which `tools/check-headers` checks. 2026-11-17, Stage 9.
 
+Decisions D57 to D64 were taken in Stage 20's review (#22), on the
+maintainer's agreement to the recommendations of 2026-11-26.
+
+- **D57 (M).** How D53's flag works (#61). An update arms the flag only
+  when its bracket is a top-level call (`sys.nframe() == 1`). The flag
+  holds a token for the update step the plan record gains, not the table,
+  and a table's own token decides whether its print is skipped. A task
+  callback registered in `.onLoad` clears the flag once the top-level
+  expression ends, after autoprint. So `print(x[, a := 1])`, an update
+  inside a function or `lapply()`, and a later `x` all print, and the
+  flag keeps no table alive. 2026-11-26, Stage 20.
+- **D58 (M).** How strings enter (#64), for column values, literals, enum
+  levels and names alike:
+  - ASCII, UTF-8 or latin1 strings are converted to UTF-8.
+  - An unknown-encoded non-ASCII string is converted from the native
+    encoding in a UTF-8 or latin1 locale.
+  - In a C or POSIX locale it is a `zutable_value_error` naming the column
+    and pointing to `Encoding<-` or `iconv()`, since its bytes have no
+    meaning there.
+  - A string marked `"bytes"` is refused for `string`, which is text; it
+    belongs in `binary`.
+
+  2026-11-26, Stage 20.
+- **D59 (M).** What carries metadata (#66), as in Arrow, where metadata
+  belongs to the field:
+  - A bare column reference keeps its field's metadata, renamed or not:
+    `select`, `by` keys, and the columns a join carries.
+  - A computed expression gets none, `cast()` and aggregates included,
+    since the package cannot know what still holds (§4.2: carried, never
+    interpreted).
+  - A plan over one source keeps the table's metadata, `select` and `by`
+    included.
+  - A join keeps `x`'s table metadata, and `rbind()` keeps its first
+    table's.
+
+  2026-11-26, Stage 20.
+- **D60 (M).** D43's route returns an honest data frame (#79).
+  - What leaves the class through D43, from base's `is.na<-.default`,
+    `within()`, `modifyList()`, `replace()` or `droplevels()`, is a plain
+    data frame. It carries no schema, plan or `frozen` attribute.
+  - `is.na(x) <- i` is a user's replacement on the table. Its method
+    `is.na<-.zutable` goes through the typed `[<-`, so `freeze()`,
+    `not_null` and the column types hold.
+  - `freeze()` protects the object, which D43's route never writes. It
+    does not protect the name it is bound to.
+
+  2026-11-26, Stage 20.
+- **D61 (M).** `join(on =)` is spelled as the bracket is (#83):
+  - bare names, and `c()` of bare names, are columns;
+  - a quoted string is a column's name, literally;
+  - names held in a variable are passed as `..keys`, evaluated in the
+    caller's frame.
+
+  2026-11-26, Stage 20.
+- **D62 (M).** What conditions show (#82, #84).
+  - A condition names the exported function's call, never a helper's. The
+    constructor takes `call`, and entry points pass theirs.
+  - An error caught while evaluating a user's argument (`limit`, `by`,
+    `.col()`) keeps its message inside the package's own.
+
+  2026-11-26, Stage 20.
+- **D63 (M).** Two answers for time (#58, #63).
+  - **Local times that do not exist or repeat.** Casting a date to a zoned
+    timestamp, and `date_trunc()` in a zone, work on the local wall clock,
+    as DuckDB and PostgreSQL do.
+    - A wall time that does not exist (a spring-forward gap) is the first
+      instant after the gap.
+    - A wall time that occurs twice (a fall-back hour) keeps the input's
+      UTC offset when the truncated time exists at that offset, and takes
+      the earlier one otherwise.
+    - No cast or truncation gives a silent `NA`.
+  - **`NaN` behind a date or timestamp.** It is not a value (D47 is
+    `float64`'s rule), so it is refused on entry as a
+    `zutable_value_error`.
+
+  2026-11-26, Stage 20.
+- **D64 (M).** The `Depends: R (>= 4.1)` floor of R2 is checked by an
+  Ubuntu R 4.1 leg in the full profile of R CMD check (#74). If that leg
+  shows a real cost, the floor rises to the oldest R the leg passes on,
+  with a dated reason, not to R 4.5. 2026-11-26, Stage 20.
+
 ## 16. Order of work
 
 The order of work, pieces 1 to 8, became the stages of
