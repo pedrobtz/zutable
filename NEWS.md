@@ -30,6 +30,7 @@
 * `cast(string, timestamp)`, `%in%` and a string compared with a timestamp read each string by its own ISO 8601 form, and a string in none of them is a `zutable_value_error` from `cast()` (#54).
 * `date_trunc()` in a zone and `cast()` of a date to a zoned timestamp work on the local wall clock by D63, so a fall-back hour or a midnight that does not exist gives the right instant, never `NA`; a date outside years 0 to 9999 casts to ISO 8601 expanded text such as `"-000001-01-01"`, and `explain()` and the SQL literals write it too (#58).
 * `cast()` to a coarser timestamp unit is a `zutable_value_error` at the first value with a finer part, so its result always conforms to its schema (#59).
+* A `POSIXct` constant in another zone, such as `Sys.time()`, compares with a zoned timestamp column as the same instant, in comparisons and `%in%` (#89).
 
 * `zutable_info()` reports the package version.
 * Every condition the package raises inherits from `zutable_error`.

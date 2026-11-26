@@ -244,7 +244,8 @@ zt_match_sig <- function(sig, nodes) {
     target <- if (ids[[i]] == "T") t_type else zt_context_type(ids[[i]], nodes)
     if (zt_is_lit(node)) {
       if (is.null(target)) return(NULL)
-      v <- zt_lit_adapt(node$value, target)
+      v <- zt_lit_adapt(node$value, target,
+                        instant = identical(ids[[i]], "timestamp"))
       if (is.null(v)) return(NULL)
       out[[i]] <- zt_lit_node(v, target)
       types[[i]] <- target
@@ -264,8 +265,13 @@ zt_match_sig <- function(sig, nodes) {
 }
 
 # A literal value as a vector of `type`, or NULL when it is not exactly
-# representable there.
-zt_lit_adapt <- function(value, type) {
+# representable there. Where timestamps compare as instants (`instant`),
+# a POSIXct in another zone is the same instant in the column's (#89).
+zt_lit_adapt <- function(value, type, instant = FALSE) {
+  if (instant && identical(type$id, "timestamp") && !is.null(type$tz) &&
+      !identical(type$unit, "ns") && inherits(value, "POSIXct")) {
+    attr(value, "tzone") <- type$tz
+  }
   if (is.logical(value) && !is.object(value) && all(is.na(value))) {
     na <- tryCatch(na_of(type), error = function(e) NULL)
     if (is.null(na)) return(NULL)
@@ -450,7 +456,7 @@ zt_special_forms <- list(
       zutable_abort("type", "%in% takes a column of a comparable type",
                     call = ctx$call)
     }
-    v <- zt_lit_adapt(set, x$type)
+    v <- zt_lit_adapt(set, x$type, instant = TRUE)
     if (is.null(v)) {
       zutable_abort("type", sprintf(
         "the set of %%in%% is not %s", format(x$type)

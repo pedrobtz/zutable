@@ -242,3 +242,25 @@ test_that("cast() between timestamp units refuses a finer part (#59)", {
     }
   }
 })
+
+test_that("a POSIXct constant in another zone compares as an instant (#89)", {
+  t <- as.POSIXct(c("2020-06-01 12:00:00", "2020-06-01 13:00:00"), tz = "Asia/Tokyo")
+  z <- zutable(t = t)
+  at <- as.POSIXct("2020-06-01 03:00:00", tz = "UTC")
+  local <- .POSIXct(as.double(at))
+  # Base R compares the stored instants: the oracle.
+  for (ex in c("kernel", "reference")) {
+    withr::local_options(zutable.executor = ex)
+    expect_identical(z[t == at]$t, t[as.double(t) == as.double(at)])
+    expect_identical(z[t > at]$t, t[as.double(t) > as.double(at)])
+    expect_identical(z[t <= local]$t, t[as.double(t) <= as.double(local)])
+    expect_identical(nrow(z[t < Sys.time()]), 2L)
+    expect_identical(z[t %in% c(at, at + 3600)]$t, t)
+  }
+  # A zoneless column is wall-clock time, not an instant: still refused.
+  s <- new_schema(list(new_field("w", zt_type("timestamp", unit = "us", tz = NULL))))
+  w <- as_zutable(data.frame(w = .POSIXct(0, "UTC")), s)
+  expect_error(w[w == t[[1L]]], class = "zutable_type_error")
+  # Elsewhere a zone is still part of the type.
+  expect_error(z[select = .(x = coalesce(t, at))], class = "zutable_type_error")
+})
