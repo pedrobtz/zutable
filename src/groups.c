@@ -6,6 +6,10 @@
 #include <Rinternals.h>
 #include <zutable.h>
 
+// Rf_error here is unreachable from R (#68): zt_key_columns() checks the
+// kinds, one length and the row limit before grp() and the executor call;
+// the checks stand for an internal caller (test-native-guards.R).
+
 // A character column's pointers, translated to UTF-8 unless every element
 // is ASCII or marked UTF-8 (design-kernel 6.1), so equal text is an equal
 // pointer. The test is the mark, not Rf_charIsUTF8(), which also passes an
@@ -46,6 +50,15 @@ SEXP zt_str_bytes_at(SEXP x) {
     if (s != NA_STRING && Rf_getCharCE(s) == CE_BYTES) return Rf_ScalarReal((double) i + 1);
   }
   return Rf_ScalarReal(0);
+}
+
+// Every key column holds n rows (#85), as zt_key_order() checks: the R
+// layer checks the lengths first (zt_key_columns()), so this is for an
+// internal caller. Also used by join.c.
+void zt_check_key_length(SEXP keys, R_xlen_t n, const char *who) {
+  for (R_xlen_t c = 0; c < XLENGTH(keys); c++) {
+    if (XLENGTH(VECTOR_ELT(keys, c)) != n) Rf_error("%s: key columns differ in length", who);
+  }
 }
 
 // Fill a zt_key from a list of key vectors, already checked in R: integer,
@@ -89,6 +102,7 @@ SEXP zt_grp(SEXP keys, SEXP i64, SEXP nrows, SEXP force_bits) {
   double nd = REAL(nrows)[0];
   if (nd > ZT_MAX_ROWS) Rf_error("zt_grp: more than 2^31 - 1 rows");
   zt_row n = (zt_row) nd;
+  zt_check_key_length(keys, n, "zt_grp");
   SEXP keep = PROTECT(Rf_allocVector(VECSXP, ncol > 0 ? ncol : 1));
   zt_column *cols = (zt_column *) R_alloc(ncol > 0 ? (size_t) ncol : 1, sizeof(zt_column));
   zt_fill_key(keys, i64, cols, keep);
@@ -194,6 +208,7 @@ SEXP zt_grp_sort(SEXP keys, SEXP i64, SEXP nrows, SEXP force) {
   double nd = REAL(nrows)[0];
   if (nd > ZT_MAX_ROWS) Rf_error("zt_grp_sort: more than 2^31 - 1 rows");
   zt_row n = (zt_row) nd;
+  zt_check_key_length(keys, n, "zt_grp_sort");
   if (ncol == 0 || n < 2) return R_NilValue;
   SEXP keep = PROTECT(Rf_allocVector(VECSXP, ncol));
   zt_column *cols = (zt_column *) R_alloc((size_t) ncol, sizeof(zt_column));

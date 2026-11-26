@@ -7,12 +7,19 @@
 #include <Rinternals.h>
 #include <zutable.h>
 
+// Rf_error here is unreachable from R (#68): grp_join(), grp_match() and
+// join() pair the keys (zt_join_pair_keys()), one width, of one length
+// per side within the row limit (zt_key_columns(), a table's own rows),
+// and the masks are logical, one per row; the checks stand for an
+// internal caller (test-native-guards.R).
 void zt_fill_key(SEXP keys, SEXP i64, zt_column *cols, SEXP keep);
+void zt_check_key_length(SEXP keys, R_xlen_t n, const char *who);
 
 static zt_row zt_nrow(SEXP keys) {
   if (XLENGTH(keys) == 0) return 0;
   R_xlen_t n = XLENGTH(VECTOR_ELT(keys, 0));
   if (n > ZT_MAX_ROWS) Rf_error("zt_join: more than 2^31 - 1 rows");
+  zt_check_key_length(keys, n, "zt_join");
   return (zt_row) n;
 }
 
@@ -21,6 +28,7 @@ static zt_row zt_nrow(SEXP keys) {
 // class goes, never part of one.
 static void zt_mask(SEXP mask, zt_row n, zt_row *cls) {
   if (Rf_isNull(mask)) return;
+  if (TYPEOF(mask) != LGLSXP || XLENGTH(mask) != n) Rf_error("zt_join: a mask's length is not its side's");
   const int *m = LOGICAL_RO(mask);
   for (zt_row i = 0; i < n; i++) if (m[i] == TRUE) cls[i] = -1;
 }
@@ -74,6 +82,9 @@ SEXP zt_join(SEXP xkeys, SEXP ykeys, SEXP i64, SEXP type, SEXP multiple,
     ng = zt_join_build(&ky, hy, ny, &t, ycls, first);
     zt_join_probe(&t, &ky, ycls, &kx, hx, nx, xcls);
   }
+  // Unreachable: the table has zt_table_capacity(nb) slots, so it takes
+  // every row (zt_join_build()'s contract); kept as the header's check.
+  if (ng < 0) Rf_error("zt_join: the build table is too small");
   zt_mask(xmask, nx, xcls);
   zt_mask(ymask, ny, ycls);
   zt_row *size = (zt_row *) R_alloc((size_t) ng + 1, sizeof(zt_row));

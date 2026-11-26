@@ -70,7 +70,7 @@ grp_reduce <- function(x, by, fn = "sum", na.rm = TRUE, broadcast = "none") {
   }
   fn <- rep_len(fn, length(xs))
   keyed <- !zt_is_grp(by)
-  g <- if (keyed) zt_grp_build(zt_key_columns(list(by), call), FALSE) else by
+  g <- if (keyed) zt_grp_build(zt_key_columns(list(by), call), FALSE) else zt_check_grp(by, call)
   n <- length(g$id)
   prep <- vector("list", length(xs))
   for (k in seq_along(xs)) {
@@ -110,6 +110,34 @@ zt_reduce_fns <- c("sum", "prod", "mean", "min", "max", "count", "nobs", "first"
 zt_is_grp <- function(by) {
   is.list(by) && !is.data.frame(by) &&
     identical(names(by), c("id", "n", "sizes", "starts", "order", "keys"))
+}
+
+# A grp() object, as the kernel reads it (#68): id integer, one per row,
+# in 1 .. n; n one integer >= 0, never coerced; sizes and starts integer,
+# n of them; order integer, one per row; keys a list. A hand-edited one is
+# a classed error here, never the kernel's.
+zt_check_grp <- function(g, call) {
+  n <- g$n
+  if (!is.integer(n) || length(n) != 1L || is.na(n) || n < 0L) {
+    zutable_abort("type", "`by` is a grp() result, and its `n` is one integer, at least 0",
+                  call = call)
+  }
+  rows <- length(g$id)
+  ok <- is.integer(g$id) && is.integer(g$sizes) && length(g$sizes) == n &&
+    is.integer(g$starts) && length(g$starts) == n &&
+    is.integer(g$order) && length(g$order) == rows && is.list(g$keys)
+  if (!ok) {
+    zutable_abort("type", sprintf(
+      "`by` is a grp() result, whose `id` and `order` are integer, one per row, and `sizes` and `starts` integer, %d of them",
+      n
+    ), call = call)
+  }
+  if (rows && (anyNA(g$id) || min(g$id) < 1L || max(g$id) > n)) {
+    zutable_abort("value", sprintf(
+      "`by` is a grp() result, whose `id` holds group numbers 1 .. %d", n
+    ), call = call)
+  }
+  g
 }
 
 # What the kernel reads for column v under fn (x: integer, logical, double

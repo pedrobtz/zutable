@@ -49,7 +49,8 @@ key_order <- function(..., decreasing = FALSE, na.last = TRUE,
       length(decreasing) == 1L &&
       !is.na(decreasing) &&
       is.logical(na.last) &&
-      length(na.last) == 1L
+      length(na.last) == 1L &&
+      identical(collate, FALSE)
   ) {
     x <- ..1
     if (
@@ -192,7 +193,9 @@ zt_na_last <- function(na.last, call, keep) {
 key_sort <- function(x, decreasing = FALSE, na.last = TRUE, collate = FALSE) {
   call <- sys.call()
   cols <- zt_key_columns(list(x), call)
-  if (length(cols) != 1L) {
+  # One vector: a data frame or a list of columns is not, even of one
+  # column, which x[o] would subset as a list.
+  if (length(cols) != 1L || !identical(cols[[1L]], x)) {
     zutable_abort("type", "`x` is one key vector", call = call)
   }
   if (!is.logical(decreasing) || length(decreasing) != 1L || is.na(decreasing)) {

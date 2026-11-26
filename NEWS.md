@@ -8,6 +8,9 @@
 * A string marked `"bytes"` in a key is a `zutable_value_error` from `grp()`, `grp_match()`, `grp_join()`, `grp_reduce()`, `key_order()`, `key_sort()` and `key_rank()` (#50, #68).
 * `key_sort()` and `grp(sort = TRUE)` mark values sorted only when they hold no `NA`, so `sort()` and `order(na.last = NA)` of them drop the `NA`s as base R does (#56).
 * `key_sort()` and `grp(sort = TRUE)` results save as plain vectors, so `saveRDS()` of them reads back where zutable is not installed (#80), and a stream with the old sorted class is read as its plain values, its marks never trusted, or is a `zutable_value_error` when corrupt (#52).
+* `grp_reduce()` checks a `grp()` result's shape (`id`, `n`, `sizes`, `starts`, `order`, `keys`) and raises a `zutable_type_error` or `zutable_value_error` for a hand-edited one, never coercing `n` (#68).
+* `key_order(collate =)` is checked for one plain vector too, and `key_sort()` of a data frame or list of columns is a `zutable_type_error` (#68).
+* The native grouping and join routines check every key column's length, not only the first's (#85).
 
 * `zutable_info()` reports the package version.
 * Every condition the package raises inherits from `zutable_error`.

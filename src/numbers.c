@@ -8,6 +8,10 @@
 #include <string.h>
 #include <zufast/number.h>
 
+// Rf_error here is unreachable from R (#68): R/cast.R passes a character
+// vector to zt_parse_f64 and a double one to zt_format_f64; the checks
+// stand for an internal caller (test-native-guards.R).
+
 // Parse each string as a double, the whole string or nothing: an optional
 // sign, digits, a fraction and an exponent, or inf, infinity or nan. A
 // string that is not one, or whose value overflows or underflows a double,

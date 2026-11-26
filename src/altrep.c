@@ -26,6 +26,9 @@
 #define ZT_HAS_ATTRIB(x) (ATTRIB(x) != R_NilValue)
 #endif
 
+// Rf_error here is unreachable from R (#68): zt_mark_sorted() wraps only
+// integer, double, logical and character payloads stripped of attributes,
+// with a code it chose; zt_sorted_unserialize() raises a classed error.
 static R_altrep_class_t zt_sorted_int, zt_sorted_real, zt_sorted_lgl, zt_sorted_str;
 
 static int zt_is_sorted_class(SEXP x) {

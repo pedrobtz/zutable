@@ -296,3 +296,18 @@ test_that("refusals", {
   expect_identical(key_order(), integer())
   expect_identical(key_rank(), integer())
 })
+
+test_that("collate is checked on the single-vector fast path too (#68)", {
+  expect_error(key_order(1:3, collate = "junk"), class = "zutable_type_error")
+  expect_error(key_order(c(3, 1), collate = NA), class = "zutable_type_error")
+  expect_error(key_order(c("a", "b"), collate = "junk"), class = "zutable_type_error")
+  expect_identical(key_order(c(3L, 1L, 2L), collate = FALSE), c(2L, 3L, 1L))
+})
+
+test_that("key_sort() of a data frame or a list of columns is a zutable_type_error (#68)", {
+  expect_error(key_sort(data.frame(a = 2:1)), class = "zutable_type_error")
+  expect_error(key_sort(list(2:1)), class = "zutable_type_error")
+  expect_error(key_sort(data.frame(a = 2:1, b = 1:2)), class = "zutable_type_error")
+  # A list of raw vectors is one key.
+  expect_identical(key_sort(list(as.raw(2), as.raw(1))), list(as.raw(1), as.raw(2)))
+})
