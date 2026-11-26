@@ -125,3 +125,27 @@ test_that("zt_reduce refuses what grp_reduce() never sends it (#68)", {
   expect_error(call(c(1L, 2L), 2L, list("a")), "zt_reduce")
   expect_error(call(c(1L, 2L), 2L, list(1)), "zt_reduce")
 })
+
+test_that("the kernel's key routines refuse what the R layer never sends (#71)", {
+  # zt_key_columns() checks kinds, lengths and the row limit before these
+  # routines, so the tests call them directly. A compact sequence of 2^31
+  # has its length without 16 GB behind it, and each check runs before
+  # any element is read.
+  big <- seq_len(2^31)
+  expect_error(.Call(zutable:::zt_grp, list(), logical(), 2^31, NA_integer_), "2\\^31 - 1")
+  expect_error(.Call(zutable:::zt_grp_sort, list(), logical(), 2^31, TRUE), "2\\^31 - 1")
+  expect_error(.Call(zutable:::zt_key_order, list(big), FALSE, FALSE, 1L), "2\\^31 - 1")
+  expect_error(.Call(zutable:::zt_key_rank, list(big), FALSE, FALSE, 1L, 1L), "2\\^31 - 1")
+  expect_error(.Call(zutable:::zt_strings_rank, big), "2\\^31 - 1")
+  # Columns of unequal length, and a kind the kernel has no column for.
+  expect_error(.Call(zutable:::zt_key_order, list(1:3, 1:2), c(FALSE, FALSE),
+                     c(FALSE, FALSE), 1L), "differ in length")
+  expect_error(.Call(zutable:::zt_key_order, list(c("a", "b")), FALSE, FALSE, 1L),
+               "unsupported key column")
+  expect_error(.Call(zutable:::zt_key_rank, list(list(1, 2)), FALSE, FALSE, 1L, 1L),
+               "unsupported key column")
+  expect_error(.Call(zutable:::zt_grp, list(c(1i, 2i)), FALSE, 2, NA_integer_),
+               "unsupported key column")
+  expect_error(.Call(zutable:::zt_grp_sort, list(c(1i, 2i), c(1i, 2i)), c(FALSE, FALSE), 2, TRUE),
+               "unsupported key column")
+})
