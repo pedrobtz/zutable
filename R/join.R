@@ -251,20 +251,23 @@ zt_join_build <- function(x, y, keys, pairs, how, suffix, call) {
   }
   xi <- pairs$xi
   yi <- pairs$yi
-  x_missing <- any(is.na(xi))
-  y_missing <- any(is.na(yi))
+  # Nullability is static (§4.3, #65): the side the join does not preserve
+  # becomes nullable whatever rows this data leaves unmatched.
+  y_alone <- how %in% c("right", "full")
+  x_alone <- how %in% c("left", "full")
   cols <- list()
   fields <- list()
   for (k in seq_along(names(sx))) {
     f <- sx$fields[[k]]
     v <- zt_take(x[[f$name]], xi)
-    nullable <- f$nullable || (x_missing && !f$name %in% keys$x)
+    nullable <- f$nullable || (y_alone && !f$name %in% keys$x)
     ki <- match(f$name, keys$x)
-    if (!is.na(ki) && x_missing) {
+    if (!is.na(ki) && y_alone) {
       # A row only y has takes y's key.
-      from_y <- zt_take(y[[keys$y[[ki]]]], yi)
       fill <- is.na(xi)
-      v <- zt_assign(v, fill, zt_take(from_y, which(fill)))
+      if (any(fill)) {
+        v <- zt_assign(v, fill, zt_take(y[[keys$y[[ki]]]], yi[fill]))
+      }
       nullable <- f$nullable || sy$fields[[keys$y[[ki]]]]$nullable
     }
     cols[[x_names[[k]]]] <- v
@@ -274,7 +277,7 @@ zt_join_build <- function(x, y, keys, pairs, how, suffix, call) {
     f <- sy$fields[[y_rest[[k]]]]
     cols[[y_names[[k]]]] <- zt_take(y[[f$name]], yi)
     fields[[length(fields) + 1L]] <- new_field(y_names[[k]], f$type,
-                                               f$nullable || y_missing)
+                                               f$nullable || x_alone)
   }
   new_zutable(cols, new_schema(fields), length(xi))
 }

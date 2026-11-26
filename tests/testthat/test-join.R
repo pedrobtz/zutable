@@ -155,3 +155,40 @@ test_that("int64 keys match by value, NA as NA, in both executors (#60)", {
     }
   }
 })
+
+test_that("a join's nullability comes from the schemas, not the data (#65)", {
+  sa <- schema(k = not_null(int32), a = not_null(string))
+  sb <- schema(k = not_null(int32), v = not_null(float64))
+  a <- as_zutable(data.frame(k = 1:2, a = c("p", "q")), sa)
+  b_all <- as_zutable(data.frame(k = 1:2, v = c(1, 2)), sb)
+  b_some <- as_zutable(data.frame(k = c(1L, 3L), v = c(1, 3)), sb)
+  # The rule (design §4.3, D54): the side a join does not preserve becomes
+  # nullable; a key is nullable when either side's key is and y's rows
+  # can appear alone.
+  want <- list(
+    inner = schema(k = not_null(int32), a = not_null(string), v = not_null(float64)),
+    left = schema(k = not_null(int32), a = not_null(string), v = float64),
+    right = schema(k = not_null(int32), a = string, v = not_null(float64)),
+    full = schema(k = not_null(int32), a = string, v = float64),
+    semi = sa, anti = sa
+  )
+  for (ex in c("kernel", "reference")) {
+    withr::local_options(zutable.executor = ex)
+    for (how in names(want)) {
+      for (b in list(b_all, b_some)) {
+        j <- join(a, b, on = k, how = how)
+        expect_identical(schema(j), want[[how]], info = paste(ex, how))
+        expect_identical(zt_explain_lines(j)[[1L]],
+                         sprintf("table  %s", paste(format(want[[how]]), collapse = ", ")),
+                         info = paste(ex, how))
+        expect_no_error(conform(j, schema(j)))
+      }
+    }
+  }
+  # A nullable key on either side makes the key nullable where y's rows
+  # can stand alone.
+  bn <- as_zutable(data.frame(k = c(1L, NA), v = c(1, 3)), schema(k = int32, v = float64))
+  expect_false(schema(join(a, bn, on = k, how = "left"))$fields$k$nullable)
+  expect_true(schema(join(a, bn, on = k, how = "full"))$fields$k$nullable)
+  expect_true(schema(join(a, bn, on = k, how = "right"))$fields$k$nullable)
+})
