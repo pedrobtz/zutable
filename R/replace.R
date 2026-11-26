@@ -156,6 +156,7 @@ zt_fit <- function(value, field, n, call) {
       what, len, n
     ), call = call)
   }
+  value <- zt_entry_column(value, sprintf("column `%s`", what), call)
   fitted <- zt_fit_literal(value, type)
   if (is.null(fitted) || !is.null(vector_problem(fitted, type))) {
     zutable_abort("schema", sprintf(

@@ -112,7 +112,10 @@ zt_from_columns <- function(cols, schema, call, n = NULL) {
     zutable_abort("schema", "column names must be unique and non-empty",
                   call = call)
   }
-  cols <- lapply(cols, zt_entry_column)
+  nms <- zt_enter_strings(nms, "the column names", call)
+  names(cols) <- nms
+  cols <- Map(function(col, nm) zt_entry_column(col, sprintf("column `%s`", nm), call),
+              cols, nms)
   if (is.null(schema)) {
     fields <- lapply(seq_along(cols), function(i) {
       new_field(nms[[i]], infer_type(cols[[i]], nms[[i]], call))
@@ -172,7 +175,7 @@ zt_normalise <- function(x, field, call) {
   type <- field$type
   what <- field$name
   if (is.character(x) && !is.object(x)) {
-    x <- enc2utf8(x)
+    x <- zt_enter_strings(x, sprintf("column `%s`", what), call)
   }
   zt_check_time_nan(x, type, sprintf("column `%s`", what), call)
   if (identical(type$id, "timestamp") && !identical(type$unit, "ns")) {

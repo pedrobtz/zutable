@@ -283,15 +283,58 @@ na_of <- function(type, call = NULL) {
   )
 }
 
-# A column as it enters (#62): a bit64 integer64 vector holds int64 in
-# zu_int64's own layout (§4.1), so it becomes zu_int64, the same bits.
-zt_entry_column <- function(x) {
+# A column as it enters, before it is typed. A bit64 integer64 vector
+# holds int64 in zu_int64's own layout (§4.1), so it becomes zu_int64, the
+# same bits (#62). Strings, a factor's levels and a struct's field names
+# enter as text (D58).
+zt_entry_column <- function(x, what = "value", call = NULL) {
   if (is.data.frame(x)) {
-    for (j in seq_along(x)) x[[j]] <- zt_entry_column(x[[j]])
+    for (j in seq_along(x)) {
+      x[[j]] <- zt_entry_column(x[[j]], sprintf("%s$%s", what, names(x)[[j]]), call)
+    }
+    names(x) <- zt_enter_strings(names(x), sprintf("the field names of %s", what), call)
   } else if (inherits(x, "integer64") && !inherits(x, "zu_int64")) {
     class(x) <- c("zu_int64", "integer64")
+  } else if (is.factor(x)) {
+    lv <- zt_enter_strings(levels(x), sprintf("the levels of %s", what), call)
+    if (anyDuplicated(lv)) {
+      zutable_abort("value", sprintf(
+        "the levels of %s repeat once converted to UTF-8", what
+      ), call = call)
+    }
+    levels(x) <- lv
+  } else if (is.character(x) && !is.object(x)) {
+    x <- zt_enter_strings(x, what, call)
   }
   x
+}
+
+# Strings as they enter (D58): ASCII, UTF-8 and latin1 become UTF-8; an
+# unknown-encoded non-ASCII string is converted from the native encoding,
+# except in a C or POSIX locale, where its bytes have no meaning; a string
+# marked "bytes" is not text. `what` names the column.
+zt_enter_strings <- function(x, what, call) {
+  if (!length(x)) return(x)
+  zt_check_text(x, what, call)
+  if (zt_c_locale()) {
+    unknown <- Encoding(x) == "unknown" & !is.na(x)
+    if (any(unknown)) {
+      high <- grepl("[^\\x01-\\x7f]", x[unknown], perl = TRUE, useBytes = TRUE)
+      if (any(high)) {
+        zutable_abort("value", sprintf(paste(
+          "%s has a non-ASCII string of unknown encoding at row %d, which has no",
+          "meaning in the C locale; mark it with `Encoding<-` or convert it with iconv()"
+        ), what, which(unknown)[high][[1L]]), call = call)
+      }
+    }
+  }
+  enc2utf8(x)
+}
+
+zt_c_locale <- function() {
+  info <- l10n_info()
+  !isTRUE(info[["UTF-8"]]) && !isTRUE(info[["Latin-1"]]) &&
+    Sys.getlocale("LC_CTYPE") %in% c("C", "POSIX")
 }
 
 # INT64_MIN, bit64's NA, as the double whose bits it is.

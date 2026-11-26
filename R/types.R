@@ -106,7 +106,7 @@ parse_type_expr <- function(expr, env, call) {
     switch(fn,
       timestamp = return(parse_timestamp(args, env, bad)),
       decimal = return(parse_decimal(args, env, bad)),
-      enum = return(parse_enum(args, env, bad)),
+      enum = return(parse_enum(args, env, bad, call)),
       list = {
         if (length(args) != 1L || !is.null(names(args))) {
           bad("list() takes one type, the type of its elements")
@@ -191,8 +191,9 @@ parse_decimal <- function(args, env, bad) {
   zt_type("decimal", precision = as.integer(p), scale = as.integer(s))
 }
 
-parse_enum <- function(args, env, bad) {
+parse_enum <- function(args, env, bad, call) {
   levels <- eval_type_arg(args, 1L, "levels", env, bad)
+  if (is.character(levels)) levels <- zt_enter_strings(levels, "enum() levels", call)
   if (!is.character(levels) || anyNA(levels) || anyDuplicated(levels)) {
     bad("enum() levels must be distinct, non-missing strings")
   }
@@ -201,6 +202,7 @@ parse_enum <- function(args, env, bad) {
 
 parse_struct <- function(args, env, call, bad) {
   nms <- names(args)
+  if (!is.null(nms)) nms <- zt_enter_strings(nms, "struct() field names", call)
   if (length(args) == 0L || is.null(nms) || any(!nzchar(nms))) {
     bad("struct() takes named fields")
   }

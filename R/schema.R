@@ -132,7 +132,7 @@ schema <- function(..., .metadata = NULL) {
   exprs <- as.list(substitute(list(...)))[-1L]
   env <- parent.frame()
   call <- sys.call()
-  nms <- names(exprs) %||% rep("", length(exprs))
+  nms <- zt_enter_strings(names(exprs) %||% rep("", length(exprs)), "the field names", call)
 
   if (length(exprs) == 1L && !nzchar(nms[[1L]]) && is.null(.metadata)) {
     return(schema_of(eval(exprs[[1L]], env), call))
