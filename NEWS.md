@@ -7,6 +7,7 @@
 * String keys in `grp()`, `grp_match()`, `grp_join()`, `grp_reduce()`, `by` and `join()` match by text when one is unmarked (native) and its twin UTF-8, and `r()` returns UTF-8 strings (#50).
 * A string marked `"bytes"` in a key is a `zutable_value_error` from `grp()`, `grp_match()`, `grp_join()`, `grp_reduce()`, `key_order()`, `key_sort()` and `key_rank()` (#50, #68).
 * `key_sort()` and `grp(sort = TRUE)` mark values sorted only when they hold no `NA`, so `sort()` and `order(na.last = NA)` of them drop the `NA`s as base R does (#56).
+* `key_sort()` and `grp(sort = TRUE)` results save as plain vectors, so `saveRDS()` of them reads back where zutable is not installed (#80), and a stream with the old sorted class is read as its plain values, its marks never trusted, or is a `zutable_value_error` when corrupt (#52).
 
 * `zutable_info()` reports the package version.
 * Every condition the package raises inherits from `zutable_error`.

@@ -93,7 +93,9 @@ test_that("a shared payload is copied before a write, never changed", {
   expect_identical(z, c(9L, 2L, 3L))
 })
 
-test_that("serialize() round trip keeps the values, attributes and metadata", {
+test_that("sorted values serialize as their plain payload (#80)", {
+  # design-kernel D46, amended: the marks are not written, so a saved
+  # object reads back without zutable and no mark is trusted from a file.
   for (x in list(
     key_sort(c(3L, NA, 1L)),
     key_sort(c(2.5, -1, NaN), decreasing = TRUE, na.last = FALSE),
@@ -103,21 +105,92 @@ test_that("serialize() round trip keeps the values, attributes and metadata", {
     key_sort(c(b = 2, a = 1)),
     key_sort(as.POSIXct("2026-01-01", tz = "UTC") + c(10, 0))
   )) {
-    y <- unserialize(serialize(x, NULL))
+    plain_x <- x[seq_along(x)]
+    names(plain_x) <- names(x)
+    bytes <- serialize(x, NULL, ascii = TRUE)
+    expect_identical(bytes, serialize(plain_x, NULL, ascii = TRUE))
+    expect_false(grepl("zutable|zt_sorted", rawToChar(bytes)))
+    y <- unserialize(bytes)
     expect_identical(y, x)
     expect_identical(attributes(y), attributes(x))
-    expect_identical(sorted_meta(y), sorted_meta(x))
+    expect_null(sorted_meta(y))
   }
-  # Metadata a write dropped stays dropped.
-  x <- key_sort(c(2L, 1L))
-  x[1L] <- 5L
-  expect_identical(sorted_meta(unserialize(serialize(x, NULL))), sorted_meta(x))
   # Through a file, as saveRDS() does.
   f <- withr::local_tempfile(fileext = ".rds")
   s <- key_sort(c(9, 3, 4))
   saveRDS(s, f)
-  expect_identical(readRDS(f), s)
-  expect_identical(sorted_meta(readRDS(f)), c(1L, 1L))
+  expect_identical(readRDS(f), c(3, 4, 9))
+  expect_null(sorted_meta(readRDS(f)))
+})
+
+test_that("a saved key_sort() result reads back where zutable is not installed (#80)", {
+  skip_on_cran()
+  base_libs <- c(.Library, .Library.site)
+  skip_if(any(file.exists(file.path(base_libs, "zutable"))),
+          "zutable is in the base library")
+  f <- withr::local_tempfile(fileext = ".rds")
+  saveRDS(list(i = key_sort(c(3L, 1L, 2L)), s = key_sort(c("b", "a")),
+               f = key_sort(factor(c("y", "x")))), f)
+  empty <- withr::local_tempfile()
+  dir.create(empty)
+  script <- withr::local_tempfile(fileext = ".R")
+  writeLines(c(
+    sprintf(".libPaths(%s)", deparse(empty)),
+    "stopifnot(!requireNamespace('zutable', quietly = TRUE))",
+    sprintf("x <- readRDS(%s)", deparse(f)),
+    "dput(x)"
+  ), script)
+  out <- suppressWarnings(system2(file.path(R.home("bin"), "Rscript"),
+                                  c("--vanilla", shQuote(script)), stdout = TRUE, stderr = TRUE))
+  expect_null(attr(out, "status"))
+  got <- eval(parse(text = out))
+  expect_identical(got, list(i = 1:3, s = c("a", "b"), f = factor(c("x", "y"))))
+})
+
+# An ALTREP record of zutable's sorted class, as an earlier version wrote
+# it (class, package, type, then the state, a list of the payload and the
+# marks), in the ASCII serialization format, built by hand: since #80
+# nothing writes one, and only such a stream reaches the unserialize
+# method.
+sorted_stream <- function(cls, type, payload, marks) {
+  head <- strsplit(rawToChar(serialize(NULL, NULL, ascii = TRUE)), "\n")[[1L]]
+  head <- head[seq_len(length(head) - 1L)]
+  body <- function(x) {
+    lines <- strsplit(rawToChar(serialize(x, NULL, ascii = TRUE)), "\n")[[1L]]
+    lines[-seq_along(head)]
+  }
+  sym <- function(s) c("1", "262153", as.character(nchar(s)), s)
+  lines <- c(head, "238",
+             "2", sym(cls), "2", sym("zutable"), "2", "13", "1", as.character(type), "254",
+             "19", "2", body(payload), body(marks), "254")
+  charToRaw(paste0(paste(lines, collapse = "\n"), "\n"))
+}
+
+test_that("the unserialize method trusts no mark from a stream (#52)", {
+  # A well-formed stream gives the payload, unmarked.
+  ok <- unserialize(sorted_stream("zt_sorted_int", 13L, c(1L, 2L, 3L), c(1L, 1L)))
+  expect_identical(ok, 1:3)
+  expect_null(sorted_meta(ok))
+  # Marks that lie, or are malformed: the payload, never a believed mark.
+  for (marks in list(integer(), 1L, c(1, 1), c(7L, 5L), NULL, c(1L, 1L))) {
+    y <- unserialize(sorted_stream("zt_sorted_int", 13L, c(3L, 1L, 2L), marks))
+    expect_identical(y, c(3L, 1L, 2L))
+    expect_null(sorted_meta(y))
+    expect_true(is.unsorted(y))
+    expect_identical(sort(y), 1:3)
+    print(y)
+  }
+  y <- unserialize(sorted_stream("zt_sorted_real", 14L, c(1, NA, 2), c(1L, 1L)))
+  expect_true(anyNA(y))
+  expect_identical(sort(y), c(1, 2))
+  # A payload that is not the class's type, or not a list of two: a
+  # zutable_value_error, not a crash.
+  expect_error(unserialize(sorted_stream("zt_sorted_int", 13L, c(1, 2), c(1L, 1L))),
+               class = "zutable_value_error")
+  expect_error(unserialize(sorted_stream("zt_sorted_str", 16L, 1:2, c(1L, 1L))),
+               class = "zutable_value_error")
+  expect_error(unserialize(sorted_stream("zt_sorted_lgl", 10L, structure(TRUE, foo = 1), 1:2)),
+               class = "zutable_value_error")
 })
 
 test_that("grp(sort = TRUE) marks its first key column sorted", {
