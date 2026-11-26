@@ -174,6 +174,7 @@ zt_normalise <- function(x, field, call) {
   if (is.character(x) && !is.object(x)) {
     x <- enc2utf8(x)
   }
+  zt_check_time_nan(x, type, sprintf("column `%s`", what), call)
   if (identical(type$id, "timestamp") && !identical(type$unit, "ns")) {
     attr(x, "tzone") <- type$tz %||% "UTC"
     us <- posixct_to_us(x, what, call)
@@ -204,6 +205,18 @@ zt_normalise <- function(x, field, call) {
   x
 }
 
+# D63: NaN is float64's value (D47), not a date's or a time's; it is
+# refused where such a vector enters.
+zt_check_time_nan <- function(x, type, what, call) {
+  if (type$id %in% c("date", "timestamp") && !identical(type$unit, "ns") &&
+      any(is.nan(unclass(x)))) {
+    zutable_abort("value", sprintf(
+      "%s is %s: a value is NaN, which is not a time; use NA for a missing one",
+      what, format(type)
+    ), call = call)
+  }
+}
+
 zt_any_missing <- function(x) {
   if (is.data.frame(x)) {
     return(any(zt_struct_missing(x)))
@@ -211,18 +224,14 @@ zt_any_missing <- function(x) {
   any(zt_is_missing(x))
 }
 
-# Missing elements: NA for atomic vectors, NULL for list elements.
-zt_is_missing <- function(x) {
-  if (is.list(x) && !is.data.frame(x) && !is.object(x)) {
-    return(vapply(x, is.null, NA))
-  }
-  is.na(x)
-}
+# Missing elements are the package's nulls (zt_is_null()): NA but not NaN
+# for float64 (D47, #63), NULL for list elements.
+zt_is_missing <- function(x) zt_is_null(x)
 
 # A struct row is missing when every field of it is.
 zt_struct_missing <- function(x) {
   if (!length(x)) return(logical(zt_nrow_of(x)))
-  Reduce(`&`, lapply(x, zt_is_missing))
+  Reduce(`&`, lapply(x, zt_is_null))
 }
 
 # The schema check on entry (§9.1): one pass over the columns, so a stale

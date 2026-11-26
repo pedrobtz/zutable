@@ -17,6 +17,7 @@
 * The reference join matches an `int64` key's `NA` as missing, not as 0, and keeps apart values whose bits read as NaN (#60).
 * Only the autoprint of a top-level update `x[, a := v]` is skipped: `print()` of it, and a later print after an update in a function, a loop, an assignment or `invisible()`, all print (#61).
 * A bit64 `integer64` column or value enters as `int64` (`zu_int64`, the same bits), and a matrix or array column is a `zutable_type_error` (or `zutable_schema_error` against a schema) in `zutable()`, `as_zutable()`, `schema()`, `conform()` and replacement (#62).
+* `NaN` in a `not_null(float64)` column is a value, as in queries (D47), by every route: constructors, query results, `:=` and `[<-`; `NaN` behind a date or timestamp is a `zutable_value_error` where it enters (#63).
 
 * `zutable_info()` reports the package version.
 * Every condition the package raises inherits from `zutable_error`.
