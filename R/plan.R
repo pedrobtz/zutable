@@ -515,5 +515,19 @@ zt_register_s3 <- function(pkg, generic, class, method) {
 
 .onLoad <- function(libname, pkgname) {
   zt_register_s3("dplyr", "explain", "zutable", explain.zutable)
+  # D57: the print-skip flag lasts until the top-level expression ends.
+  zt_remove_print_callback()
+  addTaskCallback(zt_clear_print_skip, name = "zutable_print_skip")
   invisible()
+}
+
+.onUnload <- function(libpath) {
+  zt_remove_print_callback()
+  invisible()
+}
+
+zt_remove_print_callback <- function() {
+  while ("zutable_print_skip" %in% getTaskCallbackNames()) {
+    removeTaskCallback("zutable_print_skip")
+  }
 }

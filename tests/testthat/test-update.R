@@ -142,13 +142,25 @@ test_that("an update records itself in the plan (rule 6: blocks are expressions)
 })
 
 test_that("an update at top level does not print; an explicit print does", {
+  # The flag holds the update's token (D57); test-print-skip.R runs the
+  # sequences at top level.
   z <- zutable(a = 1:2)
+  z[, a := 3L]
   zt_arm_print_skip(z, 1L)
   expect_true(zt_take_print_skip(z, 2L))
   expect_false(zt_take_print_skip(z, 2L))
+  zt_arm_print_skip(z, 2L)
+  expect_false(zt_take_print_skip(z, 2L))
   zt_arm_print_skip(z, 1L)
   expect_false(zt_take_print_skip(z, 3L))
+  expect_false(zt_take_print_skip(zutable(a = 3:3), 2L))
+  w <- zutable(a = 1:2)
+  w[, a := 3L]
   zt_arm_print_skip(z, 1L)
-  expect_false(zt_take_print_skip(zutable(b = 1L), 2L))
+  expect_false(zt_take_print_skip(w, 2L))
+  expect_true(zt_take_print_skip(z, 2L))
+  zt_arm_print_skip(z, 1L)
+  zt_clear_print_skip()
+  expect_null(zt_state$skip_print)
   expect_output(print(z), "zutable")
 })

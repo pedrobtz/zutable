@@ -15,6 +15,7 @@
 * `coalesce()`, `ifelse()`, `case()`, `first()`, `last()` and `over()` take a struct column's values by row, under both executors (#55).
 * An extension or `r_class()` column keeps its class and attributes through `where`, value forms, `order`, `limit`, `distinct`, `join()`, `head()` and `rbind()` (#57).
 * The reference join matches an `int64` key's `NA` as missing, not as 0, and keeps apart values whose bits read as NaN (#60).
+* Only the autoprint of a top-level update `x[, a := v]` is skipped: `print()` of it, and a later print after an update in a function, a loop, an assignment or `invisible()`, all print (#61).
 
 * `zutable_info()` reports the package version.
 * Every condition the package raises inherits from `zutable_error`.

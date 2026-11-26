@@ -209,7 +209,9 @@ zt_run_update <- function(x, up, call) {
     new[[nm]] <- zt_normalise(new[[nm]], schema$fields[[nm]], call)
   }
   rec <- attr(x, "plan", exact = TRUE)
-  step <- zt_step("update", schema, stmts = up$stmts, where = up$where, by = up$by)
+  zt_state$update_seq <- (zt_state$update_seq %||% 0) + 1
+  step <- zt_step("update", schema, stmts = up$stmts, where = up$where, by = up$by,
+                  token = zt_state$update_seq)
   plan <- zt_plan_record(list(source = list(kind = "table", anonymous = TRUE,
                                             schema = schema, parent = rec),
                               steps = list(step), schema = schema,
@@ -221,20 +223,36 @@ zt_run_update <- function(x, up, call) {
 
 # The primitive `[` makes its result visible, so `x[, a := 1]` at top level
 # would print the table. As data.table does, an update arms a one-shot
-# flag that print.zutable() reads, and every bracket clears it.
+# flag (D53, D57): only when its bracket is a top-level call (`frames`,
+# the frame number of the call `x[...]`, is 1), and holding the token of the update
+# step the table's plan record gained, never the table. The task callback
+# registered in .onLoad clears it once the top-level expression ends,
+# after autoprint, so an update that is not autoprinted leaves nothing
+# armed.
 zt_state <- new.env(parent = emptyenv())
 
-zt_arm_print_skip <- function(x, frames) {
-  zt_state$skip_print <- x
+zt_update_token <- function(x) {
+  steps <- attr(x, "plan", exact = TRUE)$steps
+  if (length(steps)) steps[[length(steps)]]$token
 }
 
-# Skipped only when print() runs at top level (autoprint, frame 2 or
-# less) for the very table the update returned; print() inside a
-# function, and any other table, prints.
+zt_arm_print_skip <- function(x, frames) {
+  zt_state$skip_print <- if (identical(frames, 1L)) zt_update_token(x)
+}
+
+# Skipped for the table whose last plan step is the armed update, once;
+# print() inside a function (frame 2 or more) always prints.
 zt_take_print_skip <- function(x, frames) {
   skip <- zt_state$skip_print
+  if (is.null(skip) || frames > 2L) return(FALSE)
+  if (!identical(zt_update_token(x), skip)) return(FALSE)
   zt_state$skip_print <- NULL
-  frames <= 2L && !is.null(skip) && identical(skip, x)
+  TRUE
+}
+
+zt_clear_print_skip <- function(...) {
+  zt_state$skip_print <- NULL
+  TRUE
 }
 
 # A block with no `:=` whose last statement is `.(...)` is a `select` with
