@@ -264,3 +264,18 @@ test_that("a POSIXct constant in another zone compares as an instant (#89)", {
   # Elsewhere a zone is still part of the type.
   expect_error(z[select = .(x = coalesce(t, at))], class = "zutable_type_error")
 })
+
+test_that("cast() to timestamp(\"ns\") is refused even with zutempo present (#77)", {
+  # The cast rule refuses ns as a target outright; zutempo's absence is a
+  # separate type error (with `package`), so the test makes zutempo look
+  # installed to see the cast's own refusal.
+  local_mocked_bindings(zt_has_package = function(pkg) TRUE)
+  z <- zutable(d = as.Date("2026-01-01") + 0:1,
+               t = .POSIXct(c(0, 1), "UTC"))
+  for (q in list(quote(z[, .(x = cast(d, timestamp("ns")))]),
+                 quote(z[, .(x = cast(t, timestamp("ns")))]),
+                 quote(z[, .(x = cast("2026-01-01", timestamp("ns")))]))) {
+    cnd <- expect_error(eval(q), class = "zutable_type_error")
+    expect_null(cnd$package)
+  }
+})

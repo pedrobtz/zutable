@@ -164,3 +164,27 @@ test_that("an update at top level does not print; an explicit print does", {
   expect_null(zt_state$skip_print)
   expect_output(print(z), "zutable")
 })
+
+test_that("both update routes check a value's length per group (#77)", {
+  # No statement a user can write reaches this check with the wrong length
+  # (a constant is length one; r() checks its own), so the routes are
+  # called with a statement built by hand: a constant of two values.
+  z <- zutable(a = 1:4, g = c(1L, 1L, 2L, 2L))
+  cols <- list(a = 1:4, g = c(1L, 1L, 2L, 2L))
+  node <- zt_lit_node(c(5L, 6L, 7L), zt_type("int32"))
+  up <- list(stmts = list(list(kind = "set", name = "a", node = node)), by = list())
+  rows <- 1:4
+  for (keys in list(list(), list(cols$g))) {
+    expect_error(zt_update_loop(up, cols, rows, cols, keys, NULL),
+                 class = "zutable_value_error")
+    expect_error(zt_update_kernel(up, cols, rows, cols, keys, NULL),
+                 class = "zutable_value_error")
+  }
+  # One per row, or one, is taken by both.
+  for (v in list(9L, 5:8)) {
+    up$stmts[[1L]]$node <- zt_lit_node(v, zt_type("int32"))
+    want <- rep_len(v, 4L)
+    expect_identical(zt_update_loop(up, cols, rows, cols, list(), NULL)$a, want)
+    expect_identical(zt_update_kernel(up, cols, rows, cols, list(), NULL)$a, want)
+  }
+})

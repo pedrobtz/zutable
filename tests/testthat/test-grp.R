@@ -72,3 +72,15 @@ test_that("errors: lengths differ, too many rows, a kind that is not a key", {
   expect_identical(grp()$n, 0L)
   expect_identical(grp(integer())$n, 0L)
 })
+
+test_that("the key row limit is 2^31 - 1, inclusive (#77)", {
+  # zt_key_columns() is every key route's check (grp(), key_order(),
+  # key_rank(), key_sort(), the joins); a compact sequence has its length
+  # with nothing behind it, and the check reads no element. 2^31 - 1 rows
+  # pass it, so only the kernel's own memory stands between them and a
+  # grouping; 2^31 is refused.
+  at <- seq_len(.Machine$integer.max)
+  expect_identical(length(zt_key_columns(list(at), NULL)[[1L]]), .Machine$integer.max)
+  expect_identical(length(zt_key_columns(list(at, at), NULL)), 2L)
+  expect_error(zt_key_columns(list(seq_len(2^31)), NULL), class = "zutable_length_error")
+})
