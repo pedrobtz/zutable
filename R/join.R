@@ -111,6 +111,15 @@ zt_parse_on <- function(e, x, y, call) {
   list(x = xs, y = ys)
 }
 
+# int64 values (doubles holding the bits) as text of their two 32-bit
+# halves: as doubles NA's bits read as -0 and some values as NaN, which
+# match() would merge with 0 or with each other (#60).
+zt_int64_bits_key <- function(bits) {
+  h <- matrix(readBin(writeBin(bits, raw(), endian = "little"), "integer",
+                      n = 2L * length(bits), size = 4L, endian = "little"), nrow = 2L)
+  paste(h[1L, ], h[2L, ])
+}
+
 # Index pairs (x row, y row): x's order, then y's within an x row; NA in
 # `yi` for an x row with no match (left), NA in `xi` for a y row with none.
 zt_join_pairs <- function(x, y, keys, how, multiple, na_equal, call,
@@ -130,8 +139,13 @@ zt_join_pairs <- function(x, y, keys, how, multiple, na_equal, call,
   for (k in seq_along(keys$x)) {
     a <- x[[keys$x[[k]]]]
     b <- y[[keys$y[[k]]]]
-    v <- if (is.factor(a)) c(as.character(a), as.character(b)) else
+    v <- if (is.factor(a)) {
+      c(as.character(a), as.character(b))
+    } else if (inherits(a, "integer64")) {
+      zt_int64_bits_key(c(zt_strip(unclass(a)), zt_strip(unclass(b))))
+    } else {
       c(zt_strip(unclass(a)), zt_strip(unclass(b)))
+    }
     miss_x <- miss_x | zt_is_null(a)
     miss_y <- miss_y | zt_is_null(b)
     ck <- match(v, unique(v))

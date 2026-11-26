@@ -59,6 +59,7 @@ test_that("ordered queries agree, kernel and reference", {
 
 test_that("joins agree, kernel and reference, for every how, multiple and na_equal", {
   withr::local_seed(49)
+  has_zuint <- requireNamespace("zuint", quietly = TRUE)
   mk <- function(n, tag) {
     d <- data.frame(
       id = seq_len(n),
@@ -70,6 +71,10 @@ test_that("joins agree, kernel and reference, for every how, multiple and na_equ
       e = factor(sample(c("lo", "hi", NA), n, TRUE), levels = c("lo", "hi")),
       stringsAsFactors = FALSE
     )
+    if (has_zuint) {
+      d$w <- zuint::int64(sample(c("0", NA, "9223372036854775807", "-9223372036854775807",
+                                   "9218868437227405313", "1"), n, TRUE))
+    }
     names(d)[-1L] <- paste0(names(d)[-1L], tag)
     as_zutable(d)
   }
@@ -87,6 +92,8 @@ test_that("joins agree, kernel and reference, for every how, multiple and na_equ
     # factor a string). In full this test took 41 of the 240 minutes there
     # (2026-11-18).
     if (under_torture()) ons <- ons[c(1L, 2L, 3L, 8L)]
+    # int64 keys: NA's bits read as -0 and some values' as NaN (#60).
+    if (has_zuint) ons <- c(ons, list(quote(.(w == w2)), quote(.(w == w2, k == k2))))
     for (on in ons) {
       for (how in c("inner", "left", "right", "full", "semi", "anti")) {
         for (multiple in c("all", "first", "last")) {

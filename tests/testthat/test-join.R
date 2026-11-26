@@ -127,3 +127,31 @@ test_that("refusals", {
   expect_error(join(x, data.frame(k = 1:2), on = k), class = "zutable_type_error")
   expect_error(join(x, x, on = .(k, k)), class = "zutable_syntax_error")
 })
+
+test_that("int64 keys match by value, NA as NA, in both executors (#60)", {
+  skip_if_not_installed("zuint")
+  vals <- c("0", NA, "9223372036854775807", "-9223372036854775807",
+            "9218868437227405313", "9218868437227405314", "9218868437227405312", "1")
+  a <- zutable(k = zuint::int64(vals), i = seq_along(vals))
+  b <- zutable(k = zuint::int64(c("0", "9218868437227405314", "9223372036854775807",
+                                  "-9223372036854775807", NA, "9218868437227405312")),
+               v = 1:6)
+  ak <- as.character(a$k)
+  bk <- as.character(b$k)
+  for (na_equal in c(TRUE, FALSE)) {
+    # Brute force over every pair, keys compared as decimal text.
+    want <- do.call(rbind, lapply(seq_along(ak), function(i) {
+      hit <- which(vapply(bk, USE.NAMES = FALSE, function(y) {
+        if (is.na(ak[[i]]) || is.na(y)) na_equal && is.na(ak[[i]]) && is.na(y)
+        else ak[[i]] == y
+      }, NA))
+      if (length(hit)) data.frame(i = i, v = unname(hit))
+    }))
+    for (ex in c("kernel", "reference")) {
+      withr::local_options(zutable.executor = ex)
+      got <- join(a, b, on = k, na_equal = na_equal)
+      expect_identical(plain(got[select = .(i, v)]), plain(want),
+                       info = paste(ex, na_equal))
+    }
+  }
+})
