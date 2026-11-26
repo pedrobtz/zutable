@@ -18,6 +18,9 @@ jobs:
     with:
       badge-branch: gh-pages
       badge-path: badges/coverage.svg
+      # Just under the 90.8% of main's run of 2026-11-21 (#92), so a change
+      # that drops coverage goes red instead of only moving the badge.
+      fail-under: 90
       # gcov over src/ and the kernel's header as the R suite reaches them:
       # the functions no test enters and the conditions taken one way only
       # (assurance.md, Stage 17).
