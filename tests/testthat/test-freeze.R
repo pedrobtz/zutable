@@ -110,3 +110,26 @@ test_that("is.na<- goes through the typed [<- (#79)", {
   expect_error(is.na(h) <- 1, class = "zutable_value_error")
   expect_identical(h$a, 1:3)
 })
+
+test_that("base attribute writes change a copy, never the frozen table (#69)", {
+  # attr<-, attributes<- and levels<- are R's copy-on-modify replacements:
+  # they bind a changed copy to the name (D60: freeze() protects the
+  # object, not the name), so the frozen table and its alias stay as they were.
+  f <- freeze(zutable(a = 1:3, b = c("x", "y", "z")))
+  alias <- f
+  before <- plain(f)
+  g <- f
+  attr(g, "note") <- "changed"
+  h <- f
+  levels(h) <- c("p", "q")
+  k <- f
+  attributes(k) <- c(attributes(k), list(extra = 1))
+  for (o in list(f, alias)) {
+    expect_true(is_frozen(o))
+    expect_null(attr(o, "note", exact = TRUE))
+    expect_null(attr(o, "levels", exact = TRUE))
+    expect_null(attr(o, "extra", exact = TRUE))
+    expect_identical(plain(o), before)
+    expect_error(o[, a := 0L], class = "zutable_frozen_error")
+  }
+})

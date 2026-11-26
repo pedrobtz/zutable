@@ -149,8 +149,11 @@ zt_cast_value <- function(x, from, to) {
         return(x)
       }
       if (f == "date") {
-        # D63: the first instant of the day on the local wall clock.
-        return(.POSIXct(zt_wall_to_instant(zt_strip(unclass(x)) * 86400, tz), tz))
+        # D63: the first instant of the day on the local wall clock, within
+        # 2^33 seconds of 1970 (posixct_to_us(), #69).
+        out <- zt_wall_to_instant(zt_strip(unclass(x)) * 86400, tz)
+        zt_cast_fail(x, is.na(out) | abs(out) < zt_posixct_limit, from, to)
+        return(.POSIXct(out, tz))
       }
       out <- zt_parse_timestamp(x, tz)
       if (is.null(out)) {
@@ -301,5 +304,8 @@ zt_parse_timestamp <- function(value, tz) {
   }
   out <- rep(NA_real_, length(value))
   out[ok] <- zt_wall_to_instant(days * 86400 + h * 3600 + mi * 60 + s + us / 1e6, tz)
+  # Past 2^33 seconds a POSIXct holds no exact microsecond (posixct_to_us()),
+  # so such a string names no timestamp (#69).
+  if (any(abs(out[ok]) >= zt_posixct_limit)) return(NULL)
   .POSIXct(out, tz)
 }

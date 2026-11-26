@@ -252,3 +252,40 @@ test_that("a time zone R does not know is a type error (#90)", {
   expect_identical(schema(zutable(t = .POSIXct(0)))$fields[["t"]]$type,
                    zt_timestamp("us", "UTC"))
 })
+
+test_that("the 2^33-second limit holds by every route a timestamp enters (#69)", {
+  lim <- 2^33
+  iso <- function(v) format(.POSIXct(v, "UTC"), "%Y-%m-%dT%H:%M:%S")
+  for (sgn in c(1, -1)) {
+    inside <- sgn * (lim - 1)
+    for (v in c(inside, sgn * lim, sgn * (lim + 1))) {
+      ok <- abs(v) < lim
+      t <- .POSIXct(v, "UTC")
+      check <- function(code) {
+        if (ok) expect_no_error(code) else expect_error(code, class = "zutable_value_error")
+      }
+      info <- format(v, digits = 15L)
+      check(zutable(t = t))
+      check(as_zutable(data.frame(t = t)))
+      z <- zutable(t = .POSIXct(0, "UTC"), s = iso(v))
+      check(z[, t := ..t])
+      check({ u <- copy(z); u$t <- t })
+      # A string cast, and a string literal read as a timestamp.
+      check(z[select = .(c = cast(s, timestamp))])
+      lit <- iso(v)
+      check(z[select = .(c = coalesce(t, cast(..lit, timestamp)))])
+      # A string compared with a timestamp is read as one when it names
+      # one; past the limit it names none, as a malformed string does.
+      if (ok) expect_no_error(z[t < ..lit]) else
+        expect_error(z[t < ..lit], class = "zutable_type_error")
+      if (ok) {
+        expect_identical(as.double(z[select = .(c = cast(s, timestamp))]$c), v, info = info)
+      }
+    }
+    # A date cast to a timestamp: the last and first whole days inside.
+    day <- sgn * floor((lim - 1) / 86400)
+    z <- zutable(d = as.Date(c(day, day + sgn)))
+    expect_identical(as.double(z[1L][select = .(c = cast(d, timestamp))]$c), day * 86400)
+    expect_error(z[select = .(c = cast(d, timestamp))], class = "zutable_value_error")
+  }
+})
