@@ -408,7 +408,11 @@ zt_special_forms <- list(
     if (length(args) != 1L) {
       zutable_abort("syntax", ".col() takes one column name", call = ctx$call)
     }
-    name <- tryCatch(eval(args[[1L]], ctx$env), error = function(e) NULL)
+    name <- tryCatch(eval(args[[1L]], ctx$env), error = function(e) {
+      zutable_abort("syntax", sprintf(".col() takes the name of a column; evaluating `%s` failed: %s",
+                                      paste(deparse(args[[1L]]), collapse = " "),
+                                      conditionMessage(e)), call = ctx$call)
+    })
     if (!is.character(name) || length(name) != 1L || is.na(name)) {
       zutable_abort("syntax", ".col() takes one string, the name of a column",
                     call = ctx$call)

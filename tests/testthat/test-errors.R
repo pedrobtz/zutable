@@ -60,3 +60,15 @@ test_that("argument checks raise the package's conditions (#68)", {
     expect_identical(nrow(x[k > 1]), 2L)
   }
 })
+
+test_that("an error evaluating limit, by or .col() keeps its message (#82)", {
+  x <- zutable(a = 1:3, g = c("p", "q", "p"))
+  marker <- "zz-a-user-message-zz"
+  fails <- function() stop(marker)
+  for (e in list(quote(x[limit = fails()]), quote(x[by = fails(), select = .(n = count())]),
+                 quote(x[select = .(v = .col(fails()))]))) {
+    err <- expect_error(eval(e), class = "zutable_syntax_error")
+    # D62's rule: the user's message is inside the package's.
+    expect_true(grepl(marker, conditionMessage(err), fixed = TRUE), info = deparse(e))
+  }
+})

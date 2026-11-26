@@ -24,6 +24,7 @@
 * `int32` widens to `int64` where implicit: `:=`, `$<-`, `[[<-` and `[<-` into an `int64` column, and `cast(x, int64)`; without zuint it is a `zutable_type_error` naming it (#67).
 * `join()` with no `on`, `schema()` of one unnamed argument that fails, `print(n =)` other than a whole number of rows, and option `zutable.executor` other than `"kernel"` or `"reference"` raise the package's classed errors (#68).
 * `within()`, `modifyList()`, `replace()` and `droplevels()` return a plain data frame with no schema, plan or `frozen` attribute, and `is.na(x) <- i` goes through the typed `[<-`, so it respects `freeze()`, `not_null` and the column types (#79).
+* An error raised while evaluating `limit`, `by` or `.col()` keeps its message inside the package's (#82).
 
 * `zutable_info()` reports the package version.
 * Every condition the package raises inherits from `zutable_error`.

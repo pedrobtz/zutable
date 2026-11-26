@@ -83,7 +83,11 @@ zt_plan_query <- function(x, q, env, call) {
     steps[[length(steps) + 1L]] <- zt_step("sort", cur, keys = keys)
   }
   if (!is.null(q$limit)) {
-    n <- tryCatch(eval(q$limit, env), error = function(e) NULL)
+    # D62: a user's own error keeps its message inside the package's.
+    n <- tryCatch(eval(q$limit, env), error = function(e) {
+      zutable_abort("syntax", sprintf("`limit` failed to evaluate: %s", conditionMessage(e)),
+                    call = call)
+    })
     if (!is.numeric(n) || length(n) != 1L || is.na(n) || n < 0 || n != trunc(n)) {
       zutable_abort("syntax", "`limit` is a whole number of rows, 0 or more",
                     call = call)
@@ -110,7 +114,12 @@ zt_node_field <- function(name, node, input) {
 # vector of column names: a named list of typed key nodes.
 zt_parse_by <- function(e, schema, env, call) {
   if (!zt_is_clause(e, names(schema))) {
-    v <- tryCatch(eval(e, env), error = function(err) NULL)
+    v <- tryCatch(eval(e, env), error = function(err) {
+      zutable_abort("syntax", sprintf(paste(
+        "`by` is a column, .(a, b), .(name = expression), or a character",
+        "vector of column names; evaluating `%s` failed: %s"
+      ), paste(deparse(e), collapse = " "), conditionMessage(err)), call = call)
+    })
     if (!is.character(v) || anyNA(v) || !length(v)) {
       zutable_abort("syntax", paste(
         "`by` is a column, .(a, b), .(name = expression), or a character",
