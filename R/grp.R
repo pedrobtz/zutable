@@ -54,7 +54,7 @@ zt_grp_build <- function(keys, sort) {
 # carries that, as key_sort()'s values do (D22).
 zt_mark_first_key <- function(g) {
   if (length(g$keys)) {
-    g$keys[[1L]] <- zt_mark_sorted(g$keys[[1L]], FALSE, TRUE)
+    g$keys[[1L]] <- zt_mark_sorted(g$keys[[1L]], FALSE)
   }
   g
 }

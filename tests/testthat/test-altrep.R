@@ -4,13 +4,17 @@
 
 test_that("key_sort() marks what it knows, in base R's codes", {
   expect_identical(sorted_meta(key_sort(c(3L, 1L, 2L))), c(1L, 1L))
-  expect_identical(sorted_meta(key_sort(c(3, NA, 1))), c(1L, 0L))
-  expect_identical(sorted_meta(key_sort(c(3, NA, 1), na.last = FALSE)), c(2L, 0L))
+  expect_identical(sorted_meta(key_sort(c(3L, 1L, 2L), decreasing = TRUE)), c(-1L, 1L))
+  # A direction only without NA (#56, design-kernel D46 amended): base R's
+  # sort() and order(na.last = NA) trust a direction without reading the
+  # NA mark, so a vector with an NA is marked NA-holding only.
+  expect_identical(sorted_meta(key_sort(c(3, NA, 1))), c(NA_integer_, 0L))
+  expect_identical(sorted_meta(key_sort(c(3, NA, 1), na.last = FALSE)), c(NA_integer_, 0L))
   expect_identical(sorted_meta(key_sort(c(3, NA, 1), na.last = NA)), c(1L, 1L))
-  expect_identical(sorted_meta(key_sort(c(3, NA, 1), decreasing = TRUE)), c(-1L, 0L))
+  expect_identical(sorted_meta(key_sort(c(3, NA, 1), decreasing = TRUE)), c(NA_integer_, 0L))
   expect_identical(
     sorted_meta(key_sort(c(3, NA, 1), decreasing = TRUE, na.last = FALSE)),
-    c(-2L, 0L)
+    c(NA_integer_, 0L)
   )
   expect_identical(sorted_meta(key_sort(c(TRUE, FALSE))), c(1L, 1L))
   expect_identical(sorted_meta(key_sort(factor(c("b", "a")))), c(1L, 1L))
@@ -155,4 +159,43 @@ test_that("element access, inspect() and order() read through the wrapper", {
   expect_identical(order(s), order(plain))
   expect_identical(order(s, decreasing = TRUE), order(plain, decreasing = TRUE))
   expect_identical(sort(s, method = "radix"), sort(plain, method = "radix"))
+})
+
+test_that("base R reads marked values as it reads an unmarked copy (#56)", {
+  vals <- list(
+    integer = c(3L, NA, 1L, 2L, 1L),
+    double = c(3, NA, 1, 2.5, -0, NaN),
+    factor = factor(c("b", NA, "a", "c", "a")),
+    Date = as.Date("2026-01-01") + c(3, NA, 1, 2),
+    POSIXct = as.POSIXct("2026-01-01", tz = "UTC") + c(3, NA, 1, 2)
+  )
+  reads <- function(y) {
+    out <- list(
+      sort(y), sort(y, decreasing = TRUE), sort(y, na.last = TRUE),
+      sort(y, na.last = FALSE), sort(y, method = "radix"),
+      sort(y, decreasing = TRUE, na.last = TRUE),
+      order(y), order(y, na.last = FALSE), order(y, na.last = NA),
+      order(y, decreasing = TRUE), order(y, decreasing = TRUE, na.last = NA),
+      order(y, method = "radix", na.last = NA),
+      is.unsorted(y), is.unsorted(y, na.rm = TRUE), is.unsorted(y, strictly = TRUE),
+      anyNA(y), unique(y), rev(y), y[!is.na(y)], which(is.na(y)),
+      sort(unique(y)), length(sort(y))
+    )
+    if (!is.factor(y)) out <- c(out, list(range(y, na.rm = TRUE), min(y, na.rm = TRUE)))
+    out
+  }
+  for (type in names(vals)) {
+    x <- vals[[type]]
+    for (dec in c(FALSE, TRUE)) {
+      for (na in list(TRUE, FALSE, NA)) {
+        y <- key_sort(x, decreasing = dec, na.last = na)
+        u <- y[seq_along(y)]
+        expect_null(sorted_meta(u))
+        expect_identical(reads(y), reads(u),
+                         info = sprintf("%s, decreasing %s, na.last %s", type, dec, na))
+      }
+    }
+    k <- grp(x, sort = TRUE)$keys[[1L]]
+    expect_identical(reads(k), reads(k[seq_along(k)]), info = paste(type, "grp(sort = TRUE)"))
+  }
 })

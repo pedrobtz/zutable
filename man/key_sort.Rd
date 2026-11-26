@@ -25,10 +25,10 @@ missing values when \code{na.last = NA}.
 }
 \description{
 \code{key_sort()} returns \code{x} sorted, as \code{sort(x, method = "radix")} does, by
-the order of \code{\link[=key_order]{key_order()}}. The result remembers that it is sorted and
-whether it holds a missing value, so a later \code{sort()}, \code{is.unsorted()}
-or \code{anyNA()} on it answers at once, without a pass over the values.
-Modifying the result in place forgets both.
+the order of \code{\link[=key_order]{key_order()}}. The result remembers whether it holds a
+missing value and, when it holds none, that it is sorted, so a later
+\code{sort()}, \code{is.unsorted()} or \code{anyNA()} on it answers at once, without a
+pass over the values. Modifying the result in place forgets both.
 }
 \details{
 Numbers, logicals, factors and dates are marked. Strings are not marked
