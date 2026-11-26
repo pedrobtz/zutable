@@ -154,3 +154,63 @@ test_that("a timestamp's text carries the second its microseconds round to (#51)
   expect_identical(zt_sql_literal(.POSIXct(0.9999996, "UTC"), zt_timestamp("us", "UTC")),
                    "TIMESTAMP '1970-01-01 00:00:01'")
 })
+
+test_that("each string of a vector is read by its own ISO form (#54)", {
+  forms <- list(
+    c("2020-01-01 10:00:30", "%Y-%m-%d %H:%M:%S"),
+    c("2020-01-01 10:00", "%Y-%m-%d %H:%M"),
+    c("2020-01-01", "%Y-%m-%d"),
+    c("2020-01-01T10:00:30.25", "%Y-%m-%dT%H:%M:%OS")
+  )
+  perms <- function(v) {
+    if (length(v) <= 1L) return(list(v))
+    do.call(c, lapply(seq_along(v), function(i) {
+      lapply(perms(v[-i]), function(p) c(v[[i]], p))
+    }))
+  }
+  for (tz in c("UTC", "Asia/Tokyo")) {
+    # One at a time, each with its own format: base R as the oracle.
+    one <- vapply(forms, function(f) {
+      posixct_to_us(as.POSIXct(f[[1L]], tz = tz, format = f[[2L]]))
+    }, 0)
+    for (p in perms(seq_along(forms))) {
+      s <- vapply(forms[p], `[[`, "", 1L)
+      got <- ec(s, call("timestamp", "us", tz))
+      expect_identical(posixct_to_us(got), one[p], info = paste(tz, s, collapse = ","))
+      tt <- zutable(t = .POSIXct(one[p] / 1e6, tz))
+      expect_identical(nrow(tt[t %in% s]), length(s))
+      expect_identical(nrow(tt[t %in% s[1:2]]),
+                       nrow(tt[t == s[[1L]] | t == s[[2L]]]))
+      expect_identical(nrow(tt[t %in% s[1:2]]), 2L)
+    }
+    for (i in seq_along(forms)) {
+      tt <- zutable(t = .POSIXct(one / 1e6, tz))
+      expect_identical(tt[t == forms[[i]][[1L]]]$t, tt$t[i])
+    }
+  }
+})
+
+test_that("a string in no accepted ISO form is a value error in cast() (#54)", {
+  bad <- c("2020-01-01 10", "2020-01-01 10:00:60", "2020-13-01",
+           "2020-02-30 00:00", "2020-01-01 24:00", "2020-01-01T10:00:00Z",
+           "2020-01-01 10:00:00.1234567", "2020-1-01", " 2020-01-01")
+  for (b in bad) {
+    z <- zutable(s = c("2020-01-01", b))
+    expect_error(z[select = .(t = cast(s, timestamp("us", "UTC")))],
+                 class = "zutable_value_error", info = b)
+  }
+})
+
+test_that("cast(string, timestamp) agrees with DuckDB per string (#54)", {
+  skip_if_not_installed("duckdb")
+  con <- duck_connect()
+  on.exit(DBI::dbDisconnect(con, shutdown = TRUE))
+  s <- c("2020-01-01 10:00:30", "2020-01-01", "1969-12-31T23:59:59.999999",
+         "2020-01-01 10:00", "2000-02-29 00:00:00.5", NA)
+  got <- zutable(s = s)[select = .(t = cast(s, timestamp("us", "UTC")))]$t
+  sql <- sprintf("SELECT CAST(s AS TIMESTAMP) AS t FROM (VALUES %s) v(s)",
+                 paste(sprintf("(%s)", ifelse(is.na(s), "NULL",
+                                              sprintf("'%s'", s))), collapse = ", "))
+  want <- DBI::dbGetQuery(con, sql)$t
+  expect_identical(posixct_to_us(got), posixct_to_us(want))
+})

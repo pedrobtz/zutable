@@ -173,3 +173,119 @@ zt_eval_case <- function(node, cols, n) {
   }
   out
 }
+
+# --- the civil calendar and the wall clock ------------------------------------
+
+# Days from 1970-01-01 of a proleptic Gregorian date, for any year
+# (H. Hinnant's days_from_civil, as zufast's datetime.h has it); exact in
+# doubles, with %/% as floor division.
+zt_days_from_civil <- function(y, m, d) {
+  y <- y - (m <= 2)
+  era <- y %/% 400
+  yoe <- y - era * 400
+  doy <- (153 * (m + ifelse(m > 2, -3, 9)) + 2) %/% 5 + d - 1
+  doe <- yoe * 365 + yoe %/% 4 - yoe %/% 100 + doy
+  era * 146097 + doe - 719468
+}
+
+zt_civil_from_days <- function(z) {
+  z <- z + 719468
+  era <- z %/% 146097
+  doe <- z - era * 146097
+  yoe <- (doe - doe %/% 1460 + doe %/% 36524 - doe %/% 146096) %/% 365
+  doy <- doe - (365 * yoe + yoe %/% 4 - yoe %/% 100)
+  mp <- (5 * doy + 2) %/% 153
+  d <- doy - (153 * mp + 2) %/% 5 + 1
+  m <- mp + ifelse(mp < 10, 3, -9)
+  list(y = yoe + era * 400 + (m <= 2), m = m, d = d)
+}
+
+# The wall clock in `tz` at whole-second instants `t`, as seconds counted
+# as if the wall clock were UTC.
+zt_wall_clock <- function(t, tz) {
+  lt <- as.POSIXlt(.POSIXct(t, tz), tz = tz)
+  zt_days_from_civil(lt$year + 1900, lt$mon + 1, lt$mday) * 86400 +
+    lt$hour * 3600 + lt$min * 60 + floor(lt$sec)
+}
+
+# The UTC offset of `tz` at whole-second instants `t`, in seconds.
+zt_zone_offset <- function(t, tz) zt_wall_clock(t, tz) - t
+
+# D63: the instant at which `tz`'s wall clock reads `wall` (seconds counted
+# as if the wall clock were UTC). A wall time that does not exist (a
+# spring-forward gap) is the first instant after the gap. One that occurs
+# twice keeps the offset `prefer` (the input's) when it exists at that
+# offset, and takes the earlier instant otherwise. Never NA for a value.
+zt_wall_to_instant <- function(wall, tz, prefer = NULL) {
+  out <- rep(NA_real_, length(wall))
+  ok <- !is.na(wall)
+  if (!any(ok)) return(out)
+  w <- floor(wall[ok])
+  frac <- wall[ok] - w
+  cands <- list(zt_zone_offset(w - 172800, tz), zt_zone_offset(w + 172800, tz),
+                zt_zone_offset(w, tz))
+  if (!is.null(prefer)) cands <- c(list(prefer[ok]), cands)
+  valid <- lapply(cands, function(o) zt_zone_offset(w - o, tz) == o)
+  res <- rep(NA_real_, length(w))
+  if (!is.null(prefer)) {
+    res[valid[[1L]]] <- (w - cands[[1L]])[valid[[1L]]]
+  }
+  # The earlier instant is the one at the larger offset.
+  best <- rep(-Inf, length(w))
+  for (i in seq_along(cands)) {
+    best <- ifelse(valid[[i]], pmax(best, cands[[i]]), best)
+  }
+  pick <- is.na(res) & is.finite(best)
+  res[pick] <- (w - best)[pick]
+  gap <- is.na(res)
+  if (any(gap)) {
+    # The transition lies in (w - max offset, w - min offset]: search for
+    # the first second at which the offset is no longer the one before.
+    os <- do.call(cbind, cands)[gap, , drop = FALSE]
+    lo <- w[gap] - apply(os, 1L, max)
+    hi <- w[gap] - apply(os, 1L, min)
+    before <- zt_zone_offset(lo, tz)
+    while (any(hi - lo > 1)) {
+      mid <- floor((lo + hi) / 2)
+      moved <- zt_zone_offset(mid, tz) != before
+      hi <- ifelse(moved, mid, hi)
+      lo <- ifelse(moved, lo, mid)
+    }
+    res[gap] <- hi
+    frac[gap] <- 0
+  }
+  out[ok] <- res + frac
+  out
+}
+
+# ISO 8601 date-times read in `tz`, each string by its own form (#54):
+# "YYYY-MM-DD", or that with " " or "T" and "HH:MM", "HH:MM:SS" or
+# "HH:MM:SS.f" (one to six digits). NULL when any string is in no form, or
+# names a date or time that does not exist; local times are resolved by
+# D63's rule.
+zt_parse_timestamp <- function(value, tz) {
+  pat <- paste0("^([0-9]{4})-([0-9]{2})-([0-9]{2})",
+                "(?:[ T]([0-9]{2}):([0-9]{2})(?::([0-9]{2})(?:\\.([0-9]{1,6}))?)?)?$")
+  value <- as.character(value)
+  ok <- !is.na(value)
+  m <- regmatches(value[ok], regexec(pat, value[ok], perl = TRUE))
+  if (any(lengths(m) == 0L)) return(NULL)
+  f <- matrix(unlist(m), ncol = 8L, byrow = TRUE)
+  num <- function(j, default = 0) {
+    v <- suppressWarnings(as.double(f[, j]))
+    v[!nzchar(f[, j])] <- default
+    v
+  }
+  y <- num(2L); mo <- num(3L); d <- num(4L)
+  h <- num(5L); mi <- num(6L); s <- num(7L)
+  us <- as.double(substr(paste0(f[, 8L], "000000"), 1L, 6L))
+  days <- zt_days_from_civil(y, mo, d)
+  back <- zt_civil_from_days(days)
+  if (any(mo < 1 | mo > 12 | back$m != mo | back$d != d | h > 23 | mi > 59 |
+          s > 59)) {
+    return(NULL)
+  }
+  out <- rep(NA_real_, length(value))
+  out[ok] <- zt_wall_to_instant(days * 86400 + h * 3600 + mi * 60 + s + us / 1e6, tz)
+  .POSIXct(out, tz)
+}

@@ -292,20 +292,6 @@ zt_lit_adapt <- function(value, type) {
   NULL
 }
 
-# ISO 8601 date-times, "YYYY-MM-DD[ T]HH:MM[:SS[.ffffff]]", read in `tz`.
-zt_parse_timestamp <- function(value, tz) {
-  pat <- "^[0-9]{4}-[0-9]{2}-[0-9]{2}([ T][0-9]{2}:[0-9]{2}(:[0-9]{2}(\\.[0-9]{1,6})?)?)?$"
-  ok <- is.na(value) | grepl(pat, value)
-  if (!all(ok)) return(NULL)
-  v <- sub("T", " ", value, fixed = TRUE)
-  out <- as.POSIXct(v, tz = tz, tryFormats = c("%Y-%m-%d %H:%M:%OS",
-                                               "%Y-%m-%d %H:%M", "%Y-%m-%d"),
-                    optional = TRUE)
-  if (anyNA(out[!is.na(value)])) return(NULL)
-  attr(out, "tzone") <- tz
-  out
-}
-
 zt_call_nullable <- function(entry, args) {
   nl <- vapply(args, function(n) isTRUE(n$nullable), NA)
   switch(entry$nullable,
