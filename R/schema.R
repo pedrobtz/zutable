@@ -135,7 +135,13 @@ schema <- function(..., .metadata = NULL) {
   nms <- zt_enter_strings(names(exprs) %||% rep("", length(exprs)), "the field names", call)
 
   if (length(exprs) == 1L && !nzchar(nms[[1L]]) && is.null(.metadata)) {
-    return(schema_of(eval(exprs[[1L]], env), call))
+    x <- tryCatch(eval(exprs[[1L]], env), error = function(e) {
+      zutable_abort("schema", sprintf(paste(
+        "schema() of one unnamed argument takes a table, and `%s` failed: %s;",
+        "fields are named, as in schema(x = int32)"
+      ), paste(deparse(exprs[[1L]]), collapse = " "), conditionMessage(e)), call = call)
+    })
+    return(schema_of(x, call))
   }
   if (any(!nzchar(nms))) {
     zutable_abort("schema", "every field of a schema needs a name",

@@ -36,6 +36,10 @@ join <- function(x, y, on, how = "inner", multiple = "all", na_equal = TRUE,
   }
   zt_validate(x, call)
   zt_validate(y, call)
+  if (missing(on)) {
+    zutable_abort("syntax", "join() needs `on`, the key columns, as in on = id",
+                  call = call)
+  }
   how <- zt_choice(how, c("inner", "left", "right", "full", "semi", "anti"),
                    "how", call)
   multiple <- zt_choice(multiple, c("all", "first", "last", "error"),
@@ -48,10 +52,10 @@ join <- function(x, y, on, how = "inner", multiple = "all", na_equal = TRUE,
     zutable_abort("syntax", "`suffix` is two different strings", call = call)
   }
   keys <- zt_parse_on(substitute(on), x, y, call)
-  pairs <- if (identical(getOption("zutable.executor", "kernel"), "reference")) {
-    zt_join_pairs(x, y, keys, how, multiple, na_equal, call)
-  } else {
+  pairs <- if (zt_kernel_executor(call)) {
     zt_join_pairs_kernel(x, y, keys, how, multiple, na_equal, call)
+  } else {
+    zt_join_pairs(x, y, keys, how, multiple, na_equal, call)
   }
   zt_join_build(x, y, keys, pairs, how, suffix, call)
 }

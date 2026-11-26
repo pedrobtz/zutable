@@ -70,6 +70,7 @@ zt_clause_names <- c("where", "select", "update", "by", "having", "order",
   env <- parent.frame()
   zt_state$skip_print <- NULL
   zt_validate(x, call)
+  zt_kernel_executor(call)
   if (!zt_aware(env)) {
     # Base R's own code indexes a zutable as a data frame (D43).
     return(zt_value_bracket(x, i, j, nargs() - !missing(drop), call, aware = FALSE))

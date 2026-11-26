@@ -33,3 +33,30 @@ test_that("an unknown kind is refused", {
   expect_error(zutable_condition(c("type", "value"), "boom"), "unknown")
   expect_error(zutable_condition(NA_character_, "boom"), "unknown")
 })
+
+test_that("argument checks raise the package's conditions (#68)", {
+  x <- zutable(k = 1:3, a = c("p", "q", "r"))
+  y <- zutable(k = 2:3, b = c(1, 2))
+  expect_error(join(x, y), class = "zutable_syntax_error")
+  expect_error(schema(int32), class = "zutable_schema_error")
+  expect_error(schema(not_a_variable_anywhere), class = "zutable_schema_error")
+  for (n in list(2.5, -1, NA, "2", c(1, 2), NA_integer_)) {
+    expect_error(print(x, n = n), class = "zutable_syntax_error")
+    # Nothing printed before the check.
+    expect_output(try(print(x, n = n), silent = TRUE), NA)
+  }
+  expect_output(print(x, n = 2), "1 more row")
+  expect_output(print(x, n = Inf), "zutable")
+  expect_output(print(x, n = 0L), "zutable")
+  for (v in list("ref", "Kernel", NA_character_, c("kernel", "reference"), 1L, TRUE)) {
+    withr::local_options(zutable.executor = v)
+    expect_error(x[k > 1], class = "zutable_value_error")
+    expect_error(x[, a := "z"], class = "zutable_value_error")
+    expect_error(join(x, y, on = k), class = "zutable_value_error")
+    expect_error(x[by = k, select = .(n = count())], class = "zutable_value_error")
+  }
+  for (v in c("kernel", "reference")) {
+    withr::local_options(zutable.executor = v)
+    expect_identical(nrow(x[k > 1]), 2L)
+  }
+})

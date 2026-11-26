@@ -307,6 +307,10 @@ as.data.frame.zutable <- function(x, ...) {
 
 #' @export
 print.zutable <- function(x, n = 10L, ...) {
+  if (!is.numeric(n) || length(n) != 1L || is.na(n) || n < 0 || n != trunc(n)) {
+    zutable_abort("syntax", "`n` is a whole number of rows to print, 0 or more",
+                  call = sys.call())
+  }
   frames <- sys.nframe()
   if (zt_take_print_skip(x, frames)) return(invisible(x))
   zt_validate(x)
@@ -317,7 +321,7 @@ print.zutable <- function(x, n = 10L, ...) {
               if (length(s) == 1L) "" else "s",
               if (is_frozen(x)) ", frozen" else ""))
   if (!length(s)) return(invisible(x))
-  show <- min(rows, n)
+  show <- as.integer(min(rows, n))
   idx <- seq_len(show)
   cells <- lapply(seq_along(s$fields), function(i) {
     col <- x[[i]]
