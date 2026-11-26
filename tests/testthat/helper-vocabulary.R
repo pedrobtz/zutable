@@ -165,3 +165,50 @@ duck_connect <- function() {
     autoload_known_extensions = "false"
   )))
 }
+
+# A DuckDB connection with its ICU extension, for the oracles of zoned time
+# (#78), disconnected when `env` ends. ICU is loaded from DuckDB's local
+# extension directory when it is there, and the test skips when it is not;
+# with ZUTABLE_DUCKDB_ICU=true (the native coverage job's run sets it) it
+# is installed over the network first, never on CRAN, and failing to load
+# it is a failure, so that leg cannot skip in silence.
+duck_connect_icu <- function(env = parent.frame()) {
+  testthat::skip_if_not_installed("duckdb")
+  testthat::skip_if_not_installed("DBI")
+  con <- duck_connect()
+  withr::defer(DBI::dbDisconnect(con, shutdown = TRUE), envir = env)
+  required <- identical(Sys.getenv("ZUTABLE_DUCKDB_ICU"), "true")
+  if (required) {
+    testthat::skip_on_cran()
+    DBI::dbExecute(con, "INSTALL icu")
+  }
+  ok <- tryCatch({
+    DBI::dbExecute(con, "LOAD icu")
+    TRUE
+  }, error = function(e) if (required) stop(e) else FALSE)
+  testthat::skip_if_not(ok, "DuckDB's ICU extension is not available offline")
+  con
+}
+
+# The rows where DuckDB's ICU truncates to an instant after its input,
+# which D63 does not: a wall time in a repeated (fall-back) hour ICU takes
+# at the later offset, where D63 keeps the input's, so the two agree on
+# the wall clock; and a wall time in a gap ICU reads at the offset from
+# before the change, where D63 takes the first instant after the gap.
+# There zutable's answer is not after the input and is one of those two;
+# elsewhere the two agree exactly. Returns which rows differ.
+expect_trunc_matches_icu <- function(got_us, icu_us, input_us, tz, info) {
+  later <- !is.na(icu_us) & icu_us > input_us
+  expect_identical(got_us[!later], icu_us[!later], info = info)
+  if (any(later)) {
+    at <- function(us) .POSIXct(us / 1e6, tz)
+    wall <- function(us) format(at(us), "%Y-%m-%d %H:%M:%OS6")
+    offset <- function(us) as.POSIXlt(at(us))$gmtoff
+    g <- got_us[later]
+    expect_true(all(g <= input_us[later]), info = info)
+    same_wall <- wall(g) == wall(icu_us[later])
+    gap_end <- offset(g - 1e6) != offset(g)
+    expect_true(all(same_wall | gap_end), info = info)
+  }
+  later
+}

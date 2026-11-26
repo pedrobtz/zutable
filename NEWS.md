@@ -32,6 +32,7 @@
 * `cast()` to a coarser timestamp unit is a `zutable_value_error` at the first value with a finer part, so its result always conforms to its schema (#59).
 * A `POSIXct` constant in another zone, such as `Sys.time()`, compares with a zoned timestamp column as the same instant, in comparisons and `%in%` (#89).
 * A time zone not in `OlsonNames()`, in `timestamp()` or a `POSIXct` column, is a `zutable_type_error`, not read as UTC (#90).
+* `over(by =)` takes only the key types `by` does, so a struct partition is a `zutable_type_error` from either executor, not an internal error from the kernel (#78).
 
 * `zutable_info()` reports the package version.
 * Every condition the package raises inherits from `zutable_error`.

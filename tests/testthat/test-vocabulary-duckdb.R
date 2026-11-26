@@ -32,7 +32,9 @@ test_that("every vocabulary row agrees with DuckDB", {
       }
     }
   }
-  expect_gt(checked, 300L)
+  # The count made on 2026-11-26 (#78): a row or signature lost from the
+  # comparison fails here; one added raises the count, and the floor with it.
+  expect_gte(checked, 597L)
 })
 
 test_that("the special forms agree with DuckDB", {
@@ -117,5 +119,81 @@ test_that("binary numeric functions agree with DuckDB on every pair of edge valu
     res <- duck_compare(con, node, list(c1 = edge), length(edge), FALSE)
     expect_true(same_values(res$want, res$got, node$type),
                 info = diff_info(fn, "float64", list(c1 = edge), res, node$type))
+  }
+})
+
+test_that("date_trunc() and the date parts of UTC timestamps agree with DuckDB (#78)", {
+  skip_if_not_installed("duckdb")
+  skip_if_not_installed("DBI")
+  skip_conformance_under_torture()
+  con <- duck_connect()
+  withr::defer(DBI::dbDisconnect(con, shutdown = TRUE))
+  withr::local_seed(20261126)
+  # Instants from 1901 to 2099, at quarter seconds (exact in a double),
+  # and the turn of each unit, either side.
+  e <- c(round(stats::runif(400, -2.2e9, 4.1e9)) + sample(c(0, 0.25, 0.5, 0.75), 400, TRUE),
+         utc_edges <- as.double(as.POSIXct(c("2026-01-01", "2025-12-31 23:59:59.75",
+                                             "2024-02-29 12:00", "2026-03-30", "1970-01-01",
+                                             "1969-12-31 23:59:59.5"), tz = "UTC")), NA)
+  z <- as_zutable(data.frame(t = .POSIXct(e, "UTC")))
+  df <- data.frame(e = e)
+  duckdb::duckdb_register(con, "t", df)
+  units <- c("second", "minute", "hour", "day", "week", "month", "quarter", "year")
+  for (unit in units) {
+    got <- posixct_to_us(z[select = .(r = date_trunc(..unit, t))]$r)
+    want <- DBI::dbGetQuery(con, sprintf(paste(
+      "SELECT epoch_us(date_trunc('%s', make_timestamp(CAST(round(e * 1e6) AS BIGINT))))",
+      "AS r FROM t"), unit))$r
+    expect_identical(got, as.double(want), info = unit)
+  }
+  parts <- z[select = .(y = year(t), m = month(t), d = day(t), dt = cast(t, date))]
+  want <- DBI::dbGetQuery(con, paste(
+    "SELECT CAST(year(s) AS INTEGER) AS y, CAST(month(s) AS INTEGER) AS m,",
+    "CAST(day(s) AS INTEGER) AS d, CAST(s AS DATE) AS dt",
+    "FROM (SELECT make_timestamp(CAST(round(e * 1e6) AS BIGINT)) AS s FROM t)"))
+  expect_identical(parts$y, want$y)
+  expect_identical(parts$m, want$m)
+  expect_identical(parts$d, want$d)
+  expect_identical(as.double(parts$dt), as.double(want$dt))
+})
+
+test_that("zoned timestamps agree with DuckDB's ICU in zones east and west (#78)", {
+  skip_conformance_under_torture()
+  con <- duck_connect_icu()
+  withr::local_seed(20261127)
+  # Half-hour, 45-minute and southern zones, and zones whose change falls
+  # at midnight; instants at random from 1990 to 2037 and then crowded
+  # around every change of 2026, where the wall clock skips or repeats.
+  zones <- c("America/New_York", "Europe/London", "Asia/Kolkata", "Australia/Lord_Howe",
+             "America/Sao_Paulo", "Pacific/Chatham", "Asia/Kathmandu", "America/Havana")
+  units <- c("second", "minute", "hour", "day", "week", "month", "quarter", "year")
+  for (tz in zones) {
+    DBI::dbExecute(con, sprintf("SET TimeZone = '%s'", tz))
+    span <- as.double(as.POSIXct(c("2025-12-01", "2027-01-31"), tz = "UTC"))
+    grid <- seq(span[[1L]], span[[2L]], by = 900)
+    local <- as.POSIXlt(.POSIXct(grid, tz))$gmtoff
+    change <- grid[which(diff(local) != 0) + 1L]
+    near <- unlist(lapply(change, function(x) x + c(-5400, -3600, -1800, -0.25, 0, 0.25,
+                                                    1800, 3600, 5400)))
+    e <- c(round(stats::runif(200, 6.3e8, 2.1e9)) + sample(c(0, 0.25, 0.5), 200, TRUE),
+           near, NA)
+    z <- as_zutable(data.frame(t = .POSIXct(e, tz)))
+    duckdb::duckdb_register(con, "t", data.frame(e = e), overwrite = TRUE)
+    input <- posixct_to_us(.POSIXct(e, "UTC"))
+    ts <- "to_timestamp(CAST(e AS DOUBLE))"
+    for (unit in units) {
+      got <- posixct_to_us(z[select = .(r = date_trunc(..unit, t))]$r)
+      want <- DBI::dbGetQuery(con, sprintf("SELECT epoch_us(date_trunc('%s', %s)) AS r FROM t",
+                                           unit, ts))$r
+      expect_trunc_matches_icu(got, as.double(want), input, tz, paste(tz, unit))
+    }
+    parts <- z[select = .(y = year(t), m = month(t), d = day(t), dt = cast(t, date))]
+    want <- DBI::dbGetQuery(con, sprintf(paste(
+      "SELECT CAST(year(%1$s) AS INTEGER) AS y, CAST(month(%1$s) AS INTEGER) AS m,",
+      "CAST(day(%1$s) AS INTEGER) AS d, CAST(%1$s AS DATE) AS dt FROM t"), ts))
+    expect_identical(parts$y, want$y, info = tz)
+    expect_identical(parts$m, want$m, info = tz)
+    expect_identical(parts$d, want$d, info = tz)
+    expect_identical(as.double(parts$dt), as.double(want$dt), info = tz)
   }
 })

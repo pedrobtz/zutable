@@ -29,6 +29,58 @@ test_that("aggregate queries agree, kernel and reference", {
   expect_identical(u$s, r$s)
 })
 
+test_that("queries over int64, enum, zoned timestamp and struct columns agree (#78)", {
+  withr::local_seed(78)
+  has_zuint <- requireNamespace("zuint", quietly = TRUE)
+  n <- if (under_torture()) 300L else 1500L
+  df <- bracket_frame(n, struct = TRUE)
+  df$e <- factor(sample(c("lo", "mid", "hi", NA), n, TRUE), levels = c("lo", "mid", "hi"))
+  # New York's wall clock, across both 2026 changes (March 8, November 1).
+  at <- as.POSIXct(c("2026-03-07 23:30", "2026-03-08 01:59", "2026-03-08 03:00",
+                     "2026-10-31 23:00", "2026-11-01 01:30", "2026-11-01 05:59"), tz = "UTC")
+  df$tz <- .POSIXct(sample(c(as.numeric(at), NA), n, TRUE), "America/New_York")
+  if (has_zuint) {
+    df$w <- zuint::int64(sample(c("0", NA, "9223372036854775807", "-9223372036854775807",
+                                  "9218868437227405313", "1", "-1"), n, TRUE))
+  }
+  z <- as_zutable(df)
+  queries <- list(
+    function() z[, .(n = count(), s = sum(px), f = first(st)), by = e],
+    function() z[, .(n = count(), lo = min(tz), hi = max(tz), l = last(tz)), by = .(e, flag)],
+    function() z[, .(n = count()), by = .(d = date_trunc("day", tz))],
+    function() z[, .(n = count(), d = count_distinct(e)), by = .(h = date_trunc("hour", tz), g)],
+    function() z[, .(c = first(e), l = last(e), d = count_distinct(tz)), by = k],
+    function() z[select = .(id, m = over(max(tz), by = e), c = over(first(st), by = e))],
+    function() z[by = .(e, tz)],
+    function() z[order = .(e, desc(tz), id)],
+    function() z[order = .(desc(e), tz, id), limit = 40],
+    function() z[select = .(id, st, e, tz), order = .(e, id)]
+  )
+  if (has_zuint) {
+    queries <- c(queries, list(
+      function() z[, .(n = count(), f = first(w), l = last(w), c = count(w)), by = e],
+      function() z[, .(n = count(), s = sum(px)), by = w],
+      function() z[, .(n = count()), by = .(w, e, tz)],
+      function() z[select = .(id, m = over(last(w), by = g), c = over(count(), by = w))],
+      function() z[by = .(w, g)],
+      function() z[!is.na(w), .(id, w, e), order = .(e, desc(id))]
+    ))
+  }
+  for (i in seq_along(queries)) {
+    expect_identical(plain(with_executor("kernel", queries[[i]]())),
+                     plain(with_executor("reference", queries[[i]]())), info = paste("query", i))
+  }
+  # Updates by each of the new kinds.
+  df$s <- NA_real_
+  for (by in c(list(quote(e), quote(tz), quote(.(e, tz))), if (has_zuint) list(quote(w)))) {
+    u <- copy(as_zutable(df))
+    r <- copy(u)
+    with_executor("kernel", eval(bquote(u[, s := px - mean(px), by = .(by)])))
+    with_executor("reference", eval(bquote(r[, s := px - mean(px), by = .(by)])))
+    expect_identical(u$s, r$s, info = deparse(by))
+  }
+})
+
 test_that("ordered queries agree, kernel and reference", {
   withr::local_seed(48)
   # Past pdqsort's 1000 either way; 3000 outside step-20 gctorture.

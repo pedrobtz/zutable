@@ -19,3 +19,16 @@ test_that("over() needs an aggregate and stays out of aggregate queries", {
   expect_error(z[, .(y = over(sum(x), by = g)), by = g], class = "zutable_syntax_error")
   expect_error(z[, .(y = over(sum(x), group = g))], class = "zutable_syntax_error")
 })
+
+test_that("over() partitions only by a key `by` takes, in both executors (#78)", {
+  z <- zutable(id = 1:4, st = data.frame(a = c(1L, 1L, 2L, NA), b = c("u", "u", "w", "w")),
+               px = c(1, 2, 3, 4))
+  for (ex in c("kernel", "reference")) {
+    withr::local_options(zutable.executor = ex)
+    # As by = st is refused, so is over(by = st), before any row is read.
+    expect_error(z[, .(n = count()), by = st], class = "zutable_type_error")
+    expect_error(z[select = .(id, c = over(count(), by = st))], class = "zutable_type_error")
+    expect_error(z[select = .(id, c = over(sum(px), by = .(id, st)))],
+                 class = "zutable_type_error")
+  }
+})

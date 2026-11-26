@@ -436,6 +436,14 @@ zt_special_forms <- list(
         zutable_abort("type", "the partition keys of over() are expressions of the columns",
                       call = ctx$call)
       }
+      # The kinds `by` groups by (zt_parse_by()), so a struct is refused
+      # here, not by the executor (#78).
+      for (k in by) {
+        if (!k$type$id %in% c(zt_equatable, "int64", "decimal")) {
+          zutable_abort("type", sprintf("cannot partition by a value of type %s",
+                                        zt_format_type(k)), call = ctx$call)
+        }
+      }
     }
     zt_node("window", agg = agg, by = by, type = agg$type,
             nullable = agg$nullable, aggregate = FALSE)

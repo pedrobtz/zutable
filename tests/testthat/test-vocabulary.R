@@ -320,14 +320,8 @@ test_that("a date outside years 0 to 9999 casts to ISO 8601 expanded text (#58)"
 })
 
 test_that("date_trunc() in a zone agrees with DuckDB's ICU (#58)", {
-  skip_if_not_installed("duckdb")
-  con <- duck_connect()
-  on.exit(DBI::dbDisconnect(con, shutdown = TRUE))
-  icu <- tryCatch({
-    DBI::dbExecute(con, "LOAD icu")
-    TRUE
-  }, error = function(e) FALSE)
-  skip_if_not(icu, "DuckDB's ICU extension is not available offline")
+  con <- duck_connect_icu()
+  later <- 0L
   for (case in dst_cases()) {
     DBI::dbExecute(con, sprintf("SET TimeZone = '%s'", case$tz))
     for (unit in names(case$want)) {
@@ -337,8 +331,15 @@ test_that("date_trunc() in a zone agrees with DuckDB's ICU (#58)", {
                            "to_timestamp(CAST(%.6f AS DOUBLE)))) AS r"),
                      unit, utc(case$at))
       want <- DBI::dbGetQuery(con, sql)$r
-      expect_identical(posixct_to_us(got), as.double(want),
-                       info = paste(case$tz, case$at, unit))
+      info <- paste(case$tz, case$at, unit)
+      later <- later + sum(expect_trunc_matches_icu(posixct_to_us(got), as.double(want),
+                                                    utc(case$at) * 1e6, case$tz, info))
+      # And where ICU answers later than the input, D63's answer is the
+      # one written by hand.
+      expect_identical(as.double(got), utc(case$want[[unit]]), info = info)
     }
   }
+  # The three fall-back hours of dst_cases(), truncated to the hour, are
+  # where the two rules part (DuckDB 2.0.1).
+  expect_identical(later, 3L)
 })
