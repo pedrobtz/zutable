@@ -123,7 +123,22 @@ zt_key_columns <- function(args, call) {
       ), call = call)
     }
   }
+  for (i in seq_along(cols)) zt_check_text(cols[[i]], sprintf("key column %d", i), call)
   cols
+}
+
+# A string marked "bytes" has no text to compare by (design D58, kernel
+# 6.1): a zutable_value_error, before the kernel would translate it.
+zt_check_text <- function(x, what, call) {
+  if (!is.character(x)) return(invisible(x))
+  at <- .Call(zt_str_bytes_at, x)
+  if (at > 0) {
+    zutable_abort("value", sprintf(
+      "%s has a string marked \"bytes\" at row %.0f; strings are text, so convert it with iconv() or `Encoding<-`",
+      what, at
+    ), call = call)
+  }
+  invisible(x)
 }
 
 # Renumber groups in the keys' sort order, NA last (design-kernel 6.2): the

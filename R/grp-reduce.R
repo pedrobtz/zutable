@@ -149,6 +149,7 @@ zt_reduce_prepare <- function(v, fn, na_rm, broadcast, k, call) {
     sum = , prod = , mean = list(x = plain(v), post = identity),
     min = , max = {
       if (is.character(v)) {
+        zt_check_text(v, sprintf("column %d of `x`", k), call)
         # Byte order, through the kernel's sorted groups (design-kernel 6.3):
         # each string's rank among the distinct ones, then back.
         s <- zt_grp_build(list(v), TRUE)

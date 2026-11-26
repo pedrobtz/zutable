@@ -6,15 +6,21 @@
 #include <Rinternals.h>
 #include <zutable.h>
 
-// A character column's pointers, translated to UTF-8 only when an element
-// is neither ASCII nor UTF-8 (design-kernel 6.1), so equal text is an
-// equal pointer. Translated vectors are kept alive in `keep`.
+// A character column's pointers, translated to UTF-8 unless every element
+// is ASCII or marked UTF-8 (design-kernel 6.1), so equal text is an equal
+// pointer. The test is the mark, not Rf_charIsUTF8(), which also passes an
+// unmarked (native) string in a UTF-8 locale, a CHARSXP other than its
+// marked twin's (#50). The R layer refuses "bytes" first (zt_check_text()).
+// Translated vectors are kept alive in `keep`.
 static const void *const *zt_str_ptrs(SEXP x, SEXP keep, int slot) {
   R_xlen_t n = XLENGTH(x);
   int need = 0;
   for (R_xlen_t i = 0; i < n; i++) {
     SEXP s = STRING_ELT(x, i);
-    if (s != NA_STRING && !Rf_charIsASCII(s) && !Rf_charIsUTF8(s)) { need = 1; break; }
+    if (s != NA_STRING && !Rf_charIsASCII(s) && Rf_getCharCE(s) != CE_UTF8) {
+      need = 1;
+      break;
+    }
   }
   if (need) {
     SEXP y = Rf_allocVector(STRSXP, n);
@@ -27,6 +33,19 @@ static const void *const *zt_str_ptrs(SEXP x, SEXP keep, int slot) {
     x = y;
   }
   return (const void *const *) STRING_PTR_RO(x);
+}
+
+// The 1-based index of x's first "bytes"-encoded element, or 0: such a
+// string has no text to compare, and the R layer refuses it as a
+// zutable_value_error (zt_check_text()) before the kernel translates.
+SEXP zt_str_bytes_at(SEXP x) {
+  if (TYPEOF(x) != STRSXP) return Rf_ScalarReal(0);
+  R_xlen_t n = XLENGTH(x);
+  for (R_xlen_t i = 0; i < n; i++) {
+    SEXP s = STRING_ELT(x, i);
+    if (s != NA_STRING && Rf_getCharCE(s) == CE_BYTES) return Rf_ScalarReal((double) i + 1);
+  }
+  return Rf_ScalarReal(0);
 }
 
 // Fill a zt_key from a list of key vectors, already checked in R: integer,

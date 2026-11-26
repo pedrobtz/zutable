@@ -523,5 +523,11 @@ zt_eval_r <- function(node, cols, n) {
                                   paste(deparse(node$expr), collapse = " "),
                                   format(node$type), p))
   }
+  # Strings leave r() in UTF-8, as a table's do, so a key's text, not its
+  # encoding, decides equality (#50).
+  if (is.character(out) && !is.object(out)) {
+    out <- enc2utf8(zt_check_text(out, sprintf("r(%s)", paste(deparse(node$expr), collapse = " ")),
+                                  NULL))
+  }
   out
 }

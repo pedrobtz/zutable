@@ -2,6 +2,11 @@
 
 * Initial CRAN submission.
 
+## Bug fixes
+
+* String keys in `grp()`, `grp_match()`, `grp_join()`, `grp_reduce()`, `by` and `join()` match by text when one is unmarked (native) and its twin UTF-8, and `r()` returns UTF-8 strings (#50).
+* A string marked `"bytes"` in a key is a `zutable_value_error` from `grp()`, `grp_match()`, `grp_join()`, `grp_reduce()`, `key_order()`, `key_sort()` and `key_rank()` (#50, #68).
+
 * `zutable_info()` reports the package version.
 * Every condition the package raises inherits from `zutable_error`.
 * `schema()`, `field()` and `not_null()` describe a table's columns with

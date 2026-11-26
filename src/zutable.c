@@ -15,6 +15,7 @@ SEXP zt_grp_sort(SEXP keys, SEXP i64, SEXP nrows, SEXP force);
 SEXP zt_key_order(SEXP keys, SEXP i64, SEXP dec, SEXP na_last);
 SEXP zt_key_rank(SEXP keys, SEXP i64, SEXP dec, SEXP na_last, SEXP ties);
 SEXP zt_strings_rank(SEXP x);
+SEXP zt_str_bytes_at(SEXP x);
 SEXP zt_sorted_wrap(SEXP x, SEXP sorted, SEXP no_na);
 SEXP zt_sorted_meta(SEXP x);
 SEXP zt_reduce_r(SEXP id, SEXP ng, SEXP xs, SEXP fns, SEXP narm, SEXP nanmiss);
@@ -38,6 +39,7 @@ static const R_CallMethodDef call_methods[] = {
   {"zt_key_order", (DL_FUNC) &zt_key_order, 4},
   {"zt_key_rank", (DL_FUNC) &zt_key_rank, 5},
   {"zt_strings_rank", (DL_FUNC) &zt_strings_rank, 1},
+  {"zt_str_bytes_at", (DL_FUNC) &zt_str_bytes_at, 1},
   {"zt_sorted_wrap", (DL_FUNC) &zt_sorted_wrap, 3},
   {"zt_sorted_meta", (DL_FUNC) &zt_sorted_meta, 1},
   {"zt_join", (DL_FUNC) &zt_join, 7},

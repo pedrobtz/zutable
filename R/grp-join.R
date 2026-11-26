@@ -105,6 +105,9 @@ zt_join_pair_keys <- function(xc, yc, call) {
     b <- yc[[k]]
     if (is.factor(a)) a <- as.character(a)
     if (is.factor(b)) b <- as.character(b)
+    # After the labels: a factor's levels are its text here.
+    zt_check_text(a, sprintf("key %d of x", k), call)
+    zt_check_text(b, sprintf("key %d of y", k), call)
     kind <- function(v) {
       if (is.character(v)) "character" else if (is.list(v)) "raw list" else
         if (inherits(v, "integer64")) "integer64" else "number"
