@@ -21,10 +21,10 @@ and `zufast`, version strings.
 ``` r
 zutable_info()
 #> $version
-#> [1] ‘0.0.0.9000’
+#> [1] ‘0.1.0’
 #> 
 #> $header
-#> [1] "0.0.0.9000"
+#> [1] "0.1.0"
 #> 
 #> $zufast
 #> [1] "0.1.0"
