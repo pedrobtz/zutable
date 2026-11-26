@@ -271,15 +271,16 @@ zt_join_build <- function(x, y, keys, pairs, how, suffix, call) {
       nullable <- f$nullable || sy$fields[[keys$y[[ki]]]]$nullable
     }
     cols[[x_names[[k]]]] <- v
-    fields[[length(fields) + 1L]] <- new_field(x_names[[k]], f$type, nullable)
+    fields[[length(fields) + 1L]] <- new_field(x_names[[k]], f$type, nullable, f$metadata)
   }
   for (k in seq_along(y_rest)) {
     f <- sy$fields[[y_rest[[k]]]]
     cols[[y_names[[k]]]] <- zt_take(y[[f$name]], yi)
     fields[[length(fields) + 1L]] <- new_field(y_names[[k]], f$type,
-                                               f$nullable || x_alone)
+                                               f$nullable || x_alone, f$metadata)
   }
-  new_zutable(cols, new_schema(fields), length(xi))
+  # D59: a join keeps x's table metadata and each carried field's.
+  new_zutable(cols, new_schema(fields, sx$metadata), length(xi))
 }
 
 #' Bind the rows of zutables

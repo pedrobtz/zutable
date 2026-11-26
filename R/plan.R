@@ -57,15 +57,16 @@ zt_plan_query <- function(x, q, env, call) {
     any(vapply(sel, function(n) isTRUE(n$aggregate), NA))
   if (aggregate) {
     st <- zt_plan_aggregate(by, sel, q$having, cur, env, call)
+    # D59: a plan over one source keeps the table's metadata.
+    st$schema$metadata <- cur$metadata
     st$by <- lapply(st$by, zt_resolve, from = length(steps))
     st$exprs <- lapply(st$exprs, zt_resolve, from = length(steps))
     steps[[length(steps) + 1L]] <- st
     cur <- st$schema
     in_schema <- cur
   } else if (!is.null(sel)) {
-    out <- new_schema(lapply(names(sel), function(n) {
-      new_field(n, sel[[n]]$type, isTRUE(sel[[n]]$nullable))
-    }))
+    out <- new_schema(lapply(names(sel), function(n) zt_node_field(n, sel[[n]], cur)),
+                      cur$metadata)
     steps[[length(steps) + 1L]] <- zt_step(
       "project", out, exprs = lapply(sel, zt_resolve, from = length(steps))
     )
@@ -91,6 +92,18 @@ zt_plan_query <- function(x, q, env, call) {
   }
   structure(list(source = zt_plan_source(x), steps = steps, schema = cur),
             class = "zutable_plan")
+}
+
+# The output field of a select or `by` element (D59): a bare column
+# reference keeps its field's metadata, renamed or not; a computed
+# expression gets none.
+zt_node_field <- function(name, node, input) {
+  meta <- if (identical(node$kind, "col") && node$name %in% names(input)) {
+    input$fields[[node$name]]$metadata
+  } else {
+    character()
+  }
+  new_field(name, node$type, isTRUE(node$nullable), meta)
 }
 
 # by = col, .(a, b), .(week = date_trunc("week", day)), or a character
@@ -174,9 +187,8 @@ zt_plan_aggregate <- function(by, sel, having, input, env, call) {
     exprs[[nm]] <- node
   }
   fields <- c(
-    lapply(keys, function(k) new_field(k, by[[k]]$type, isTRUE(by[[k]]$nullable))),
-    lapply(names(exprs), function(n) new_field(n, exprs[[n]]$type,
-                                               isTRUE(exprs[[n]]$nullable)))
+    lapply(keys, function(k) zt_node_field(k, by[[k]], input)),
+    lapply(names(exprs), function(n) zt_node_field(n, exprs[[n]], input))
   )
   out <- new_schema(fields)
   hv <- NULL
