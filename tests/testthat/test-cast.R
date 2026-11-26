@@ -214,3 +214,31 @@ test_that("cast(string, timestamp) agrees with DuckDB per string (#54)", {
   want <- DBI::dbGetQuery(con, sql)$t
   expect_identical(posixct_to_us(got), posixct_to_us(want))
 })
+
+test_that("cast() between timestamp units refuses a finer part (#59)", {
+  units <- c("s", "ms", "us")
+  # Microseconds from 1970: whole seconds, whole milliseconds, and finer.
+  exact <- list(s = c(-2e6, 0, 3e6, NA), ms = c(-1000, 2500000, 3123000),
+                us = c(-1, 2500001, 3123456))
+  step <- c(s = 1e6, ms = 1e3, us = 1)
+  for (from in units) {
+    for (to in units) {
+      for (vals in exact[seq_len(match(from, units))]) {
+        x <- .POSIXct(vals / 1e6, "UTC")
+        s <- new_schema(list(new_field("x", zt_timestamp(from, "UTC"))))
+        z <- as_zutable(data.frame(x = x), s)
+        q <- substitute(z[select = .(y = cast(x, timestamp(TO, "UTC")))],
+                        list(TO = to))
+        fits <- all(vals %% step[[to]] == 0, na.rm = TRUE)
+        if (fits) {
+          y <- eval(q)
+          expect_identical(posixct_to_us(y$y), vals, info = paste(from, to))
+          expect_identical(schema(y)$fields[["y"]]$type, zt_timestamp(to, "UTC"))
+          expect_silent(conform(y, schema(y)))
+        } else {
+          expect_error(eval(q), class = "zutable_value_error", info = paste(from, to))
+        }
+      }
+    }
+  }
+})

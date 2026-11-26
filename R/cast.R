@@ -138,6 +138,13 @@ zt_cast_value <- function(x, from, to) {
     timestamp = {
       tz <- to$tz %||% "UTC"
       if (f == "timestamp") {
+        # §4.3: a value with a part finer than the target unit cannot be
+        # represented there (#59).
+        step <- c(s = 1e6, ms = 1e3, us = 1)[[to$unit]]
+        if (step > 1) {
+          us <- posixct_to_us(x, "timestamp", zt_eval_call())
+          zt_cast_fail(x, is.na(us) | us %% step == 0, from, to)
+        }
         attr(x, "tzone") <- tz
         return(x)
       }
