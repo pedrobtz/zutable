@@ -173,6 +173,9 @@ parse_timestamp <- function(args, env, bad) {
       (!is.character(tz) || length(tz) != 1L || is.na(tz) || !nzchar(tz))) {
     bad("timestamp() tz must be one non-empty time zone name, or NULL")
   }
+  if (!is.null(tz) && !zt_known_zone(tz)) {
+    bad(sprintf("timestamp() tz \"%s\" is not one of OlsonNames()", tz))
+  }
   zt_timestamp(unit, tz)
 }
 

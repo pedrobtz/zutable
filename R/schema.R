@@ -95,7 +95,8 @@ parse_field <- function(expr, name, env, call = NULL) {
 #'
 #' * `bool`, `int32`, `int64`, `float64`, `string`, `date`, `binary`;
 #' * `timestamp(unit, tz)`, with `unit` one of `"s"`, `"ms"`, `"us"` and
-#'   `"ns"` and `tz` a zone name, or `NULL` for a time without a zone;
+#'   `"ns"` and `tz` a zone name from [OlsonNames()], or `NULL` for a time
+#'   without a zone;
 #'   bare `timestamp` is `timestamp("us", "UTC")`;
 #' * `decimal(precision, scale)`, `enum(levels)`, `list(type)`,
 #'   `struct(name = type, ...)`;

@@ -29,7 +29,11 @@ infer_type_raw <- function(x, what, call) {
   }
   if (inherits(x, "POSIXct")) {
     # D38: no zone means an instant shown in local time; typed as UTC.
-    return(zt_timestamp("us", posixct_tz(x)))
+    tz <- posixct_tz(x)
+    if (!zt_known_zone(tz)) {
+      bad(sprintf("time zone \"%s\" is not one of OlsonNames()", tz))
+    }
+    return(zt_timestamp("us", tz))
   }
   if (inherits(x, "zutempo_instant")) {
     return(zt_timestamp("ns", "UTC"))
@@ -55,6 +59,13 @@ infer_type_raw <- function(x, what, call) {
     return(infer_list(x, what, call, bad))
   }
   bad(sprintf("an R %s vector has no zutable type", typeof(x)))
+}
+
+# Whether `tz` names a zone R knows (#90): R reads an unknown one as UTC
+# with only a warning. The names are read once a session.
+zt_known_zone <- function(tz) {
+  if (is.null(zt_state$zones)) zt_state$zones <- OlsonNames()
+  tz %in% zt_state$zones
 }
 
 posixct_tz <- function(x) {

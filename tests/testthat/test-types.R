@@ -232,3 +232,23 @@ test_that("decimal types read back from their format", {
   withr::local_options(OutDec = ",", scipen = -5, digits = 3)
   expect_identical(parse_type(format(type)), type)
 })
+
+test_that("a time zone R does not know is a type error (#90)", {
+  # The oracle: R's own list of zones.
+  expect_false("Not/AZone" %in% OlsonNames())
+  expect_error(schema(t = timestamp("s", "Not/AZone")), class = "zutable_type_error")
+  expect_error(zutable(t = .POSIXct(0, "Not/AZone")), class = "zutable_type_error")
+  expect_error(as_zutable(data.frame(t = .POSIXct(0, "Not/AZone"))),
+               class = "zutable_type_error")
+  z <- zutable(t = .POSIXct(0, "UTC"))
+  expect_error(z[select = .(u = cast(t, timestamp("us", "Not/AZone")))],
+               class = "zutable_type_error")
+  for (tz in c("UTC", "America/New_York", "Australia/Lord_Howe")) {
+    expect_true(tz %in% OlsonNames())
+    expect_identical(schema(zutable(t = .POSIXct(0, tz)))$fields[["t"]]$type,
+                     zt_timestamp("us", tz))
+  }
+  # No zone is UTC (D38), not an unknown zone.
+  expect_identical(schema(zutable(t = .POSIXct(0)))$fields[["t"]]$type,
+                   zt_timestamp("us", "UTC"))
+})
