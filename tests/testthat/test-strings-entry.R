@@ -54,6 +54,8 @@ test_that("a string marked bytes is refused for string (#64)", {
 
 test_that("unknown non-ASCII strings: native bytes in UTF-8, an error in C (#64)", {
   skip_on_cran()
+  # POSIX locale names; R on Windows (>= 4.2) runs in UTF-8 only.
+  skip_on_os("windows")
   lines <- c(
     "x <- rawToChar(as.raw(c(0x63, 0x61, 0x66, 0xc3, 0xa9)))",
     "out <- function(code) tryCatch({ v <- code; paste(c('ok', as.character(charToRaw(v))), collapse = ' ') },",
