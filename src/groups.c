@@ -4,11 +4,26 @@
 #define R_NO_REMAP
 #include <R.h>
 #include <Rinternals.h>
+#include <Rversion.h>
 #include <zutable.h>
 
 // Rf_error here is unreachable from R (#68): zt_key_columns() checks the
 // kinds, one length and the row limit before grp() and the executor call;
 // the checks stand for an internal caller (test-native-guards.R).
+
+// Whether a CHARSXP is all ASCII. Rf_charIsASCII() is API from R 4.5;
+// before it, the bytes say the same as R's flag.
+static int zt_char_is_ascii(SEXP s) {
+#if R_VERSION >= R_Version(4, 5, 0)
+  return Rf_charIsASCII(s);
+#else
+  const unsigned char *p = (const unsigned char *) CHAR(s);
+  for (int i = 0, n = LENGTH(s); i < n; i++) {
+    if (p[i] > 0x7F) return 0;
+  }
+  return 1;
+#endif
+}
 
 // A character column's pointers, translated to UTF-8 unless every element
 // is ASCII or marked UTF-8 (design-kernel 6.1), so equal text is an equal
@@ -21,7 +36,7 @@ static const void *const *zt_str_ptrs(SEXP x, SEXP keep, int slot) {
   int need = 0;
   for (R_xlen_t i = 0; i < n; i++) {
     SEXP s = STRING_ELT(x, i);
-    if (s != NA_STRING && !Rf_charIsASCII(s) && Rf_getCharCE(s) != CE_UTF8) {
+    if (s != NA_STRING && Rf_getCharCE(s) != CE_UTF8 && !zt_char_is_ascii(s)) {
       need = 1;
       break;
     }
