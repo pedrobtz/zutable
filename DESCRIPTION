@@ -20,7 +20,7 @@ Description: A data frame that always knows its schema: the name, logical
     is read. Existing columns are updated in place, a table can be frozen
     against further change, and grouping, sorting, joining and reducing run
     on a cache-conscious kernel whose header other packages can use through
-    'LinkingTo'.
+    LinkingTo.
 License: MIT + file LICENSE
 Copyright: The ported sorts keep their authors' copyright and licences
     (zlib, MIT, Boost Software License 1.0); see inst/COPYRIGHTS.

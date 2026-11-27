@@ -28,7 +28,7 @@ The pre-submission check is the R CMD check matrix of the
 pedrobtz/r-actions `r-cmd-check.yml` workflow, run with `--as-cran`:
 
 * GitHub Actions: macOS (R release), Windows (R release and R-devel),
-  Ubuntu (R release and oldrel-1).
+  Ubuntu (R release and oldrel-1), and Ubuntu R 4.2, the `Depends` floor.
 * CRAN-like containers on R-devel: GCC 16, clang 23, ubuntu-clang, and the
   noSuggests and noLD flavours.
 

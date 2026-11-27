@@ -20,11 +20,17 @@ type, queried through a bracket whose arguments are SQL’s clauses.
   other packages can use through `LinkingTo`.
 - It imports no other package;
   [zufast](https://github.com/pedrobtz/zufast), on CRAN, is needed only
-  to build it, and `pak` installs it for you.
+  to build it and is installed with it.
 
 ## Installation
 
-zutable is not on CRAN yet. Install the development version from GitHub:
+Install the released version from CRAN:
+
+``` r
+install.packages("zutable")
+```
+
+Or the development version from GitHub:
 
 ``` r
 # install.packages("pak")

@@ -83,3 +83,13 @@ Every function allowed in a clause, with the argument and result types it takes.
 }
 }
 
+\examples{
+z <- zutable(day = as.Date(c("2026-01-05", "2026-02-10", "2026-02-20")),
+             qty = c(3L, 5L, NA))
+z[where = qty > 2, select = .(month = date_trunc("month", day),
+                               more = qty + 1L, txt = cast(qty, string))]
+# case() skips an NA condition; ifelse() would give NA.
+z[select = .(size = case(qty > 4 ~ "big", TRUE ~ "small"))]
+# r() runs arbitrary R, its result type declared.
+z[select = .(half = r(qty / 2, float64))]
+}
