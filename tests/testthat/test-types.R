@@ -284,7 +284,7 @@ test_that("the 2^33-second limit holds by every route a timestamp enters (#69)",
     }
     # A date cast to a timestamp: the last and first whole days inside.
     day <- sgn * floor((lim - 1) / 86400)
-    z <- zutable(d = as.Date(c(day, day + sgn)))
+    z <- zutable(d = structure(c(day, day + sgn), class = "Date"))
     expect_identical(as.double(z[1L][select = .(c = cast(d, timestamp))]$c), day * 86400)
     expect_error(z[select = .(c = cast(d, timestamp))], class = "zutable_value_error")
   }

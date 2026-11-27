@@ -43,7 +43,9 @@ test_that("4. monthly totals by a named key expression", {
   r <- t[, .(total = sum(px * qty)), by = .(month = date_trunc("month", day))]
   m <- as.Date(format(df$day, "%Y-%m-01"))
   expect_identical(r$month, unique(m))
-  expect_equal(r$total, as.vector(tapply(df$px * df$qty, factor(m, levels = unique(m)), sum)))
+  # Keyed by text: before R 4.3 factor() of a Date matches no Date levels.
+  key <- format(m)
+  expect_equal(r$total, as.vector(tapply(df$px * df$qty, factor(key, levels = unique(key)), sum)))
 })
 
 test_that("5. a join, then an aggregate", {
