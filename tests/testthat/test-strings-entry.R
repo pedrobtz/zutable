@@ -72,6 +72,9 @@ test_that("unknown non-ASCII strings: native bytes in UTF-8, an error in C (#64)
   want_utf8[[6L]] <- "ok 61"
   got <- trimws(run_script(lines, env = c("LC_ALL=en_US.UTF-8", "LANG=en_US.UTF-8")))
   expect_identical(got, want_utf8)
+  # Loading the package under C may warn on stderr that its own UTF-8
+  # metadata is translated; only the script's result lines count.
   got <- trimws(run_script(lines, env = c("LC_ALL=C", "LANG=C")))
+  got <- got[grepl("^(ok|value_error|other)( |$)", got)]
   expect_identical(got, rep("value_error", 7L))
 })

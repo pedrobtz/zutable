@@ -181,19 +181,38 @@ test_that("zoned timestamps agree with DuckDB's ICU in zones east and west (#78)
     duckdb::duckdb_register(con, "t", data.frame(e = e), overwrite = TRUE)
     input <- posixct_to_us(.POSIXct(e, "UTC"))
     ts <- "to_timestamp(CAST(e AS DOUBLE))"
+    # R reads the system's tzdata and DuckDB its own ICU copy, and the two
+    # can differ on a zone's rules (Havana from 2026 on a 2026 runner).
+    # Compare only where both put the same offset at the input and at
+    # ICU's answer; most instants must remain.
+    agrees <- function(s) {
+      w <- floor(s[!is.na(s)])
+      r_off <- as.double(as.POSIXct(format(.POSIXct(w, tz), "%Y-%m-%d %H:%M:%S"),
+                                    tz = "UTC")) - w
+      duckdb::duckdb_register(con, "o", data.frame(s = w), overwrite = TRUE)
+      icu_off <- DBI::dbGetQuery(con, paste(
+        "SELECT date_part('timezone', to_timestamp(CAST(s AS DOUBLE))) AS o FROM o"))$o
+      out <- rep(TRUE, length(s))
+      out[!is.na(s)] <- r_off == icu_off
+      out
+    }
+    same <- agrees(e)
+    expect_gte(sum(same), length(e) / 2)
     for (unit in units) {
       got <- posixct_to_us(z[select = .(r = date_trunc(..unit, t))]$r)
-      want <- DBI::dbGetQuery(con, sprintf("SELECT epoch_us(date_trunc('%s', %s)) AS r FROM t",
-                                           unit, ts))$r
-      expect_trunc_matches_icu(got, as.double(want), input, tz, paste(tz, unit))
+      want <- as.double(DBI::dbGetQuery(con, sprintf(
+        "SELECT epoch_us(date_trunc('%s', %s)) AS r FROM t", unit, ts))$r)
+      keep <- same & agrees(want / 1e6)
+      expect_gte(sum(keep), length(e) / 2)
+      expect_trunc_matches_icu(got[keep], want[keep], input[keep], tz, paste(tz, unit))
     }
     parts <- z[select = .(y = year(t), m = month(t), d = day(t), dt = cast(t, date))]
     want <- DBI::dbGetQuery(con, sprintf(paste(
       "SELECT CAST(year(%1$s) AS INTEGER) AS y, CAST(month(%1$s) AS INTEGER) AS m,",
       "CAST(day(%1$s) AS INTEGER) AS d, CAST(%1$s AS DATE) AS dt FROM t"), ts))
-    expect_identical(parts$y, want$y, info = tz)
-    expect_identical(parts$m, want$m, info = tz)
-    expect_identical(parts$d, want$d, info = tz)
-    expect_identical(as.double(parts$dt), as.double(want$dt), info = tz)
+    expect_identical(parts$y[same], want$y[same], info = tz)
+    expect_identical(parts$m[same], want$m[same], info = tz)
+    expect_identical(parts$d[same], want$d[same], info = tz)
+    expect_identical(as.double(parts$dt)[same], as.double(want$dt)[same], info = tz)
   }
 })
