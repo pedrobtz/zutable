@@ -96,7 +96,8 @@ that table instead: a data frame's is inferred from its columns.</p>
 not R objects. A string is accepted wherever a type is, as is a variable
 holding a type or a string. The types are:</p><ul><li><p><code>bool</code>, <code>int32</code>, <code>int64</code>, <code>float64</code>, <code>string</code>, <code>date</code>, <code>binary</code>;</p></li>
 <li><p><code>timestamp(unit, tz)</code>, with <code>unit</code> one of <code>"s"</code>, <code>"ms"</code>, <code>"us"</code> and
-<code>"ns"</code> and <code>tz</code> a zone name, or <code>NULL</code> for a time without a zone;
+<code>"ns"</code> and <code>tz</code> a zone name from <code><a href="https://rdrr.io/r/base/timezones.html" class="external-link">OlsonNames()</a></code>, or <code>NULL</code> for a time
+without a zone;
 bare <code>timestamp</code> is <code>timestamp("us", "UTC")</code>;</p></li>
 <li><p><code>decimal(precision, scale)</code>, <code>enum(levels)</code>, <code>list(type)</code>,
 <code>struct(name = type, ...)</code>;</p></li>

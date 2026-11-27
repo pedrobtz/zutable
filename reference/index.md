@@ -40,6 +40,7 @@
   : Query a zutable with SQL's clauses
 - [`` `$<-`( ``*`<zutable>`*`)`](https://pedrobtz.github.io/zutable/reference/zutable-indexing.md)
   [`` `[[<-`( ``*`<zutable>`*`)`](https://pedrobtz.github.io/zutable/reference/zutable-indexing.md)
+  [`` `is.na<-`( ``*`<zutable>`*`)`](https://pedrobtz.github.io/zutable/reference/zutable-indexing.md)
   [`` `[<-`( ``*`<zutable>`*`)`](https://pedrobtz.github.io/zutable/reference/zutable-indexing.md)
   : Replace values in a zutable
 - [`copy()`](https://pedrobtz.github.io/zutable/reference/zutable-update.md)

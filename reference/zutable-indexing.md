@@ -18,6 +18,9 @@ x$name <- value
 x[[i, j]] <- value
 
 # S3 method for class 'zutable'
+is.na(x) <- value
+
+# S3 method for class 'zutable'
 x[i, j] <- value
 ```
 

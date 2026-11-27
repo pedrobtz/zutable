@@ -143,39 +143,48 @@ yet.
 ## Continuous integration
 
 Calls the shared r-actions workflows `r-cmd-check.yml` (profile `auto`,
-plus in the full profile a Windows R-devel row, `nosuggests` and `nold`;
-weekly on Mondays 02:41 UTC), `native-checks.yaml` (sanitizers with
-ASan, valgrind, lto, rchk, analyzers, cran-special; valgrind reads
-`tools/valgrind.supp`, which suppresses only findings whose top frame is
-in DuckDB, the test oracle, and has 180 minutes for a cold cache),
-`gctorture.yaml` (step 2000 on pull requests, step 20 daily and on
-dispatch), `alloc-failure.yaml` (weekly, through
-`tools/alloc-exercise.R`, which must reach every native routine; its
-floor is R with zutable attached, and crashes whose top frame is base
-R’s regex or [`gzfile()`](https://rdrr.io/r/base/connections.html) are
-R’s own, as are its errors that word a failed allocation as “could not”
-or “failed to allocate”), `coverage.yml` (badge on `gh-pages`;
+plus in the full profile a Windows R-devel row, an Ubuntu R 4.2 row for
+the `Depends` floor (D64), `nosuggests` and `nold`; weekly on Mondays
+02:41 UTC), `native-checks.yaml` (sanitizers with ASan, valgrind, lto,
+rchk, analyzers, cran-special; valgrind reads `tools/valgrind.supp`,
+which suppresses only findings whose top frame is in DuckDB, the test
+oracle, and has 180 minutes for a cold cache), `gctorture.yaml` (step
+2000 on pull requests, step 20 daily and on dispatch),
+`alloc-failure.yaml` (weekly, through `tools/alloc-exercise.R`, which
+must reach every native routine; its floor is R with zutable attached,
+and crashes whose top frame is base R’s regex or
+[`gzfile()`](https://rdrr.io/r/base/connections.html) are R’s own, as
+are its errors that word a failed allocation as “could not” or “failed
+to allocate”), `coverage.yml` (badge on `gh-pages`; `fail-under: 90`;
 `native: true`, so it lists the C functions no test enters and the
-conditions taken one way), `mutation.yaml` (Mull over the six C test
-binaries, built with `ZT_TEST_QUICK` by `tools/ci/mutation-build.sh`,
-and the fuzz driver; a survivor is real only when no binary kills it)
-and `assurance.yml` (`ungated-jobs: fail`), plus r-lib’s pkgdown
-workflow. Dispatch gctorture at step 20 on the branch
+conditions taken one way; its `native-run` sets
+`ZUTABLE_DUCKDB_ICU=true`, the one leg where the DuckDB ICU time-zone
+comparisons install ICU and run), `mutation.yaml` (Mull over the six C
+test binaries, built with `ZT_TEST_QUICK` by
+`tools/ci/mutation-build.sh`, and the fuzz driver; a survivor is real
+only when no binary kills it) and `assurance.yml`
+(`ungated-jobs: fail`), plus r-lib’s pkgdown workflow. Dispatch
+gctorture at step 20 on the branch
 (`gh workflow run gctorture.yaml --ref <branch>`) before merging a
 change to `PROTECT`s. Step 20 sets `ZUTABLE_GCTORTURE=true`, under which
 the pure-R typing sweep, the many-size sort sweeps, the kernel
 differentials and the million-row tests do less, and the DuckDB
 conformance tests (but the double parser’s) are skipped
 (`tests/testthat/helper-0-torture.R`): the whole suite outgrew the
-240-minute job by Stage 11, again by Stage 13, and at Stage 18.
+240-minute job by Stage 11, again by Stage 13, and at Stage 18; at Stage
+20 the job’s limit rose to 360 minutes, GitHub’s maximum.
 `platforms.yaml` runs `tools/ci/platform.sh` on each OS:
-`check-headers`, the C tests with the fuzz target’s 20,000-input smoke,
-and the consumer fixture (`tools/ci/consumer.sh`, which builds
+`check-headers`, the C tests with the fuzz target’s 20,000-input smoke
+and the replay of the committed corpus (`tools/fuzz/corpus/`), the fuzz
+reach over the kernel headers on macOS (`tools/fuzz/reach.sh`, floor
+70%), and the consumer fixture (`tools/ci/consumer.sh`, which builds
 `tools/zutabletest` against the installed header and runs it with
 zutable gone from the library). `fuzz.yaml` runs the kernel’s fuzz
 target (`tools/fuzz/`, without R) for 30 seconds on a pull request and
-an hour weekly and on dispatch, with `reach-floor: 97`. Stages marked
-`full` in the roadmap: 3, 6, 10, 11, 12, 18, 19, 20.
+an hour weekly and on dispatch, seeded from the committed corpus, with
+`reach-floor: 97` (over the harness’s oracle; the kernel’s reach is
+`reach.sh`’s). Stages marked `full` in the roadmap: 3, 6, 10, 11, 12,
+18, 19, 20.
 
 Tests run shuffled everywhere: `tests/testthat.R` and
 `tools/ci-run-tests.R` print their seed, and `ZUTABLE_TEST_SEED` replays

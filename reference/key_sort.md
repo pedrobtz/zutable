@@ -3,8 +3,9 @@
 `key_sort()` returns `x` sorted, as `sort(x, method = "radix")` does, by
 the order of
 [`key_order()`](https://pedrobtz.github.io/zutable/reference/key_order.md).
-The result remembers that it is sorted and whether it holds a missing
-value, so a later [`sort()`](https://rdrr.io/r/base/sort.html),
+The result remembers whether it holds a missing value and, when it holds
+none, that it is sorted, so a later
+[`sort()`](https://rdrr.io/r/base/sort.html),
 [`is.unsorted()`](https://rdrr.io/r/base/is.unsorted.html) or
 [`anyNA()`](https://rdrr.io/r/base/NA.html) on it answers at once,
 without a pass over the values. Modifying the result in place forgets

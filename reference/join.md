@@ -19,8 +19,12 @@ join(x, y, on, how = "inner", multiple = "all", na_equal = TRUE, suffix = NULL)
 
 - on:
 
-  The keys: a column, `.(a, b)`, or `.(id == customer_id)` where the
-  names differ. Each pair of keys must have the same type.
+  The keys: a column, `.(a, b)` or `c(a, b)`, or `.(id == customer_id)`
+  where the names differ. A quoted string, or
+  [`c()`](https://rdrr.io/r/base/c.html) of them, names columns
+  literally; names held in a variable `keys` are passed as `..keys`,
+  evaluated in the caller's frame. Each pair of keys must have the same
+  type.
 
 - how:
 

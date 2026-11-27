@@ -26,8 +26,10 @@ explain(x, ...)
 
 ## Details
 
-When the 'dplyr' package is loaded, `dplyr::explain()` reaches the same
-method, whichever package was attached last (design D50).
+When the 'dplyr' package is loaded,
+[`dplyr::explain()`](https://dplyr.tidyverse.org/reference/explain.html)
+reaches the same method, whichever package was attached last (design
+D50).
 
 ## Examples
 

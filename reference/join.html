@@ -66,8 +66,11 @@ joins add <code>y</code>'s rows in <code>y</code>'s order. Key columns appear on
 
 
 <dt id="arg-on">on<a class="anchor" aria-label="anchor" href="#arg-on"></a></dt>
-<dd><p>The keys: a column, <code>.(a, b)</code>, or <code>.(id == customer_id)</code>
-where the names differ. Each pair of keys must have the same type.</p></dd>
+<dd><p>The keys: a column, <code>.(a, b)</code> or <code>c(a, b)</code>, or
+<code>.(id == customer_id)</code> where the names differ. A quoted string, or
+<code><a href="https://rdrr.io/r/base/c.html" class="external-link">c()</a></code> of them, names columns literally; names held in a variable
+<code>keys</code> are passed as <code>..keys</code>, evaluated in the caller's frame. Each
+pair of keys must have the same type.</p></dd>
 
 
 <dt id="arg-how">how<a class="anchor" aria-label="anchor" href="#arg-how"></a></dt>
