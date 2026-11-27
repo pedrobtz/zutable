@@ -75,6 +75,18 @@ SEXP zt_format_date_days(SEXP x) {
       continue;
     }
     size_t len = zuf_format_date(buf, sizeof buf, (int32_t) v);
+    // zufast 0.1.0 pads an expanded year to five digits and 0.1.1 to six;
+    // pad here so the text does not depend on the installed zufast.
+    if (len > 0 && (buf[0] == '+' || buf[0] == '-')) {
+      const char *dash = memchr(buf + 1, '-', len - 1);
+      size_t digits = dash ? (size_t) (dash - buf) - 1 : 0;
+      if (digits > 0 && digits < 6 && len + (6 - digits) < sizeof buf) {
+        size_t pad = 6 - digits;
+        memmove(buf + 1 + pad, buf + 1, len - 1);
+        memset(buf + 1, '0', pad);
+        len += pad;
+      }
+    }
     SET_STRING_ELT(out, i, Rf_mkCharLenCE(buf, (int) len, CE_UTF8));
   }
   UNPROTECT(1);
