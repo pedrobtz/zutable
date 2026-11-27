@@ -44,8 +44,12 @@ zt_aware <- function(env) {
   name == "zutable" || "zutable" %in% names(getNamespaceImports(top))
 }
 
+# What leaves the class through D43's route is a plain data frame (D60):
+# no schema, plan, frozen mark or properties.
 zt_plain <- function(x) {
   attr(x, "schema") <- NULL
+  attr(x, "plan") <- NULL
+  attr(x, "frozen") <- NULL
   attr(x, "properties") <- NULL
   class(x) <- "data.frame"
   x
@@ -156,17 +160,15 @@ zt_fit <- function(value, field, n, call) {
       what, len, n
     ), call = call)
   }
-  fitted <- zt_fit_literal(value, type)
+  value <- zt_entry_column(value, sprintf("column `%s`", what), call)
+  fitted <- zt_fit_literal(value, type, call)
   if (is.null(fitted) || !is.null(vector_problem(fitted, type))) {
     zutable_abort("schema", sprintf(
       "column `%s` is %s; the value would make it %s", what, format(type),
       zt_describe_value(value)
     ), call = call)
   }
-  if (len == 1L && n != 1L) {
-    fitted <- if (is.data.frame(fitted)) fitted[rep(1L, n), , drop = FALSE] else
-      rep(fitted, length.out = n)
-  }
+  if (len == 1L && n != 1L) fitted <- zt_take(fitted, rep(1L, n))
   zt_normalise(fitted, field, call)
 }
 
@@ -176,15 +178,15 @@ zt_describe_value <- function(value) {
   t
 }
 
-zt_fit_literal <- function(value, type) {
+zt_fit_literal <- function(value, type, call = NULL) {
+  value <- zt_entry_column(value)
   if (is.null(vector_problem(value, type))) {
     return(value)
   }
   if (is.logical(value) && !is.object(value) && all(is.na(value))) {
     na <- tryCatch(na_of(type), error = function(e) NULL)
     if (is.null(na)) return(NULL)
-    return(if (is.data.frame(na)) na[rep(1L, length(value)), , drop = FALSE]
-           else rep(na, length.out = length(value)))
+    return(zt_take(na, rep(1L, length(value))))
   }
   switch(type$id,
     float64 = if (is.integer(value) && !is.object(value)) as.double(value),
@@ -192,6 +194,11 @@ zt_fit_literal <- function(value, type) {
       ok <- is.na(value) | (is.finite(value) & value == trunc(value) &
                               abs(value) <= .Machine$integer.max)
       if (all(ok) && !any(is.nan(value))) as.integer(value)
+    },
+    # int32 widens to int64 (§4.3); its vector lives in zuint.
+    int64 = if (is.integer(value) && !is.object(value)) {
+      zt_require_type_package(type, call)
+      zt_int32_to_int64(value)
     },
     enum = if (is.character(value) && !is.object(value) &&
                all(is.na(value) | value %in% type$levels)) {
@@ -272,6 +279,15 @@ zt_set_column <- function(x, pos, value) {
 
 #' @rdname zutable-indexing
 #' @export
+`is.na<-.zutable` <- function(x, value) {
+  # D60: a user's replacement on the table, through the typed `[<-`, so
+  # freeze(), not_null and the column types hold.
+  x[value] <- NA
+  x
+}
+
+#' @rdname zutable-indexing
+#' @export
 `[<-.zutable` <- function(x, i, j, value) {
   call <- sys.call()
   if (!zt_aware(parent.frame())) {
@@ -308,13 +324,7 @@ zt_set_column <- function(x, pos, value) {
       new <- zt_fit(values[[k]], f, n, call)
     } else {
       part <- zt_fit(values[[k]], f, length(rows), call)
-      new <- x[[pos]]
-      if (is.data.frame(new)) {
-        new[rows, ] <- part
-      } else {
-        new[rows] <- part
-      }
-      new <- zt_normalise(new, f, call)
+      new <- zt_normalise(zt_assign(x[[pos]], rows, part), f, call)
     }
     x <- zt_set_column(x, pos, new)
   }

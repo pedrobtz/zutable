@@ -38,9 +38,16 @@ jobs:
       github-packages: pedrobtz/zufast
       cflags: -g -O1 -fno-omit-frame-pointer -Iinst/include -I.github-packages/zufast/inst/include
       profile: auto
-      # The hour's corpus reached 98.6% of invariants.c's lines on
-      # 2026-11-19 (the rest: the abort macro, which a green run never
-      # reaches); a harness change that stops reaching code goes red.
+      # The committed corpus (13 inputs, kept by coverage from 1,500 built
+      # inputs on 2026-11-26): the run starts from it when the cache is
+      # lost, and c-tests.sh replays it on every platform (#73).
+      seed-corpus: tools/fuzz/corpus
+      # fuzz.yml reports reach over `sources` only, so this floor holds the
+      # harness's invariants.c: the hour's corpus reached 98.6% of its lines
+      # on 2026-11-19 (the rest: the abort macro, which a green run never
+      # reaches). Reach over the kernel's headers, which `sources` cannot
+      # name (they are not compiled alone), is tools/fuzz/reach.sh's,
+      # floor 70%, run by platforms.yaml on macOS (#73).
       reach-floor: 97
       max-total-time: ${{ (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && 3600 || 300 }}
       # The long run keeps going after a finding and reports every distinct

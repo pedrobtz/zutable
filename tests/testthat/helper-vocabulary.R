@@ -165,3 +165,146 @@ duck_connect <- function() {
     autoload_known_extensions = "false"
   )))
 }
+
+# A DuckDB connection with its ICU extension, for the oracles of zoned time
+# (#78), disconnected when `env` ends. ICU is loaded from DuckDB's local
+# extension directory when it is there, and the test skips when it is not;
+# with ZUTABLE_DUCKDB_ICU=true (the native coverage job's run sets it) it
+# is installed over the network first, never on CRAN, and failing to load
+# it is a failure, so that leg cannot skip in silence.
+duck_connect_icu <- function(env = parent.frame()) {
+  testthat::skip_if_not_installed("duckdb")
+  testthat::skip_if_not_installed("DBI")
+  con <- duck_connect()
+  withr::defer(DBI::dbDisconnect(con, shutdown = TRUE), envir = env)
+  required <- identical(Sys.getenv("ZUTABLE_DUCKDB_ICU"), "true")
+  if (required) {
+    testthat::skip_on_cran()
+    DBI::dbExecute(con, "INSTALL icu")
+  }
+  ok <- tryCatch({
+    DBI::dbExecute(con, "LOAD icu")
+    TRUE
+  }, error = function(e) if (required) stop(e) else FALSE)
+  testthat::skip_if_not(ok, "DuckDB's ICU extension is not available offline")
+  con
+}
+
+# The rows where DuckDB's ICU truncates to an instant after its input,
+# which D63 does not: a wall time in a repeated (fall-back) hour ICU takes
+# at the later offset, where D63 keeps the input's, so the two agree on
+# the wall clock; and a wall time in a gap ICU reads at the offset from
+# before the change, where D63 takes the first instant after the gap.
+# There zutable's answer is not after the input and is one of those two;
+# elsewhere the two agree exactly. Returns which rows differ.
+expect_trunc_matches_icu <- function(got_us, icu_us, input_us, tz, info) {
+  later <- !is.na(icu_us) & icu_us > input_us
+  expect_identical(got_us[!later], icu_us[!later], info = info)
+  if (any(later)) {
+    at <- function(us) .POSIXct(us / 1e6, tz)
+    wall <- function(us) format(at(us), "%Y-%m-%d %H:%M:%OS6")
+    offset <- function(us) as.POSIXlt(at(us))$gmtoff
+    g <- got_us[later]
+    expect_true(all(g <= input_us[later]), info = info)
+    same_wall <- wall(g) == wall(icu_us[later])
+    gap_end <- offset(g - 1e6) != offset(g)
+    expect_true(all(same_wall | gap_end), info = info)
+  }
+  later
+}
+
+# Truncation in a zone across DST, each answer computed by hand from D63:
+# the local wall clock; a wall time in a gap is the first instant after
+# it; a repeated one keeps the input's offset when it exists there, else
+# the earlier. Inputs and answers are UTC instants.
+dst_cases <- function() {
+  u <- c("second", "minute", "hour", "day", "week", "month", "quarter", "year")
+  row <- function(tz, at, ...) {
+    want <- c(...)
+    stopifnot(identical(names(want), u))
+    list(tz = tz, at = at, want = want)
+  }
+  list(
+    # New York, fall-back 2018-11-04 06:00 UTC: 01:30 EDT, then 01:30 EST.
+    row("America/New_York", "2018-11-04 05:30:00",
+        second = "2018-11-04 05:30:00", minute = "2018-11-04 05:30:00",
+        hour = "2018-11-04 05:00:00", day = "2018-11-04 04:00:00",
+        week = "2018-10-29 04:00:00", month = "2018-11-01 04:00:00",
+        quarter = "2018-10-01 04:00:00", year = "2018-01-01 05:00:00"),
+    row("America/New_York", "2018-11-04 06:30:00",
+        second = "2018-11-04 06:30:00", minute = "2018-11-04 06:30:00",
+        hour = "2018-11-04 06:00:00", day = "2018-11-04 04:00:00",
+        week = "2018-10-29 04:00:00", month = "2018-11-01 04:00:00",
+        quarter = "2018-10-01 04:00:00", year = "2018-01-01 05:00:00"),
+    row("America/New_York", "2018-11-04 06:59:59.75",
+        second = "2018-11-04 06:59:59", minute = "2018-11-04 06:59:00",
+        hour = "2018-11-04 06:00:00", day = "2018-11-04 04:00:00",
+        week = "2018-10-29 04:00:00", month = "2018-11-01 04:00:00",
+        quarter = "2018-10-01 04:00:00", year = "2018-01-01 05:00:00"),
+    # New York, spring-forward 2018-03-11 07:00 UTC: 03:30 EDT.
+    row("America/New_York", "2018-03-11 07:30:00",
+        second = "2018-03-11 07:30:00", minute = "2018-03-11 07:30:00",
+        hour = "2018-03-11 07:00:00", day = "2018-03-11 05:00:00",
+        week = "2018-03-05 05:00:00", month = "2018-03-01 05:00:00",
+        quarter = "2018-01-01 05:00:00", year = "2018-01-01 05:00:00"),
+    # Sao Paulo, spring-forward at midnight 2018-11-04 03:00 UTC: that
+    # day's midnight does not exist, so the day starts at 01:00 -02.
+    row("America/Sao_Paulo", "2018-11-04 15:00:00",
+        second = "2018-11-04 15:00:00", minute = "2018-11-04 15:00:00",
+        hour = "2018-11-04 15:00:00", day = "2018-11-04 03:00:00",
+        week = "2018-10-29 03:00:00", month = "2018-11-01 03:00:00",
+        quarter = "2018-10-01 03:00:00", year = "2018-01-01 02:00:00"),
+    # Sao Paulo, fall-back 2019-02-17 02:00 UTC: 23:30 -02, then 23:30 -03
+    # on 2019-02-16 (a Saturday).
+    row("America/Sao_Paulo", "2019-02-17 01:30:00",
+        second = "2019-02-17 01:30:00", minute = "2019-02-17 01:30:00",
+        hour = "2019-02-17 01:00:00", day = "2019-02-16 02:00:00",
+        week = "2019-02-11 02:00:00", month = "2019-02-01 02:00:00",
+        quarter = "2019-01-01 02:00:00", year = "2019-01-01 02:00:00"),
+    row("America/Sao_Paulo", "2019-02-17 02:30:00",
+        second = "2019-02-17 02:30:00", minute = "2019-02-17 02:30:00",
+        hour = "2019-02-17 02:00:00", day = "2019-02-16 02:00:00",
+        week = "2019-02-11 02:00:00", month = "2019-02-01 02:00:00",
+        quarter = "2019-01-01 02:00:00", year = "2019-01-01 02:00:00"),
+    # London, fall-back 2018-10-28 01:00 UTC (a Sunday): 01:30 BST, then
+    # 01:30 GMT.
+    row("Europe/London", "2018-10-28 00:30:00",
+        second = "2018-10-28 00:30:00", minute = "2018-10-28 00:30:00",
+        hour = "2018-10-28 00:00:00", day = "2018-10-27 23:00:00",
+        week = "2018-10-21 23:00:00", month = "2018-09-30 23:00:00",
+        quarter = "2018-09-30 23:00:00", year = "2018-01-01 00:00:00"),
+    row("Europe/London", "2018-10-28 01:30:00",
+        second = "2018-10-28 01:30:00", minute = "2018-10-28 01:30:00",
+        hour = "2018-10-28 01:00:00", day = "2018-10-27 23:00:00",
+        week = "2018-10-21 23:00:00", month = "2018-09-30 23:00:00",
+        quarter = "2018-09-30 23:00:00", year = "2018-01-01 00:00:00"),
+    # London, spring-forward 2018-03-25 01:00 UTC (a Sunday): 02:30 BST.
+    row("Europe/London", "2018-03-25 01:30:00",
+        second = "2018-03-25 01:30:00", minute = "2018-03-25 01:30:00",
+        hour = "2018-03-25 01:00:00", day = "2018-03-25 00:00:00",
+        week = "2018-03-19 00:00:00", month = "2018-03-01 00:00:00",
+        quarter = "2018-01-01 00:00:00", year = "2018-01-01 00:00:00"),
+    # Lord Howe, half-hour spring-forward 2018-10-06 15:30 UTC (02:00
+    # +10:30 to 02:30 +11): 02:45 +11's hour, 02:00, is in the gap.
+    row("Australia/Lord_Howe", "2018-10-06 15:45:00",
+        second = "2018-10-06 15:45:00", minute = "2018-10-06 15:45:00",
+        hour = "2018-10-06 15:30:00", day = "2018-10-06 13:30:00",
+        week = "2018-09-30 13:30:00", month = "2018-09-30 13:30:00",
+        quarter = "2018-09-30 13:30:00", year = "2017-12-31 13:00:00"),
+    # Lord Howe, half-hour fall-back 2018-03-31 15:00 UTC (02:00 +11 to
+    # 01:30 +10:30): 01:45 +11, then 01:45 +10:30, whose hour 01:00 exists
+    # only at +11.
+    row("Australia/Lord_Howe", "2018-03-31 14:45:00",
+        second = "2018-03-31 14:45:00", minute = "2018-03-31 14:45:00",
+        hour = "2018-03-31 14:00:00", day = "2018-03-31 13:00:00",
+        week = "2018-03-25 13:00:00", month = "2018-03-31 13:00:00",
+        quarter = "2018-03-31 13:00:00", year = "2017-12-31 13:00:00"),
+    row("Australia/Lord_Howe", "2018-03-31 15:20:30.5",
+        second = "2018-03-31 15:20:30", minute = "2018-03-31 15:20:00",
+        hour = "2018-03-31 14:00:00", day = "2018-03-31 13:00:00",
+        week = "2018-03-25 13:00:00", month = "2018-03-31 13:00:00",
+        quarter = "2018-03-31 13:00:00", year = "2017-12-31 13:00:00")
+  )
+}
+
+utc <- function(s) as.double(as.POSIXct(s, tz = "UTC", format = "%Y-%m-%d %H:%M:%OS"))

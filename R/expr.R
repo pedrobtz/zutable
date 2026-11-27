@@ -161,8 +161,9 @@ zt_constant_value <- function(value, expr, ctx, allow_vector = FALSE) {
     # A bare NA is the missing value of whatever type the context needs.
     return(zt_lit_node(value, type = NULL))
   }
+  value <- zt_entry_column(value, sprintf("the constant `%s`", paste(deparse(expr), collapse = " ")),
+                           ctx$call)
   type <- infer_type(value, "constant", ctx$call)
-  if (is.character(value)) value <- enc2utf8(value)
   zt_lit_node(value, type = type)
 }
 
@@ -243,7 +244,8 @@ zt_match_sig <- function(sig, nodes) {
     target <- if (ids[[i]] == "T") t_type else zt_context_type(ids[[i]], nodes)
     if (zt_is_lit(node)) {
       if (is.null(target)) return(NULL)
-      v <- zt_lit_adapt(node$value, target)
+      v <- zt_lit_adapt(node$value, target,
+                        instant = identical(ids[[i]], "timestamp"))
       if (is.null(v)) return(NULL)
       out[[i]] <- zt_lit_node(v, target)
       types[[i]] <- target
@@ -263,12 +265,17 @@ zt_match_sig <- function(sig, nodes) {
 }
 
 # A literal value as a vector of `type`, or NULL when it is not exactly
-# representable there.
-zt_lit_adapt <- function(value, type) {
+# representable there. Where timestamps compare as instants (`instant`),
+# a POSIXct in another zone is the same instant in the column's (#89).
+zt_lit_adapt <- function(value, type, instant = FALSE) {
+  if (instant && identical(type$id, "timestamp") && !is.null(type$tz) &&
+      !identical(type$unit, "ns") && inherits(value, "POSIXct")) {
+    attr(value, "tzone") <- type$tz
+  }
   if (is.logical(value) && !is.object(value) && all(is.na(value))) {
     na <- tryCatch(na_of(type), error = function(e) NULL)
     if (is.null(na)) return(NULL)
-    return(rep(na, length.out = length(value)))
+    return(zt_take(na, rep(1L, length(value))))
   }
   fitted <- zt_fit_literal(value, type)
   if (!is.null(fitted)) {
@@ -289,20 +296,6 @@ zt_lit_adapt <- function(value, type) {
     }
   }
   NULL
-}
-
-# ISO 8601 date-times, "YYYY-MM-DD[ T]HH:MM[:SS[.ffffff]]", read in `tz`.
-zt_parse_timestamp <- function(value, tz) {
-  pat <- "^[0-9]{4}-[0-9]{2}-[0-9]{2}([ T][0-9]{2}:[0-9]{2}(:[0-9]{2}(\\.[0-9]{1,6})?)?)?$"
-  ok <- is.na(value) | grepl(pat, value)
-  if (!all(ok)) return(NULL)
-  v <- sub("T", " ", value, fixed = TRUE)
-  out <- as.POSIXct(v, tz = tz, tryFormats = c("%Y-%m-%d %H:%M:%OS",
-                                               "%Y-%m-%d %H:%M", "%Y-%m-%d"),
-                    optional = TRUE)
-  if (anyNA(out[!is.na(value)])) return(NULL)
-  attr(out, "tzone") <- tz
-  out
 }
 
 zt_call_nullable <- function(entry, args) {
@@ -362,7 +355,7 @@ zt_eval_window <- function(node, cols, n) {
   for (rows in zt_group_rows(g)) {
     if (!length(rows)) next
     v <- zt_eval(node$agg, zt_take_rows(cols, rows), length(rows))
-    out[rows] <- zt_take(v, rep(1L, length(rows)))
+    out <- zt_assign(out, rows, zt_take(v, 1L))
   }
   out
 }
@@ -407,7 +400,11 @@ zt_special_forms <- list(
     if (length(args) != 1L) {
       zutable_abort("syntax", ".col() takes one column name", call = ctx$call)
     }
-    name <- tryCatch(eval(args[[1L]], ctx$env), error = function(e) NULL)
+    name <- tryCatch(eval(args[[1L]], ctx$env), error = function(e) {
+      zutable_abort("syntax", sprintf(".col() takes the name of a column; evaluating `%s` failed: %s",
+                                      paste(deparse(args[[1L]]), collapse = " "),
+                                      conditionMessage(e)), call = ctx$call)
+    })
     if (!is.character(name) || length(name) != 1L || is.na(name)) {
       zutable_abort("syntax", ".col() takes one string, the name of a column",
                     call = ctx$call)
@@ -439,6 +436,14 @@ zt_special_forms <- list(
         zutable_abort("type", "the partition keys of over() are expressions of the columns",
                       call = ctx$call)
       }
+      # The kinds `by` groups by (zt_parse_by()), so a struct is refused
+      # here, not by the executor (#78).
+      for (k in by) {
+        if (!k$type$id %in% c(zt_equatable, "int64", "decimal")) {
+          zutable_abort("type", sprintf("cannot partition by a value of type %s",
+                                        zt_format_type(k)), call = ctx$call)
+        }
+      }
     }
     zt_node("window", agg = agg, by = by, type = agg$type,
             nullable = agg$nullable, aggregate = FALSE)
@@ -459,7 +464,7 @@ zt_special_forms <- list(
       zutable_abort("type", "%in% takes a column of a comparable type",
                     call = ctx$call)
     }
-    v <- zt_lit_adapt(set, x$type)
+    v <- zt_lit_adapt(set, x$type, instant = TRUE)
     if (is.null(v)) {
       zutable_abort("type", sprintf(
         "the set of %%in%% is not %s", format(x$type)
@@ -513,15 +518,21 @@ zt_type_case <- function(expr, ctx) {
 zt_eval_r <- function(node, cols, n) {
   mask <- list2env(cols[node$columns], parent = node$env)
   out <- eval(node$expr, mask)
-  if (zt_nrow_of(out) == 1L && n != 1L) {
-    out <- if (is.data.frame(out)) out[rep(1L, n), , drop = FALSE] else rep(out, length.out = n)
-  }
+  out <- zt_recycle_n(out, n)
   p <- if (zt_nrow_of(out) != n) sprintf("%d values for %d rows", zt_nrow_of(out), n) else
     vector_problem(out, node$type)
   if (!is.null(p)) {
     zutable_abort("type", sprintf("r(%s) was declared %s: %s",
                                   paste(deparse(node$expr), collapse = " "),
-                                  format(node$type), p))
+                                  format(node$type), p), call = zt_eval_call())
+  }
+  zt_check_time_nan(out, node$type, sprintf("r(%s)", paste(deparse(node$expr), collapse = " ")),
+                    zt_eval_call())
+  # Strings leave r() in UTF-8, as a table's do, so a key's text, not its
+  # encoding, decides equality (#50).
+  if (is.character(out) && !is.object(out)) {
+    out <- enc2utf8(zt_check_text(out, sprintf("r(%s)", paste(deparse(node$expr), collapse = " ")),
+                                  zt_eval_call()))
   }
   out
 }

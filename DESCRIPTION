@@ -33,6 +33,7 @@ Suggests:
     collapse,
     DBI,
     decimal,
+    dplyr,
     duckdb,
     knitr,
     rmarkdown,
@@ -43,7 +44,7 @@ Config/testthat/edition: 3
 URL: https://pedrobtz.github.io/zutable/, https://github.com/pedrobtz/zutable
 BugReports: https://github.com/pedrobtz/zutable/issues
 Depends: 
-    R (>= 4.1)
+    R (>= 4.2)
 LinkingTo: 
     zufast (>= 0.1.0)
 VignetteBuilder: knitr

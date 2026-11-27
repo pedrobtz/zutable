@@ -67,3 +67,29 @@ test_that("a timestamp column keeps its zone and unit on replacement", {
                    schema(t = timestamp("ms", "UTC")))
   expect_error(ms$t <- .POSIXct(0.0005, "UTC"), class = "zutable_value_error")
 })
+
+test_that("a zero-length value is refused by every replacement route (#77)", {
+  for (n in c(1L, 4L)) {
+    z <- zutable(a = seq_len(n), b = as.double(seq_len(n)))
+    expect_error(z$a <- integer(), class = "zutable_value_error")
+    expect_error(z[["a"]] <- integer(), class = "zutable_value_error")
+    expect_error(z[, "a"] <- integer(), class = "zutable_value_error")
+    expect_error(z["a"] <- list(integer()), class = "zutable_value_error")
+    expect_error(z[1L, "b"] <- double(), class = "zutable_value_error")
+    expect_identical(z$a, seq_len(n))
+    expect_identical(z$b, as.double(seq_len(n)))
+  }
+})
+
+test_that("`[<-` refuses a row past the last, and writes nothing (#77)", {
+  z <- zutable(a = 1:4, b = c(1, 2, 3, 4))
+  expect_error(z[5L, "a"] <- 9L, class = "zutable_value_error")
+  expect_error(z[c(1L, 5L), "a"] <- 9L, class = "zutable_value_error")
+  expect_error(z[5, ] <- list(9L, 9), class = "zutable_value_error")
+  expect_error(z[c(2L, 100L), c("a", "b")] <- list(9L, 9), class = "zutable_value_error")
+  expect_identical(z$a, 1:4)
+  expect_identical(z$b, c(1, 2, 3, 4))
+  # The last row is in range.
+  z[4L, "a"] <- 9L
+  expect_identical(z$a, c(1L, 2L, 3L, 9L))
+})

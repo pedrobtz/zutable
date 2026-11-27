@@ -49,7 +49,8 @@ key_order <- function(..., decreasing = FALSE, na.last = TRUE,
       length(decreasing) == 1L &&
       !is.na(decreasing) &&
       is.logical(na.last) &&
-      length(na.last) == 1L
+      length(na.last) == 1L &&
+      identical(collate, FALSE)
   ) {
     x <- ..1
     if (
@@ -163,10 +164,10 @@ zt_na_last <- function(na.last, call, keep) {
 #' Sort values
 #'
 #' `key_sort()` returns `x` sorted, as `sort(x, method = "radix")` does, by
-#' the order of [key_order()]. The result remembers that it is sorted and
-#' whether it holds a missing value, so a later `sort()`, `is.unsorted()`
-#' or `anyNA()` on it answers at once, without a pass over the values.
-#' Modifying the result in place forgets both.
+#' the order of [key_order()]. The result remembers whether it holds a
+#' missing value and, when it holds none, that it is sorted, so a later
+#' `sort()`, `is.unsorted()` or `anyNA()` on it answers at once, without a
+#' pass over the values. Modifying the result in place forgets both.
 #'
 #' Numbers, logicals, factors and dates are marked. Strings are not marked
 #' sorted, since base R's sortedness of strings is its own collation, which
@@ -192,7 +193,9 @@ zt_na_last <- function(na.last, call, keep) {
 key_sort <- function(x, decreasing = FALSE, na.last = TRUE, collate = FALSE) {
   call <- sys.call()
   cols <- zt_key_columns(list(x), call)
-  if (length(cols) != 1L) {
+  # One vector: a data frame or a list of columns is not, even of one
+  # column, which x[o] would subset as a list.
+  if (length(cols) != 1L || !identical(cols[[1L]], x)) {
     zutable_abort("type", "`x` is one key vector", call = call)
   }
   if (!is.logical(decreasing) || length(decreasing) != 1L || is.na(decreasing)) {
@@ -200,26 +203,26 @@ key_sort <- function(x, decreasing = FALSE, na.last = TRUE, collate = FALSE) {
   }
   o <- key_order(x, decreasing = decreasing, na.last = na.last,
                  collate = collate)
-  zt_mark_sorted(x[o], decreasing, na.last)
+  zt_mark_sorted(x[o], decreasing)
 }
 
 # y, already sorted, wrapped with what is known of it (src/altrep.c): its
 # sortedness in base R's codes and whether it has no missing value. A list
 # or an integer64 vector is returned as it is; strings carry no_na only.
-zt_mark_sorted <- function(y, decreasing, na.last) {
+zt_mark_sorted <- function(y, decreasing) {
   if (!typeof(y) %in% c("integer", "double", "logical", "character") ||
       inherits(y, "integer64")) {
     return(y)
   }
   no_na <- !anyNA(y)
-  # R's codes (Rinternals.h): 1 increasing and -1 decreasing with NA last,
-  # 2 and -2 with NA first; NA_integer_ is UNKNOWN_SORTEDNESS.
-  sorted <- if (is.character(y)) {
+  # R's codes (Rinternals.h): 1 increasing and -1 decreasing (with NA last,
+  # which without NA is moot); NA_integer_ is UNKNOWN_SORTEDNESS. A
+  # direction only without NA (design-kernel D46, #56): base R's sort() and
+  # order(na.last = NA) trust a direction without reading the NA mark.
+  sorted <- if (is.character(y) || !no_na) {
     NA_integer_
-  } else if (no_na || isTRUE(na.last)) {
-    if (decreasing) -1L else 1L
   } else {
-    if (decreasing) -2L else 2L
+    if (decreasing) -1L else 1L
   }
   a <- attributes(y)
   attributes(y) <- NULL

@@ -40,7 +40,8 @@ holding a type or a string. The types are:
 \itemize{
 \item \code{bool}, \code{int32}, \code{int64}, \code{float64}, \code{string}, \code{date}, \code{binary};
 \item \code{timestamp(unit, tz)}, with \code{unit} one of \code{"s"}, \code{"ms"}, \code{"us"} and
-\code{"ns"} and \code{tz} a zone name, or \code{NULL} for a time without a zone;
+\code{"ns"} and \code{tz} a zone name from \code{\link[=OlsonNames]{OlsonNames()}}, or \code{NULL} for a time
+without a zone;
 bare \code{timestamp} is \code{timestamp("us", "UTC")};
 \item \code{decimal(precision, scale)}, \code{enum(levels)}, \code{list(type)},
 \code{struct(name = type, ...)};

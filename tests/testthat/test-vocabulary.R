@@ -2,7 +2,6 @@
 # not simply R's defaults: the overflow rule, NaN as a value, byte order,
 # SQL's null rules for aggregates, and NA propagation.
 
-
 test_that("int32 arithmetic is straddled at the overflow limit", {
   big <- .Machine$integer.max
   expect_identical(ev(quote(a + b), a = big - 1L, b = 1L), big)
@@ -159,4 +158,96 @@ test_that("SQL literals do not change under a hostile session", {
   expect_identical(zt_sql_expr(node), plain_sql)
   expect_match(plain_sql, "CAST(12345678.9 AS DOUBLE)", fixed = TRUE)
   expect_match(plain_sql, "CAST(0.10000000000000001 AS DOUBLE)", fixed = TRUE)
+})
+
+test_that("date_trunc() in a zone follows the wall clock across DST (#58)", {
+  # Nothing depends on the session's zone.
+  withr::local_timezone("Pacific/Chatham")
+  # Under gctorture, every case at three units through the kernel: the
+  # calendar arithmetic is pure R and the same in both executors.
+  units <- if (under_torture()) c("hour", "day", "week") else NULL
+  executors <- if (under_torture()) "kernel" else c("kernel", "reference")
+  for (case in dst_cases()) {
+    z <- as_zutable(data.frame(t = .POSIXct(utc(case$at), case$tz)))
+    for (unit in units %||% names(case$want)) {
+      for (ex in executors) {
+        withr::local_options(zutable.executor = ex)
+        got <- z[select = .(r = date_trunc(..unit, t))]$r
+        expect_identical(as.double(got), utc(case$want[[unit]]),
+                         info = paste(case$tz, case$at, unit, ex))
+        expect_identical(attr(got, "tzone"), case$tz)
+      }
+    }
+  }
+})
+
+test_that("a date casts to a zoned timestamp at its first local instant (#58)", {
+  withr::local_timezone("Pacific/Chatham")
+  cases <- list(
+    c("America/Sao_Paulo", "2018-11-04", "2018-11-04 03:00:00"),
+    c("America/Sao_Paulo", "2019-02-16", "2019-02-16 02:00:00"),
+    c("America/New_York", "2018-11-04", "2018-11-04 04:00:00"),
+    c("America/New_York", "2018-03-11", "2018-03-11 05:00:00"),
+    c("Europe/London", "2018-03-25", "2018-03-25 00:00:00"),
+    c("Australia/Lord_Howe", "2018-10-07", "2018-10-06 13:30:00"),
+    c("UTC", "1969-12-31", "1969-12-31 00:00:00")
+  )
+  for (k in cases) {
+    got <- ec(as.Date(k[[2L]]), call("timestamp", "us", k[[1L]]))
+    expect_identical(as.double(got), utc(k[[3L]]), info = paste(k, collapse = " "))
+    expect_identical(attr(got, "tzone"), k[[1L]])
+  }
+  expect_identical(as.double(ec(as.Date(c("2018-11-04", NA)),
+                                quote(timestamp("us", "America/Sao_Paulo")))),
+                   c(utc("2018-11-04 03:00:00"), NA))
+  # And back: the local calendar day of an instant.
+  at <- .POSIXct(c(utc("2018-11-04 02:59:59"), utc("2018-11-04 03:00:00"), -0.5),
+                 "America/Sao_Paulo")
+  expect_identical(ec(at, quote(date)),
+                   as.Date(c("2018-11-03", "2018-11-04", "1969-12-31")))
+})
+
+test_that("a date outside years 0 to 9999 casts to ISO 8601 expanded text (#58)", {
+  # 0001-01-01 is day -719162; year 0 is a leap year and -1 is not.
+  d <- structure(c(-719162, -719162 - 366, -719162 - 366 - 365,
+                   as.double(as.Date("9999-12-31")) + 1, NA), class = "Date")
+  want <- c("0001-01-01", "0000-01-01", "-000001-01-01", "+010000-01-01", NA)
+  expect_identical(ec(d, quote(string)), want)
+  z <- zutable(d = d)
+  lit <- d[[3L]]
+  out <- utils::capture.output(explain(z[d == lit]))
+  expect_true(any(grepl('date "-000001-01-01"', out, fixed = TRUE)))
+  expect_identical(zt_sql_literal(d[[3L]], zt_type("date")),
+                   "(DATE '1970-01-01' + CAST(-719893 AS INTEGER))")
+  # date_trunc() of such a date: 0000-03-01 to its year, quarter and month.
+  mar <- structure(-719528 + 31 + 29 + 14, class = "Date")
+  expect_identical(unclass(ev(quote(date_trunc("year", d)), d = mar)), -719528)
+  expect_identical(unclass(ev(quote(date_trunc("quarter", d)), d = mar)), -719528)
+  expect_identical(unclass(ev(quote(date_trunc("month", d)), d = mar)), -719528 + 31 + 29)
+})
+
+test_that("date_trunc() in a zone agrees with DuckDB's ICU (#58)", {
+  skip_conformance_under_torture()
+  con <- duck_connect_icu()
+  later <- 0L
+  for (case in dst_cases()) {
+    DBI::dbExecute(con, sprintf("SET TimeZone = '%s'", case$tz))
+    for (unit in names(case$want)) {
+      z <- as_zutable(data.frame(t = .POSIXct(utc(case$at), case$tz)))
+      got <- z[select = .(r = date_trunc(..unit, t))]$r
+      sql <- sprintf(paste("SELECT epoch_us(date_trunc('%s',",
+                           "to_timestamp(CAST(%.6f AS DOUBLE)))) AS r"),
+                     unit, utc(case$at))
+      want <- DBI::dbGetQuery(con, sql)$r
+      info <- paste(case$tz, case$at, unit)
+      later <- later + sum(expect_trunc_matches_icu(posixct_to_us(got), as.double(want),
+                                                    utc(case$at) * 1e6, case$tz, info))
+      # And where ICU answers later than the input, D63's answer is the
+      # one written by hand.
+      expect_identical(as.double(got), utc(case$want[[unit]]), info = info)
+    }
+  }
+  # The three fall-back hours of dst_cases(), truncated to the hour, are
+  # where the two rules part (DuckDB 2.0.1).
+  expect_identical(later, 3L)
 })

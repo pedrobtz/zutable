@@ -2,6 +2,39 @@
 
 * Initial CRAN submission.
 
+## Bug fixes
+
+* String keys in `grp()`, `grp_match()`, `grp_join()`, `grp_reduce()`, `by` and `join()` match by text when one is unmarked (native) and its twin UTF-8, and `r()` returns UTF-8 strings (#50).
+* A string marked `"bytes"` in a key is a `zutable_value_error` from `grp()`, `grp_match()`, `grp_join()`, `grp_reduce()`, `key_order()`, `key_sort()` and `key_rank()` (#50, #68).
+* `key_sort()` and `grp(sort = TRUE)` mark values sorted only when they hold no `NA`, so `sort()` and `order(na.last = NA)` of them drop the `NA`s as base R does (#56).
+* `key_sort()` and `grp(sort = TRUE)` results save as plain vectors, so `saveRDS()` of them reads back where zutable is not installed (#80), and a stream with the old sorted class is read as its plain values, its marks never trusted, or is a `zutable_value_error` when corrupt (#52).
+* `grp_reduce()` checks a `grp()` result's shape (`id`, `n`, `sizes`, `starts`, `order`, `keys`) and raises a `zutable_type_error` or `zutable_value_error` for a hand-edited one, never coercing `n` (#68).
+* `key_order(collate =)` is checked for one plain vector too, and `key_sort()` of a data frame or list of columns is a `zutable_type_error` (#68).
+* The native grouping and join routines check every key column's length, not only the first's (#85).
+* The kernel's reductions, grouping and join probe stay in range at 2^31 - 1 rows (#53), and `zt_join_build()` in the header returns -1 for a table too small for its rows (#86).
+* `coalesce()`, `ifelse()`, `case()`, `first()`, `last()` and `over()` take a struct column's values by row, under both executors (#55).
+* An extension or `r_class()` column keeps its class and attributes through `where`, value forms, `order`, `limit`, `distinct`, `join()`, `head()` and `rbind()` (#57).
+* The reference join matches an `int64` key's `NA` as missing, not as 0, and keeps apart values whose bits read as NaN (#60).
+* Only the autoprint of a top-level update `x[, a := v]` is skipped: `print()` of it, and a later print after an update in a function, a loop, an assignment or `invisible()`, all print (#61).
+* A bit64 `integer64` column or value enters as `int64` (`zu_int64`, the same bits), and a matrix or array column is a `zutable_type_error` (or `zutable_schema_error` against a schema) in `zutable()`, `as_zutable()`, `schema()`, `conform()` and replacement (#62).
+* `NaN` in a `not_null(float64)` column is a value, as in queries (D47), by every route: constructors, query results, `:=` and `[<-`; `NaN` behind a date or timestamp is a `zutable_value_error` where it enters (#63).
+* Strings enter as UTF-8 by D58's rule, for column values, literals, enum levels and column and field names: an unknown-encoded non-ASCII string in a C or POSIX locale is a `zutable_value_error` naming the column, and a string marked `"bytes"` is refused (#64).
+* A `left`, `right` or `full` join makes the side it does not preserve nullable from the schemas alone, so the result's schema never depends on which rows matched (#65).
+* Metadata follows D59: `select`, `by` keys and `join()` keep a bare column's field metadata, renamed or not, a computed column has none, a query keeps its table's metadata, and a join keeps `x`'s (#66).
+* `int32` widens to `int64` where implicit: `:=`, `$<-`, `[[<-` and `[<-` into an `int64` column, and `cast(x, int64)`; without zuint it is a `zutable_type_error` naming it (#67).
+* `join()` with no `on`, `schema()` of one unnamed argument that fails, `print(n =)` other than a whole number of rows, and option `zutable.executor` other than `"kernel"` or `"reference"` raise the package's classed errors (#68).
+* `within()`, `modifyList()`, `replace()` and `droplevels()` return a plain data frame with no schema, plan or `frozen` attribute, and `is.na(x) <- i` goes through the typed `[<-`, so it respects `freeze()`, `not_null` and the column types (#79).
+* An error raised while evaluating `limit`, `by` or `.col()` keeps its message inside the package's (#82).
+* `join(on =)` is spelled as the bracket is: bare names and `c()` of them are columns, a quoted string a column's name, and `..keys` the names a variable holds in the caller's frame (#83).
+* `cast(timestamp, string)`, `explain()` and the SQL literals round a timestamp to the nearest microsecond before writing it, carrying the second (#51).
+* `cast(string, timestamp)`, `%in%` and a string compared with a timestamp read each string by its own ISO 8601 form, and a string in none of them is a `zutable_value_error` from `cast()` (#54).
+* `date_trunc()` in a zone and `cast()` of a date to a zoned timestamp work on the local wall clock by D63, so a fall-back hour or a midnight that does not exist gives the right instant, never `NA`; a date outside years 0 to 9999 casts to ISO 8601 expanded text such as `"-000001-01-01"`, and `explain()` and the SQL literals write it too (#58).
+* `cast()` to a coarser timestamp unit is a `zutable_value_error` at the first value with a finer part, so its result always conforms to its schema (#59).
+* A `POSIXct` constant in another zone, such as `Sys.time()`, compares with a zoned timestamp column as the same instant, in comparisons and `%in%` (#89).
+* A time zone not in `OlsonNames()`, in `timestamp()` or a `POSIXct` column, is a `zutable_type_error`, not read as UTC (#90).
+* `over(by =)` takes only the key types `by` does, so a struct partition is a `zutable_type_error` from either executor, not an internal error from the kernel (#78).
+* `cast()` of a string or a date to a timestamp, and a string read as a timestamp constant, refuse an instant 2^33 seconds or more from 1970, as `zutable()` and `:=` do, so no cast gives a timestamp the table would refuse (#69).
+
 * `zutable_info()` reports the package version.
 * Every condition the package raises inherits from `zutable_error`.
 * `schema()`, `field()` and `not_null()` describe a table's columns with

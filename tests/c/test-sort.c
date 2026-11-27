@@ -421,7 +421,34 @@ static void test_groups_by_sort(void) {
   free(mem);
 }
 
+/* A string or bytes column is no key zt_order() can order (sort.h takes
+   INT32, LGL, I64 and F64; the R layer ranks strings first): its code book
+   counts every row as missing, so na_last = -1 drops them all and
+   na_last = 1 keeps them in row order (#76). */
+static void test_unordered_kinds(void) {
+  enum { N = 5 };
+  static const char *s[N] = {"b", "a", "c", "a", "b"};
+  static zt_row got[N];
+  void *mem = malloc(zt_sort_scratch_bytes(N));
+  zt_kind kinds[] = {ZT_KIND_STR, ZT_KIND_BYTES};
+  for (int k = 0; k < 2; k++) {
+    zt_sort_col col = {kinds[k], s, 0};
+    zt_codebook cb[1];
+    zt_codebook_build(&col, N, -1, cb);
+    CHECK(cb[0].any_missing == 1);
+    CHECK(zt_order(&col, 1, N, -1, cb, got, mem) == 0);
+    CHECK(zt_order(&col, 1, N, 1, cb, got, mem) == N);
+    for (zt_row i = 0; i < N; i++) CHECK(got[i] == i);
+    /* No rows, no missing cell. */
+    zt_codebook_build(&col, 0, -1, cb);
+    CHECK(cb[0].any_missing == 0);
+    CHECK(zt_order(&col, 1, 0, -1, cb, got, mem) == 0);
+  }
+  free(mem);
+}
+
 int main(void) {
+  test_unordered_kinds();
   test_rungs();
   test_order();
   test_widths();

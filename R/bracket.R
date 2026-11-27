@@ -70,6 +70,7 @@ zt_clause_names <- c("where", "select", "update", "by", "having", "order",
   env <- parent.frame()
   zt_state$skip_print <- NULL
   zt_validate(x, call)
+  zt_kernel_executor(call)
   if (!zt_aware(env)) {
     # Base R's own code indexes a zutable as a data frame (D43).
     return(zt_value_bracket(x, i, j, nargs() - !missing(drop), call, aware = FALSE))
@@ -156,8 +157,9 @@ zt_clause_names <- c("where", "select", "update", "by", "having", "order",
     }
     up <- zt_plan_update(x, upd, where_e, q$by, env, call)
     out <- zt_run_update(x, up, call)
-    frames <- sys.nframe()
-    zt_arm_print_skip(out, frames)
+    # The bracket's own frame: dispatch from the primitive `[` puts this
+    # method one frame below the call `x[...]`, which is frame 1 at top level.
+    zt_arm_print_skip(out, sys.nframe() - 1L)
     return(invisible(out))
   }
   if (!is.null(select_e) && is.call(select_e) && identical(select_e[[1L]], as.name("{"))) {

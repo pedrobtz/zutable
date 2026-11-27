@@ -18,12 +18,18 @@ jobs:
     with:
       badge-branch: gh-pages
       badge-path: badges/coverage.svg
+      # Just under the 90.8% of main's run of 2026-11-21 (#92), so a change
+      # that drops coverage goes red instead of only moving the badge.
+      fail-under: 90
       # gcov over src/ and the kernel's header as the R suite reaches them:
       # the functions no test enters and the conditions taken one way only
       # (assurance.md, Stage 17).
       native: true
       # The suite as R CMD check runs it, but with NOT_CRAN set: the tests
-      # past 1e6 rows that take the wide radix rungs skip on CRAN.
-      native-run: cd tests && NOT_CRAN=true Rscript testthat.R
+      # past 1e6 rows that take the wide radix rungs skip on CRAN. And with
+      # ZUTABLE_DUCKDB_ICU set, the one leg where the zoned-time oracles
+      # install DuckDB's ICU extension over the network and must run
+      # (helper-vocabulary.R, duck_connect_icu(); #78).
+      native-run: cd tests && NOT_CRAN=true ZUTABLE_DUCKDB_ICU=true Rscript testthat.R
     permissions:
       contents: write

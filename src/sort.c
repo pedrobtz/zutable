@@ -8,6 +8,12 @@
 #include <Rinternals.h>
 #include <zutable.h>
 
+// Rf_error here is unreachable from R (#68): key_order(), key_rank() and
+// key_sort() pass keys zt_key_columns() checked (or one plain vector
+// within the row limit, key_order()'s fast path) and zt_strings_rank()
+// the distinct strings of such a key; the checks stand for an internal
+// caller.
+
 static zt_sort_col *zt_fill_sort_cols(SEXP keys, SEXP i64, SEXP dec, zt_row *n) {
   int ncol = (int) XLENGTH(keys);
   zt_sort_col *cols = (zt_sort_col *) R_alloc(ncol > 0 ? (size_t) ncol : 1, sizeof(zt_sort_col));

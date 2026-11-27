@@ -1,7 +1,8 @@
 # A generated table for the bracket's tests: no NaN, so base R's own
 # comparisons are an oracle (NaN's order is tested on its own, D47).
-bracket_frame <- function(n = 60L) {
-  data.frame(
+# `struct = TRUE` adds a struct column `st` for the executor differential.
+bracket_frame <- function(n = 60L, struct = FALSE) {
+  d <- data.frame(
     id = seq_len(n),
     g = sample(c("a", "B", "b", "A", "", NA), n, replace = TRUE),
     k = sample(c(-2L, 0L, 3L, 7L, NA), n, replace = TRUE),
@@ -10,6 +11,11 @@ bracket_frame <- function(n = 60L) {
     day = as.Date("2026-01-01") + sample(c(0:30, NA), n, replace = TRUE),
     stringsAsFactors = FALSE
   )
+  if (struct) {
+    d$st <- data.frame(a = sample(c(1L, 5L, NA), n, replace = TRUE),
+                       b = sample(c("u", "w", NA), n, replace = TRUE))
+  }
+  d
 }
 
 # Expressions the plan property test draws from.

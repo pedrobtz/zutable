@@ -77,11 +77,12 @@ ZT_INLINE int zt_key_eq2(const zt_key *a, zt_row i, const zt_key *b, zt_row j) {
 /* Group the n rows of the build key b, with hashes h, into t, which holds
    zt_table_capacity(n) slots so it never fills: ids[i] is row i's group
    in first appearance, first[g] the first row of group g. Returns the
-   number of groups. t stays for zt_join_probe. */
+   number of groups, or -1 when t is too small to take every row's group
+   (fewer slots than zt_table_capacity(n)). t stays for zt_join_probe. */
 ZT_INLINE zt_row zt_join_build(const zt_key *b, const uint64_t *h, zt_row n,
                                zt_table *t, zt_row *ids, zt_row *first) {
   zt_row ng = 0;
-  zt_groups_one(b, h, NULL, 0, n, t, ids, first, 0, &ng);
+  if (zt_groups_one(b, h, NULL, 0, n, t, ids, first, 0, &ng) < n) return -1;
   return ng;
 }
 
@@ -91,7 +92,7 @@ ZT_INLINE void zt_join_probe(const zt_table *t, const zt_key *b, const zt_row *b
                              const zt_key *p, const uint64_t *hp, zt_row n,
                              zt_row *cls) {
   for (zt_row i = 0; i < n; i++) {
-    if (i + 8 < n) ZT_PREFETCH(&t->meta[(uint32_t) hp[i + 8] & t->mask]);
+    if (i < n - 8) ZT_PREFETCH(&t->meta[(uint32_t) hp[i + 8] & t->mask]);
     uint32_t s = zt_table_find(t, b, p, i, hp[i], zt_key_eq2);
     cls[i] = s == UINT32_MAX ? -1 : bids[t->row[s]];
   }

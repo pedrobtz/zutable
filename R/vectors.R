@@ -18,6 +18,9 @@ infer_type_raw <- function(x, what, call) {
     s <- infer_schema(x, call)
     return(zt_type("struct", fields = s$fields))
   }
+  if (!is.null(dim(x))) {
+    bad("a matrix or array is not a column; give one vector per column")
+  }
   if (is.factor(x)) {
     return(zt_type("enum", levels = levels(x)))
   }
@@ -26,7 +29,11 @@ infer_type_raw <- function(x, what, call) {
   }
   if (inherits(x, "POSIXct")) {
     # D38: no zone means an instant shown in local time; typed as UTC.
-    return(zt_timestamp("us", posixct_tz(x)))
+    tz <- posixct_tz(x)
+    if (!zt_known_zone(tz)) {
+      bad(sprintf("time zone \"%s\" is not one of OlsonNames()", tz))
+    }
+    return(zt_timestamp("us", tz))
   }
   if (inherits(x, "zutempo_instant")) {
     return(zt_timestamp("ns", "UTC"))
@@ -52,6 +59,13 @@ infer_type_raw <- function(x, what, call) {
     return(infer_list(x, what, call, bad))
   }
   bad(sprintf("an R %s vector has no zutable type", typeof(x)))
+}
+
+# Whether `tz` names a zone R knows (#90): R reads an unknown one as UTC
+# with only a warning. The names are read once a session.
+zt_known_zone <- function(tz) {
+  if (is.null(zt_state$zones)) zt_state$zones <- OlsonNames()
+  tz %in% zt_state$zones
 }
 
 posixct_tz <- function(x) {
@@ -120,6 +134,7 @@ decimal_digits <- function(x) {
 # Element-wise checks of list and struct types make nested types enforced
 # (§4.1).
 vector_problem <- function(x, type) {
+  if (!is.data.frame(x) && !is.null(dim(x))) return("a matrix or array, not a vector")
   plain <- function(test) if (test && !is.object(x)) NULL else "wrong vector"
   switch(type$id,
     bool = plain(is.logical(x)),
@@ -277,6 +292,60 @@ na_of <- function(type, call = NULL) {
       out
     }
   )
+}
+
+# A column as it enters, before it is typed. A bit64 integer64 vector
+# holds int64 in zu_int64's own layout (§4.1), so it becomes zu_int64, the
+# same bits (#62). Strings, a factor's levels and a struct's field names
+# enter as text (D58).
+zt_entry_column <- function(x, what = "value", call = NULL) {
+  if (is.data.frame(x)) {
+    for (j in seq_along(x)) {
+      x[[j]] <- zt_entry_column(x[[j]], sprintf("%s$%s", what, names(x)[[j]]), call)
+    }
+    names(x) <- zt_enter_strings(names(x), sprintf("the field names of %s", what), call)
+  } else if (inherits(x, "integer64") && !inherits(x, "zu_int64")) {
+    class(x) <- c("zu_int64", "integer64")
+  } else if (is.factor(x)) {
+    lv <- zt_enter_strings(levels(x), sprintf("the levels of %s", what), call)
+    if (anyDuplicated(lv)) {
+      zutable_abort("value", sprintf(
+        "the levels of %s repeat once converted to UTF-8", what
+      ), call = call)
+    }
+    levels(x) <- lv
+  } else if (is.character(x) && !is.object(x)) {
+    x <- zt_enter_strings(x, what, call)
+  }
+  x
+}
+
+# Strings as they enter (D58): ASCII, UTF-8 and latin1 become UTF-8; an
+# unknown-encoded non-ASCII string is converted from the native encoding,
+# except in a C or POSIX locale, where its bytes have no meaning; a string
+# marked "bytes" is not text. `what` names the column.
+zt_enter_strings <- function(x, what, call) {
+  if (!length(x)) return(x)
+  zt_check_text(x, what, call)
+  if (zt_c_locale()) {
+    unknown <- Encoding(x) == "unknown" & !is.na(x)
+    if (any(unknown)) {
+      high <- grepl("[^\\x01-\\x7f]", x[unknown], perl = TRUE, useBytes = TRUE)
+      if (any(high)) {
+        zutable_abort("value", sprintf(paste(
+          "%s has a non-ASCII string of unknown encoding at row %d, which has no",
+          "meaning in the C locale; mark it with `Encoding<-` or convert it with iconv()"
+        ), what, which(unknown)[high][[1L]]), call = call)
+      }
+    }
+  }
+  enc2utf8(x)
+}
+
+zt_c_locale <- function() {
+  info <- l10n_info()
+  !isTRUE(info[["UTF-8"]]) && !isTRUE(info[["Latin-1"]]) &&
+    Sys.getlocale("LC_CTYPE") %in% c("C", "POSIX")
 }
 
 # INT64_MIN, bit64's NA, as the double whose bits it is.

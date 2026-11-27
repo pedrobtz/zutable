@@ -46,7 +46,7 @@ zt_int_result <- function(x) {
     zutable_abort("value", sprintf(
       "int32 overflow: %s is outside +/-(2^31 - 1); cast to float64 first",
       format(x[bad][[1L]], digits = 15L)
-    ))
+    ), call = zt_eval_call())
   }
   as.integer(x)
 }
@@ -198,41 +198,38 @@ zt_num1 <- function(name, f, sqlf, synonyms = character(), keep_int = FALSE,
 
 zt_trunc_unit <- function(unit, x, type) {
   if (identical(type$id, "date")) {
-    lt <- as.POSIXlt(x, tz = "UTC")
-    y <- lt$year + 1900L
-    m <- lt$mon + 1L
+    day <- zt_strip(unclass(x))
+    ymd <- zt_civil_from_days(day)
     out <- switch(unit,
-      year = sprintf("%04d-01-01", y),
-      quarter = sprintf("%04d-%02d-01", y, (m - 1L) %/% 3L * 3L + 1L),
-      month = sprintf("%04d-%02d-01", y, m),
-      week = NULL,
-      day = NULL
+      year = zt_days_from_civil(ymd$y, 1, 1),
+      quarter = zt_days_from_civil(ymd$y, (ymd$m - 1) %/% 3 * 3 + 1, 1),
+      month = zt_days_from_civil(ymd$y, ymd$m, 1),
+      week = day - (day + 3) %% 7,
+      day = day
     )
-    if (unit == "week") return(x - (lt$wday + 6L) %% 7L)
-    if (unit == "day") return(x)
-    out[is.na(x)] <- NA
-    return(as.Date(out))
+    return(zt_as_date(out))
   }
+  # D63: truncate the local wall clock, then find its instant; no local
+  # time is formatted to text and read back (#58).
   tz <- type$tz %||% "UTC"
-  lt <- as.POSIXlt(x, tz = tz)
-  fmt <- switch(unit,
-    year = "%Y-01-01 00:00:00", quarter = NULL, month = "%Y-%m-01 00:00:00",
-    week = NULL, day = "%Y-%m-%d 00:00:00", hour = "%Y-%m-%d %H:00:00",
-    minute = "%Y-%m-%d %H:%M:00", second = "%Y-%m-%d %H:%M:%S"
+  secs <- floor(posixct_to_us(x, "timestamp", zt_eval_call()) / 1e6)
+  wall <- zt_wall_clock(secs, tz)
+  day <- floor(wall / 86400)
+  tod <- wall - day * 86400
+  ymd <- zt_civil_from_days(day)
+  start <- switch(unit,
+    year = zt_days_from_civil(ymd$y, 1, 1) * 86400,
+    quarter = zt_days_from_civil(ymd$y, (ymd$m - 1) %/% 3 * 3 + 1, 1) * 86400,
+    month = zt_days_from_civil(ymd$y, ymd$m, 1) * 86400,
+    # 1970-01-01 was a Thursday: Monday is day -3 modulo 7.
+    week = (day - (day + 3) %% 7) * 86400,
+    day = day * 86400,
+    hour = day * 86400 + tod %/% 3600 * 3600,
+    minute = day * 86400 + tod %/% 60 * 60,
+    second = wall
   )
-  if (unit == "quarter") {
-    q <- (lt$mon %/% 3L) * 3L + 1L
-    s <- sprintf("%04d-%02d-01 00:00:00", lt$year + 1900L, q)
-  } else if (unit == "week") {
-    d <- as.Date(format(x, "%Y-%m-%d", tz = tz)) - (lt$wday + 6L) %% 7L
-    s <- paste(format(d), "00:00:00")
-  } else {
-    s <- format(x, fmt, tz = tz)
-  }
-  s[is.na(x)] <- NA
-  out <- as.POSIXct(s, tz = tz, format = "%Y-%m-%d %H:%M:%S")
-  attr(out, "tzone") <- tz
-  out
+  out <- zt_wall_to_instant(start, tz, prefer = wall - secs)
+  .POSIXct(out, tz)
 }
 
 zt_date_part <- function(part, x, type) {
@@ -449,13 +446,12 @@ zt_vocab_list <- list(
     doc = "missing; NaN is a value, not missing"),
   vocab_entry("coalesce", list(sig("T", "T", variadic = TRUE, T = zt_value_types)),
     impl = function(v, t, r, n) {
-      out <- v[[1L]]
-      if (length(out) == 1L && n != 1L) out <- rep(out, length.out = n)
+      out <- zt_recycle_n(v[[1L]], n)
       for (x in v[-1L]) {
-        if (length(x) == 1L && n != 1L) x <- rep(x, length.out = n)
-        miss <- zt_is_null(out)
-        if (!any(miss)) break
-        out[miss] <- x[miss]
+        miss <- which(zt_is_null(out))
+        if (!length(miss)) break
+        x <- zt_recycle_n(x, n)
+        out <- zt_assign(out, miss, zt_take(x, miss))
       }
       out
     },
@@ -464,14 +460,11 @@ zt_vocab_list <- list(
   vocab_entry("ifelse", list(sig(c("bool", "T", "T"), "T", T = zt_value_types)),
     impl = function(v, t, r, n) {
       cond <- rep_len(v[[1L]], n)
-      yes <- v[[2L]]
-      no <- v[[3L]]
-      out <- if (length(no) == 1L) rep(no, length.out = n) else no
-      if (length(yes) == 1L) yes <- rep(yes, length.out = n)
-      take <- cond %in% TRUE
-      out[take] <- yes[take]
-      out[is.na(cond)] <- na_of(r)
-      out
+      yes <- zt_recycle_n(v[[2L]], n)
+      out <- zt_recycle_n(v[[3L]], n)
+      take <- which(cond %in% TRUE)
+      out <- zt_assign(out, take, zt_take(yes, take))
+      zt_assign(out, which(is.na(cond)), na_of(r))
     },
     sql = function(a, t, r) sprintf(
       "(CASE WHEN %1$s IS NULL THEN NULL WHEN %1$s THEN %2$s ELSE %3$s END)",
@@ -558,7 +551,7 @@ zt_vocab_list <- list(
                                              "second") ||
           identical(t[[2L]]$id, "date") && unit %in% c("hour", "minute", "second")) {
         zutable_abort("value", sprintf("date_trunc() has no unit \"%s\" for %s",
-                                       unit, format(t[[2L]])))
+                                       unit, format(t[[2L]])), call = zt_eval_call())
       }
       zt_trunc_unit(unit, v[[2L]], t[[2L]])
     },

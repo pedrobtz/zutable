@@ -95,7 +95,8 @@ parse_field <- function(expr, name, env, call = NULL) {
 #'
 #' * `bool`, `int32`, `int64`, `float64`, `string`, `date`, `binary`;
 #' * `timestamp(unit, tz)`, with `unit` one of `"s"`, `"ms"`, `"us"` and
-#'   `"ns"` and `tz` a zone name, or `NULL` for a time without a zone;
+#'   `"ns"` and `tz` a zone name from [OlsonNames()], or `NULL` for a time
+#'   without a zone;
 #'   bare `timestamp` is `timestamp("us", "UTC")`;
 #' * `decimal(precision, scale)`, `enum(levels)`, `list(type)`,
 #'   `struct(name = type, ...)`;
@@ -132,10 +133,16 @@ schema <- function(..., .metadata = NULL) {
   exprs <- as.list(substitute(list(...)))[-1L]
   env <- parent.frame()
   call <- sys.call()
-  nms <- names(exprs) %||% rep("", length(exprs))
+  nms <- zt_enter_strings(names(exprs) %||% rep("", length(exprs)), "the field names", call)
 
   if (length(exprs) == 1L && !nzchar(nms[[1L]]) && is.null(.metadata)) {
-    return(schema_of(eval(exprs[[1L]], env), call))
+    x <- tryCatch(eval(exprs[[1L]], env), error = function(e) {
+      zutable_abort("schema", sprintf(paste(
+        "schema() of one unnamed argument takes a table, and `%s` failed: %s;",
+        "fields are named, as in schema(x = int32)"
+      ), paste(deparse(exprs[[1L]]), collapse = " "), conditionMessage(e)), call = call)
+    })
+    return(schema_of(x, call))
   }
   if (any(!nzchar(nms))) {
     zutable_abort("schema", "every field of a schema needs a name",
@@ -155,12 +162,13 @@ schema <- function(..., .metadata = NULL) {
 #' @rdname schema
 #' @export
 field <- function(type, nullable = TRUE, metadata = NULL) {
-  f <- parse_field(substitute(type), "", parent.frame(), sys.call())
+  call <- sys.call()
+  f <- parse_field(substitute(type), "", parent.frame(), call)
   if (!is.logical(nullable) || length(nullable) != 1L || is.na(nullable)) {
-    zutable_abort("type", "field() nullable must be TRUE or FALSE")
+    zutable_abort("type", "field() nullable must be TRUE or FALSE", call = call)
   }
   f$nullable <- f$nullable && nullable
-  f$metadata <- check_metadata(metadata, "field")
+  f$metadata <- check_metadata(metadata, "field", call)
   f
 }
 

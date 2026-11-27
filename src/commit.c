@@ -7,6 +7,10 @@
 #include <R.h>
 #include <Rinternals.h>
 
+// Rf_error here is unreachable from R (#68): R/update.R passes a table, the
+// column indices match() found and one column per index; the checks stand
+// for an internal caller (test-native-guards.R).
+
 static int zt_is_frozen_sexp(SEXP x) {
   SEXP mark = Rf_getAttrib(x, Rf_install("frozen"));
   return TYPEOF(mark) == LGLSXP && XLENGTH(mark) == 1 && LOGICAL(mark)[0] == TRUE;

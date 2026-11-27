@@ -3,6 +3,7 @@
  * random keys against a quadratic reference, the partitioned path against
  * the one-pass path, and the limits of the row index.
  */
+#include "zeros.h"
 #define ZT_STANDALONE 1
 #include <zutable.h>
 #include <stdio.h>
@@ -93,8 +94,37 @@ static void test_zero_columns(void) {
   CHECK(h[0] != 1 || h[4] != 5);
 }
 
+/* zt_groups_one() over m rows near 2^31 - 1 (#53): its prefetch looks
+   eight rows ahead, and `r + 8 < m` overflowed within eight rows of the
+   limit, so rows[r + 8] read past the end. rows[] is zeros mapped from a
+   sparse file, every row row 0, so only ids[0] and h[0] are touched. */
+static void test_max_rows(void) {
+#if ZT_HAVE_ZEROS
+  const zt_row *rows = zt_test_zeros(((size_t) INT32_MAX + 1) * sizeof(zt_row));
+  CHECK(rows != NULL);
+  if (rows == NULL) return;
+  static const zt_row ms[] = {INT32_MAX, INT32_MAX - 9, INT32_MAX - 8, INT32_MAX - 1};
+  for (size_t j = 0; j < zt_test_limit_cases(sizeof ms / sizeof ms[0]); j++) {
+    zt_key k = {NULL, 0};
+    uint64_t h[1] = {0};
+    zt_row ids[1], first[1], ng = 0;
+    uint64_t cap = 16;
+    void *mem = malloc(zt_table_bytes(cap));
+    zt_table t;
+    zt_table_init(&t, mem, cap);
+    zt_row done = zt_groups_one(&k, h, rows, 0, ms[j], &t, ids, first, 0, &ng);
+    CHECK(done == ms[j]);
+    CHECK(ng == 1);
+    free(mem);
+  }
+#else
+  printf("test-groups: the 2^31 - 1 row case needs POSIX mmap(); skipped\n");
+#endif
+}
+
 int main(void) {
   test_zero_columns();
+  test_max_rows();
   enum { N = 3000 };
   static int32_t a[N], ids[N], first[N], ref[N];
   static double d[N];
@@ -203,6 +233,60 @@ int main(void) {
     CHECK(zt_estimate_distinct(h, 2048, scratch) == 251);
     CHECK(zt_partition_bits(1e3) == 0);
     CHECK(zt_partition_bits(1e7) > 0);
+  }
+  /* The partition threshold (#69): one table while groups * 8/7 slots of
+     five bytes fit in L3, 1468006.4 groups at 8 MiB; past it, the fewest
+     bits whose partition tables fit in half of L2, at most 16, worked out
+     here in whole bytes. */
+  {
+    double l3 = 8.0 * 1024 * 1024, l2 = 256.0 * 1024;
+    double at = l3 * 7 / 40;
+    double gs[] = {floor(at) - 1, floor(at), ceil(at), ceil(at) + 1, 1e7, 1e9, 1e12};
+    for (int i = 0; i < 7; i++) {
+      int want = 0;
+      if (gs[i] * 40 > l3 * 7) {
+        while (want < 16 && gs[i] * 40 / 7 > (l2 / 2) * (double) (1u << want)) want++;
+      }
+      CHECK(zt_partition_bits(gs[i]) == want);
+    }
+    CHECK(zt_partition_bits(floor(at)) == 0);
+    CHECK(zt_partition_bits(ceil(at)) > 0);
+  }
+  /* The load limit (#69): zt_groups_one() stops before the insert that
+     would pass 7/8 of the slots, 14 of 16. A repeated key is no insert, so
+     below the limit repeats are taken; at it the table stops before the
+     next row, whatever it holds. */
+  {
+    static int32_t v[40];
+    static zt_row gid[40], gfirst[40];
+    static uint64_t hh[40];
+    zt_column col = {ZT_KIND_INT32, v};
+    zt_key k = {&col, 1};
+    void *mem = malloc(zt_table_bytes(16));
+    for (int m = 13; m <= 15; m++) {
+      for (int i = 0; i < m; i++) v[i] = i * 7 + 1;
+      zt_key_hash(&k, m, hh);
+      zt_table t;
+      zt_table_init(&t, mem, 16);
+      zt_row ng = 0;
+      zt_row done = zt_groups_one(&k, hh, NULL, 0, m, &t, gid, gfirst, 0, &ng);
+      CHECK(done == (m < 14 ? m : 14));
+      CHECK(ng == done);
+    }
+    for (int i = 0; i < 40; i++) v[i] = (i % 13) * 7 + 1;
+    zt_key_hash(&k, 40, hh);
+    zt_table t;
+    zt_table_init(&t, mem, 16);
+    zt_row ng = 0;
+    CHECK(zt_groups_one(&k, hh, NULL, 0, 40, &t, gid, gfirst, 0, &ng) == 40);
+    CHECK(ng == 13);
+    for (int i = 0; i < 40; i++) v[i] = (i % 14) * 7 + 1;
+    zt_key_hash(&k, 40, hh);
+    zt_table_init(&t, mem, 16);
+    ng = 0;
+    CHECK(zt_groups_one(&k, hh, NULL, 0, 40, &t, gid, gfirst, 0, &ng) == 14);
+    CHECK(ng == 14);
+    free(mem);
   }
   if (failures) { fprintf(stderr, "%d check(s) failed\n", failures); return 1; }
   printf("test-groups: ok\n");

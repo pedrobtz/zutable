@@ -47,11 +47,24 @@ test_that("large inputs choose partitions on their own and agree", {
   expect_identical(g$id, match(x, unique(x)))
 })
 
-test_that("a table that starts small and grows gives the same groups", {
+test_that("a table that starts small and grows gives the same groups (#70)", {
   withr::local_seed(48)
-  # Distinct keys all over a small sample's view: the estimate is low, so
-  # the table must double many times.
-  x <- c(rep(1L, 5e4), sample.int(1e9, 5e4))
-  g <- zt_grp_native(list(x), length(x), force_bits = 0L)
-  expect_identical(g$id, match(x, unique(x)))
+  # The estimator samples rows i * n / m (zt_estimate_distinct()): one key
+  # at every sampled row and a distinct key everywhere else, so the
+  # estimate is 1 where the truth is n - m + 1 groups, and the table
+  # starting at 16 slots must double many times, one-pass and partitioned.
+  n <- 1e5L
+  m <- 1024L
+  seen <- floor(seq.int(0, m - 1) * n / m) + 1
+  x <- sample.int(1e9, n) + 1L
+  x[seen] <- 1L
+  want <- match(x, unique(x))
+  for (bits in c(0L, 1L, 4L)) {
+    g <- zt_grp_native(list(x), n, force_bits = bits)
+    expect_identical(g$bits, bits)
+    expect_identical(g$id, want, info = bits)
+    expect_identical(g$n, max(want), info = bits)
+  }
+  # And through grp() on its own estimate.
+  expect_identical(grp(x)$id, want)
 })

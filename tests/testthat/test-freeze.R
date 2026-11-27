@@ -55,3 +55,81 @@ test_that("freeze() and copy() take zutables", {
   expect_error(copy(1:3), class = "zutable_type_error")
   expect_false(is_frozen(data.frame()))
 })
+
+test_that("D43's route returns an honest data frame, frozen or not (#79)", {
+  for (frozen in c(FALSE, TRUE)) {
+    mk <- function() {
+      f <- zutable(a = 1:3, b = c(1, 2, 3), e = factor(c("x", "x", "y"), levels = c("x", "y", "z")))
+      f[, b := b]  # a plan record to strip
+      if (frozen) freeze(f)
+      f
+    }
+    f <- mk()
+    expect_false(is.null(attr(f, "plan", exact = TRUE)))
+    before <- plain(f)
+    outs <- list(
+      within = within(f, b <- b * 2),
+      modifyList = modifyList(f, list(b = c(7, 8, 9))),
+      replace = replace(f, "b", list(c(4, 5, 6))),
+      droplevels = droplevels(f)
+    )
+    for (nm in names(outs)) {
+      o <- outs[[nm]]
+      info <- paste(nm, frozen)
+      expect_identical(class(o), "data.frame", info = info)
+      for (a in c("schema", "plan", "frozen", "properties")) {
+        expect_null(attr(o, a, exact = TRUE), info = paste(info, a))
+      }
+    }
+    # Base R's answers on the plain frame are the oracle.
+    expect_identical(plain(outs$within), within(before, b <- b * 2))
+    expect_identical(plain(outs$modifyList), modifyList(before, list(b = c(7, 8, 9))))
+    expect_identical(plain(outs$droplevels), droplevels(before))
+    # The object itself is never written, and keeps its mark.
+    expect_identical(plain(f), before)
+    expect_identical(is_frozen(f), frozen)
+  }
+})
+
+test_that("is.na<- goes through the typed [<- (#79)", {
+  f <- zutable(a = 1:3, b = c(1, 2, 3))
+  freeze(f)
+  expect_error(is.na(f) <- 1, class = "zutable_frozen_error")
+  expect_true(is_zutable(f))
+  expect_identical(f$a, 1:3)
+  g <- zutable(a = 1:3, b = c(1, 2, 3))
+  is.na(g) <- 1
+  # Base R's answer, with the column keeping its type (int32's NA).
+  want <- data.frame(a = 1:3, b = c(1, 2, 3))
+  is.na(want) <- 1
+  want$a <- as.integer(want$a)
+  expect_true(is_zutable(g))
+  expect_identical(plain(g), want)
+  expect_no_error(conform(g, schema(g)))
+  h <- as_zutable(data.frame(a = 1:3), schema(a = not_null(int32)))
+  expect_error(is.na(h) <- 1, class = "zutable_value_error")
+  expect_identical(h$a, 1:3)
+})
+
+test_that("base attribute writes change a copy, never the frozen table (#69)", {
+  # attr<-, attributes<- and levels<- are R's copy-on-modify replacements:
+  # they bind a changed copy to the name (D60: freeze() protects the
+  # object, not the name), so the frozen table and its alias stay as they were.
+  f <- freeze(zutable(a = 1:3, b = c("x", "y", "z")))
+  alias <- f
+  before <- plain(f)
+  g <- f
+  attr(g, "note") <- "changed"
+  h <- f
+  levels(h) <- c("p", "q")
+  k <- f
+  attributes(k) <- c(attributes(k), list(extra = 1))
+  for (o in list(f, alias)) {
+    expect_true(is_frozen(o))
+    expect_null(attr(o, "note", exact = TRUE))
+    expect_null(attr(o, "levels", exact = TRUE))
+    expect_null(attr(o, "extra", exact = TRUE))
+    expect_identical(plain(o), before)
+    expect_error(o[, a := 0L], class = "zutable_frozen_error")
+  }
+})

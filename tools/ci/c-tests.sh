@@ -24,6 +24,8 @@ $cc -std=c11 -O1 -g -Wall -Wextra -pedantic -Werror ${CFLAGS_EXTRA:-} -DZT_PRECI
 $cc -std=c11 -O1 -g -Wall -Wextra -pedantic -Werror ${CFLAGS_EXTRA:-} -DZT_FUZZ_MAIN \
   -Iinst/include $zinc tools/fuzz/harness.c tools/fuzz/invariants.c -o "$out/fuzz-smoke" -lm
 "$out/fuzz-smoke"
+# And the committed corpus (tools/fuzz/corpus, #73), on every platform.
+"$out/fuzz-smoke" tools/fuzz/corpus/*
 if [ "${PORTS:-1}" != 0 ]; then
   orig=$(sh tools/ci/fetch-originals.sh)
   # The originals are not ours to hold to -Werror.

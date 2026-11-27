@@ -26,6 +26,9 @@
 #define ZT_HAS_ATTRIB(x) (ATTRIB(x) != R_NilValue)
 #endif
 
+// Rf_error here is unreachable from R (#68): zt_mark_sorted() wraps only
+// integer, double, logical and character payloads stripped of attributes,
+// with a code it chose; zt_sorted_unserialize() raises a classed error.
 static R_altrep_class_t zt_sorted_int, zt_sorted_real, zt_sorted_lgl, zt_sorted_str;
 
 static int zt_is_sorted_class(SEXP x) {
@@ -89,23 +92,44 @@ static SEXP zt_sorted_duplicate(SEXP x, Rboolean deep) {
   return y;
 }
 
-// Serialized as the payload and the metadata; attributes go with the
-// wrapper, as for any ALTREP object.
+// Serialized as the plain payload (design-kernel D46, amended; #80): no
+// state, a C NULL (R_NilValue would be a state), so R writes the vector as
+// an ordinary one, with the wrapper's
+// attributes. A saved object then reads back where zutable is not
+// installed, and no mark is ever taken from a file.
 static SEXP zt_sorted_serialized_state(SEXP x) {
-  SEXP s = PROTECT(Rf_allocVector(VECSXP, 2));
-  SET_VECTOR_ELT(s, 0, zt_payload(x));
-  SET_VECTOR_ELT(s, 1, R_altrep_data2(x));
-  UNPROTECT(1);
-  return s;
+  (void) x;
+  return NULL;
 }
 
+// A zutable_value_error, raised by the package's own constructor so it is
+// classed as every other condition is (CLAUDE.md: errors are base-R
+// conditions under zutable_error). Does not return.
+static void zt_value_error(const char *msg) {
+  SEXP ns = PROTECT(R_FindNamespace(Rf_mkString("zutable")));
+  SEXP call = PROTECT(Rf_lang4(Rf_install("zutable_abort"), Rf_mkString("value"),
+                               Rf_mkString(msg), R_NilValue));
+  SET_TAG(CDDDR(call), Rf_install("call"));
+  Rf_eval(call, ns);
+  UNPROTECT(2);
+}
+
+// Reached only by a stream an earlier zutable wrote, with the state a list
+// of the payload and the marks. Defence in depth (#52): the state is
+// checked as zt_sorted_wrap() checks its arguments, and the marks are
+// never believed, since a file can say anything; the payload is returned
+// plain, and R puts the wrapper's attributes on it.
 static SEXP zt_sorted_unserialize(SEXP cls, SEXP state) {
-  (void) cls;
+  int t = cls == zt_sorted_int.ptr ? INTSXP : cls == zt_sorted_real.ptr ? REALSXP :
+          cls == zt_sorted_lgl.ptr ? LGLSXP : STRSXP;
+  if (TYPEOF(state) != VECSXP || XLENGTH(state) != 2) {
+    zt_value_error("a serialized sorted vector has no payload; the stream is corrupt");
+  }
   SEXP p = VECTOR_ELT(state, 0);
-  SEXP m = PROTECT(Rf_duplicate(VECTOR_ELT(state, 1)));
-  SEXP y = R_new_altrep(zt_class_for(TYPEOF(p)), p, m);
-  UNPROTECT(1);
-  return y;
+  if (TYPEOF(p) != t || ZT_HAS_ATTRIB(p)) {
+    zt_value_error("a serialized sorted vector's payload is not a plain vector of its type; the stream is corrupt");
+  }
+  return p;
 }
 
 static int zt_sorted_is_sorted(SEXP x) { return zt_meta(x)[0]; }

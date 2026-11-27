@@ -4,7 +4,7 @@
 
 zt_recycle_n <- function(v, n) {
   if (zt_nrow_of(v) == 1L && n != 1L) {
-    if (is.data.frame(v)) v[rep(1L, n), , drop = FALSE] else rep(v, length.out = n)
+    zt_take(v, rep(1L, n))
   } else {
     v
   }
@@ -13,6 +13,10 @@ zt_recycle_n <- function(v, n) {
 zt_take_rows <- function(cols, idx) lapply(cols, zt_take, idx = idx)
 
 zt_execute <- function(x, plan, call) {
+  zt_with_eval_call(call, zt_execute_plan(x, plan, call))
+}
+
+zt_execute_plan <- function(x, plan, call) {
   cols <- unclass(x)
   attributes(cols) <- list(names = names(x))
   n <- .row_names_info(x, 2L)
@@ -98,7 +102,7 @@ zt_order_index <- function(vals, types, desc) {
   if (!length(vals[[1L]])) return(integer())
   # The kernel's sort, strings by the bytes of their UTF-8 text (Stage
   # 12); base radix order is the reference (D29).
-  if (!identical(getOption("zutable.executor", "kernel"), "reference")) {
+  if (zt_kernel_executor()) {
     k <- zt_string_codes(list(keys = unname(keys), strings = TRUE))
     return(.Call(zt_key_order, k$keys, rep(FALSE, length(keys)), dec, 1L))
   }
@@ -116,7 +120,7 @@ zt_group_ids <- function(keys, n) {
   if (!length(keys)) {
     return(list(id = rep(1L, n), n_groups = 1L))
   }
-  if (!identical(getOption("zutable.executor", "kernel"), "reference")) {
+  if (zt_kernel_executor()) {
     g <- zt_grp_native(keys, n)
     return(list(id = g$id, n_groups = g$n))
   }
@@ -156,7 +160,7 @@ zt_group_rows <- function(g) {
 # A vector of `type` of length n, all missing.
 zt_empty <- function(type, n) {
   na <- na_of(type)
-  if (is.data.frame(na)) na[rep(1L, n), , drop = FALSE] else rep(na, length.out = n)
+  zt_take(na, rep(1L, n))
 }
 
 zt_run_aggregate <- function(st, cols, n) {
@@ -177,7 +181,7 @@ zt_run_aggregate <- function(st, cols, n) {
     for (i in seq_along(groups)) {
       rows <- groups[[i]]
       v <- zt_eval(node, zt_take_rows(cols, rows), length(rows))
-      if (zt_nrow_of(v)) res[i] <- zt_take(v, 1L)
+      if (zt_nrow_of(v)) res <- zt_assign(res, i, zt_take(v, 1L))
     }
     out[[nm]] <- res
   }
@@ -199,8 +203,17 @@ zt_run_aggregate <- function(st, cols, n) {
 
 # --- aggregates through the kernel's grp_reduce() (Stage 14) ------------------
 
-zt_kernel_executor <- function() {
-  !identical(getOption("zutable.executor", "kernel"), "reference")
+# Option zutable.executor: "kernel" (the default) or "reference" (D29).
+# Entry points check it with their call; any other value is an error
+# rather than silently the kernel (#68).
+zt_kernel_executor <- function(call = NULL) {
+  ex <- getOption("zutable.executor", "kernel")
+  if (!is.character(ex) || length(ex) != 1L || is.na(ex) ||
+      !ex %in% c("kernel", "reference")) {
+    zutable_abort("value", 'option zutable.executor is "kernel" or "reference"',
+                  call = call)
+  }
+  identical(ex, "kernel")
 }
 
 # An aggregate step through the kernel: each aggregate call is reduced over

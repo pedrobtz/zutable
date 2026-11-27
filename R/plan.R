@@ -57,15 +57,16 @@ zt_plan_query <- function(x, q, env, call) {
     any(vapply(sel, function(n) isTRUE(n$aggregate), NA))
   if (aggregate) {
     st <- zt_plan_aggregate(by, sel, q$having, cur, env, call)
+    # D59: a plan over one source keeps the table's metadata.
+    st$schema$metadata <- cur$metadata
     st$by <- lapply(st$by, zt_resolve, from = length(steps))
     st$exprs <- lapply(st$exprs, zt_resolve, from = length(steps))
     steps[[length(steps) + 1L]] <- st
     cur <- st$schema
     in_schema <- cur
   } else if (!is.null(sel)) {
-    out <- new_schema(lapply(names(sel), function(n) {
-      new_field(n, sel[[n]]$type, isTRUE(sel[[n]]$nullable))
-    }))
+    out <- new_schema(lapply(names(sel), function(n) zt_node_field(n, sel[[n]], cur)),
+                      cur$metadata)
     steps[[length(steps) + 1L]] <- zt_step(
       "project", out, exprs = lapply(sel, zt_resolve, from = length(steps))
     )
@@ -82,7 +83,11 @@ zt_plan_query <- function(x, q, env, call) {
     steps[[length(steps) + 1L]] <- zt_step("sort", cur, keys = keys)
   }
   if (!is.null(q$limit)) {
-    n <- tryCatch(eval(q$limit, env), error = function(e) NULL)
+    # D62: a user's own error keeps its message inside the package's.
+    n <- tryCatch(eval(q$limit, env), error = function(e) {
+      zutable_abort("syntax", sprintf("`limit` failed to evaluate: %s", conditionMessage(e)),
+                    call = call)
+    })
     if (!is.numeric(n) || length(n) != 1L || is.na(n) || n < 0 || n != trunc(n)) {
       zutable_abort("syntax", "`limit` is a whole number of rows, 0 or more",
                     call = call)
@@ -93,11 +98,28 @@ zt_plan_query <- function(x, q, env, call) {
             class = "zutable_plan")
 }
 
+# The output field of a select or `by` element (D59): a bare column
+# reference keeps its field's metadata, renamed or not; a computed
+# expression gets none.
+zt_node_field <- function(name, node, input) {
+  meta <- if (identical(node$kind, "col") && node$name %in% names(input)) {
+    input$fields[[node$name]]$metadata
+  } else {
+    character()
+  }
+  new_field(name, node$type, isTRUE(node$nullable), meta)
+}
+
 # by = col, .(a, b), .(week = date_trunc("week", day)), or a character
 # vector of column names: a named list of typed key nodes.
 zt_parse_by <- function(e, schema, env, call) {
   if (!zt_is_clause(e, names(schema))) {
-    v <- tryCatch(eval(e, env), error = function(err) NULL)
+    v <- tryCatch(eval(e, env), error = function(err) {
+      zutable_abort("syntax", sprintf(paste(
+        "`by` is a column, .(a, b), .(name = expression), or a character",
+        "vector of column names; evaluating `%s` failed: %s"
+      ), paste(deparse(e), collapse = " "), conditionMessage(err)), call = call)
+    })
     if (!is.character(v) || anyNA(v) || !length(v)) {
       zutable_abort("syntax", paste(
         "`by` is a column, .(a, b), .(name = expression), or a character",
@@ -174,9 +196,8 @@ zt_plan_aggregate <- function(by, sel, having, input, env, call) {
     exprs[[nm]] <- node
   }
   fields <- c(
-    lapply(keys, function(k) new_field(k, by[[k]]$type, isTRUE(by[[k]]$nullable))),
-    lapply(names(exprs), function(n) new_field(n, exprs[[n]]$type,
-                                               isTRUE(exprs[[n]]$nullable)))
+    lapply(keys, function(k) zt_node_field(k, by[[k]], input)),
+    lapply(names(exprs), function(n) zt_node_field(n, exprs[[n]], input))
   )
   out <- new_schema(fields)
   hv <- NULL
@@ -381,12 +402,12 @@ explain.default <- function(x, ...) {
   if (isNamespaceLoaded("dplyr")) {
     return(getExportedValue("dplyr", "explain")(x, ...))
   }
-  zutable_abort("type", "explain() takes a zutable")
+  zutable_abort("type", "explain() takes a zutable", call = sys.call())
 }
 
 #' @export
 explain.zutable <- function(x, ...) {
-  zt_validate(x)
+  zt_validate(x, sys.call())
   cat(zt_explain_lines(x), sep = "\n")
   invisible(x)
 }
@@ -496,7 +517,7 @@ zt_format_lit <- function(v, type) {
     float64 = sprintf("%.15g", v),
     int32 = sprintf("%dL", v),
     bool = if (v) "TRUE" else "FALSE",
-    date = sprintf("date \"%s\"", format(v, "%Y-%m-%d")),
+    date = sprintf("date \"%s\"", zt_format_date(v)),
     timestamp = sprintf("timestamp \"%s\"", zt_format_timestamp(v, type$tz %||% "UTC")),
     enum = encodeString(as.character(v), quote = '"'),
     format(v)
@@ -515,5 +536,19 @@ zt_register_s3 <- function(pkg, generic, class, method) {
 
 .onLoad <- function(libname, pkgname) {
   zt_register_s3("dplyr", "explain", "zutable", explain.zutable)
+  # D57: the print-skip flag lasts until the top-level expression ends.
+  zt_remove_print_callback()
+  addTaskCallback(zt_clear_print_skip, name = "zutable_print_skip")
   invisible()
+}
+
+.onUnload <- function(libpath) {
+  zt_remove_print_callback()
+  invisible()
+}
+
+zt_remove_print_callback <- function() {
+  while ("zutable_print_skip" %in% getTaskCallbackNames()) {
+    removeTaskCallback("zutable_print_skip")
+  }
 }

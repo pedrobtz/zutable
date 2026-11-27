@@ -108,7 +108,9 @@ test_that("int64's missing value is bit64's NA", {
   local_packages("zuint")
   x <- na(int64)
   expect_s3_class(x, c("zu_int64", "integer64"), exact = TRUE)
-  expect_true(bit64::is.na.integer64(x))
+  # bit64 keeps the other classes on the result: zu_int64, whose methods
+  # (once zuint is loaded) cannot format a logical.
+  expect_identical(unclass(bit64::is.na.integer64(x)), TRUE)
   expect_identical(
     unclass(x),
     unclass(bit64::NA_integer64_)
@@ -229,4 +231,61 @@ test_that("decimal types read back from their format", {
   expect_identical(parse_type(format(type)), type)
   withr::local_options(OutDec = ",", scipen = -5, digits = 3)
   expect_identical(parse_type(format(type)), type)
+})
+
+test_that("a time zone R does not know is a type error (#90)", {
+  # The oracle: R's own list of zones.
+  expect_false("Not/AZone" %in% OlsonNames())
+  expect_error(schema(t = timestamp("s", "Not/AZone")), class = "zutable_type_error")
+  expect_error(zutable(t = .POSIXct(0, "Not/AZone")), class = "zutable_type_error")
+  expect_error(as_zutable(data.frame(t = .POSIXct(0, "Not/AZone"))),
+               class = "zutable_type_error")
+  z <- zutable(t = .POSIXct(0, "UTC"))
+  expect_error(z[select = .(u = cast(t, timestamp("us", "Not/AZone")))],
+               class = "zutable_type_error")
+  for (tz in c("UTC", "America/New_York", "Australia/Lord_Howe")) {
+    expect_true(tz %in% OlsonNames())
+    expect_identical(schema(zutable(t = .POSIXct(0, tz)))$fields[["t"]]$type,
+                     zt_timestamp("us", tz))
+  }
+  # No zone is UTC (D38), not an unknown zone.
+  expect_identical(schema(zutable(t = .POSIXct(0)))$fields[["t"]]$type,
+                   zt_timestamp("us", "UTC"))
+})
+
+test_that("the 2^33-second limit holds by every route a timestamp enters (#69)", {
+  lim <- 2^33
+  iso <- function(v) format(.POSIXct(v, "UTC"), "%Y-%m-%dT%H:%M:%S")
+  for (sgn in c(1, -1)) {
+    inside <- sgn * (lim - 1)
+    for (v in c(inside, sgn * lim, sgn * (lim + 1))) {
+      ok <- abs(v) < lim
+      t <- .POSIXct(v, "UTC")
+      check <- function(code) {
+        if (ok) expect_no_error(code) else expect_error(code, class = "zutable_value_error")
+      }
+      info <- format(v, digits = 15L)
+      check(zutable(t = t))
+      check(as_zutable(data.frame(t = t)))
+      z <- zutable(t = .POSIXct(0, "UTC"), s = iso(v))
+      check(z[, t := ..t])
+      check({ u <- copy(z); u$t <- t })
+      # A string cast, and a string literal read as a timestamp.
+      check(z[select = .(c = cast(s, timestamp))])
+      lit <- iso(v)
+      check(z[select = .(c = coalesce(t, cast(..lit, timestamp)))])
+      # A string compared with a timestamp is read as one when it names
+      # one; past the limit it names none, as a malformed string does.
+      if (ok) expect_no_error(z[t < ..lit]) else
+        expect_error(z[t < ..lit], class = "zutable_type_error")
+      if (ok) {
+        expect_identical(as.double(z[select = .(c = cast(s, timestamp))]$c), v, info = info)
+      }
+    }
+    # A date cast to a timestamp: the last and first whole days inside.
+    day <- sgn * floor((lim - 1) / 86400)
+    z <- zutable(d = structure(c(day, day + sgn), class = "Date"))
+    expect_identical(as.double(z[1L][select = .(c = cast(d, timestamp))]$c), day * 86400)
+    expect_error(z[select = .(c = cast(d, timestamp))], class = "zutable_value_error")
+  }
 })

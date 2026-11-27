@@ -15,6 +15,12 @@
 #include <Rinternals.h>
 #include <zutable.h>
 
+// Rf_error here is unreachable from R (#68): grp_reduce() checks a grp()
+// object's shape (zt_check_grp()) and prepares each column as integer,
+// logical or double, one per row (zt_reduce_prepare()), and the executor
+// passes its own groups; the checks stand for an internal caller
+// (test-native-guards.R).
+
 // Accumulators of ng elements, aligned for zt_acc: R_alloc() promises only
 // 8 bytes, and long double wants 16 on x86_64.
 static zt_acc *zt_alloc_acc(int ng) {

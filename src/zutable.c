@@ -6,6 +6,7 @@
 
 SEXP zt_parse_f64(SEXP x);
 SEXP zt_format_f64(SEXP x);
+SEXP zt_format_date_days(SEXP x);
 SEXP zt_commit(SEXP x, SEXP which, SEXP cols, SEXP plan);
 SEXP zt_freeze(SEXP x);
 SEXP zt_copy(SEXP x);
@@ -15,6 +16,7 @@ SEXP zt_grp_sort(SEXP keys, SEXP i64, SEXP nrows, SEXP force);
 SEXP zt_key_order(SEXP keys, SEXP i64, SEXP dec, SEXP na_last);
 SEXP zt_key_rank(SEXP keys, SEXP i64, SEXP dec, SEXP na_last, SEXP ties);
 SEXP zt_strings_rank(SEXP x);
+SEXP zt_str_bytes_at(SEXP x);
 SEXP zt_sorted_wrap(SEXP x, SEXP sorted, SEXP no_na);
 SEXP zt_sorted_meta(SEXP x);
 SEXP zt_reduce_r(SEXP id, SEXP ng, SEXP xs, SEXP fns, SEXP narm, SEXP nanmiss);
@@ -29,6 +31,7 @@ void zt_init_altrep(DllInfo *dll);
 static const R_CallMethodDef call_methods[] = {
   {"zt_parse_f64", (DL_FUNC) &zt_parse_f64, 1},
   {"zt_format_f64", (DL_FUNC) &zt_format_f64, 1},
+  {"zt_format_date_days", (DL_FUNC) &zt_format_date_days, 1},
   {"zt_commit", (DL_FUNC) &zt_commit, 4},
   {"zt_freeze", (DL_FUNC) &zt_freeze, 1},
   {"zt_copy", (DL_FUNC) &zt_copy, 1},
@@ -38,6 +41,7 @@ static const R_CallMethodDef call_methods[] = {
   {"zt_key_order", (DL_FUNC) &zt_key_order, 4},
   {"zt_key_rank", (DL_FUNC) &zt_key_rank, 5},
   {"zt_strings_rank", (DL_FUNC) &zt_strings_rank, 1},
+  {"zt_str_bytes_at", (DL_FUNC) &zt_str_bytes_at, 1},
   {"zt_sorted_wrap", (DL_FUNC) &zt_sorted_wrap, 3},
   {"zt_sorted_meta", (DL_FUNC) &zt_sorted_meta, 1},
   {"zt_join", (DL_FUNC) &zt_join, 7},

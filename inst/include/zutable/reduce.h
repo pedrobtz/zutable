@@ -402,8 +402,10 @@ ZT_INLINE void zt_reduce_finish(zt_reduce_col *c, zt_row ng) {
 ZT_INLINE void zt_reduce(const zt_row *ids, zt_row n, zt_row ng, zt_reduce_col *cols,
                          int ncol) {
   for (int k = 0; k < ncol; k++) zt_reduce_init(&cols[k], ng);
-  for (zt_row lo = 0; lo < n; lo += ZT_REDUCE_BLOCK) {
-    zt_row hi = n - lo < ZT_REDUCE_BLOCK ? n : lo + ZT_REDUCE_BLOCK;
+  /* lo steps to hi, never past n: `lo += ZT_REDUCE_BLOCK` overflowed
+     after the last block when n was within a block of INT32_MAX (#53). */
+  for (zt_row lo = 0, hi; lo < n; lo = hi) {
+    hi = n - lo < ZT_REDUCE_BLOCK ? n : lo + ZT_REDUCE_BLOCK;
     for (int k = 0; k < ncol; k++) zt_reduce_block(&cols[k], ids, lo, hi);
   }
   int mean = 0, resum = 0;
@@ -416,8 +418,8 @@ ZT_INLINE void zt_reduce(const zt_row *ids, zt_row n, zt_row ng, zt_reduce_col *
   /* The correction and the restarted sum read the first sweep's state, so
      they share a sweep; a restarted sum's correction takes one more. */
   if (mean) {
-    for (zt_row lo = 0; lo < n; lo += ZT_REDUCE_BLOCK) {
-      zt_row hi = n - lo < ZT_REDUCE_BLOCK ? n : lo + ZT_REDUCE_BLOCK;
+    for (zt_row lo = 0, hi; lo < n; lo = hi) {
+      hi = n - lo < ZT_REDUCE_BLOCK ? n : lo + ZT_REDUCE_BLOCK;
       for (int k = 0; k < ncol; k++) {
         if (cols[k].fn == ZT_FN_MEAN && cols[k].kind == ZT_KIND_F64) {
           zt_reduce_block_mean(&cols[k], ids, lo, hi, ZT_RM_CORRECT);
@@ -435,8 +437,8 @@ ZT_INLINE void zt_reduce(const zt_row *ids, zt_row n, zt_row ng, zt_reduce_col *
     }
   }
   if (third) {
-    for (zt_row lo = 0; lo < n; lo += ZT_REDUCE_BLOCK) {
-      zt_row hi = n - lo < ZT_REDUCE_BLOCK ? n : lo + ZT_REDUCE_BLOCK;
+    for (zt_row lo = 0, hi; lo < n; lo = hi) {
+      hi = n - lo < ZT_REDUCE_BLOCK ? n : lo + ZT_REDUCE_BLOCK;
       for (int k = 0; k < ncol; k++) {
         if (cols[k].fn == ZT_FN_MEAN && cols[k].kind == ZT_KIND_F64) {
           zt_reduce_block_mean(&cols[k], ids, lo, hi, ZT_RM_CORRECT2);

@@ -987,6 +987,13 @@ double, as base accumulates, and the tests of §8 hold `sum`, `prod` and
 not bit for bit, in base either: without `na.rm`, a group holding both
 `NA` and `NaN` gives one or the other, as base's arithmetic does (IEEE
 takes the payload from the operand order, which a compiler may commute).
+The same holds when a `NaN` arises inside the group, from `Inf - Inf` or
+`0 * Inf`, beside an `NA` (#81). The kernel then gives `NA`, which is
+design D47's rule (`NA op NaN` is `NA`) and SQL's, where base may give
+`NaN`. The tests compare NA-ness there, not bits. An integer or logical
+`prod` with `NA` returns R's canonical `NA_real_`. Base returns the same
+NA quieted by arithmetic, and `R_IsNA()` is true for both. Recorded on
+2026-11-26, Stage 20, with the maintainer's agreement (M).
 
 **Broadcast.** `broadcast = "none"` returns one value per group in
 identifier order, so `grp_reduce(x, g, "sum")` lines up with `g$keys`.
@@ -1478,6 +1485,18 @@ Marked **(M)** when the maintainer decided it in conversation and
   pointers in places (`identical()` takes `INTEGER()`), which drops the
   marks too: a lost mark is a scan, never a wrong answer. 2026-11-18,
   Stage 12.
+
+  Amended on 2026-11-26, Stage 20, with the maintainer's agreement (M):
+  - **Direction marks only without NA.** Values are marked sorted (a
+    direction) only when they hold no `NA` (#56). Base R's `sort()` and
+    `order(na.last = NA)` return a vector marked sorted without reading
+    its `NA` mark, so a direction beside an `NA` gave a wrong answer.
+  - **Plain serialization.** Sorted values serialize as their plain
+    payload (`Serialized_state` returns `NULL`, #80). So a saved object
+    reads back wherever zutable is not installed, and no mark is ever
+    trusted from a file.
+  - **A validating unserialize.** The unserialize method is kept and
+    validates its state (#52), as defence in depth.
 - **D47 (C).** Axis F's answer: string keys are hashed as their interned
   pointers, and the kernel does not dictionary-encode first. Encoding is
   a grouping pass over the pointers, so for one use it can only cost

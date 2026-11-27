@@ -29,11 +29,11 @@ grp <- function(..., sort = FALSE) {
   if (!is.logical(sort) || length(sort) != 1L || is.na(sort)) {
     zutable_abort("type", "`sort` is TRUE or FALSE", call = call)
   }
-  zt_grp_build(keys, sort)
+  zt_grp_build(keys, sort, call)
 }
 
 # grp() of checked key columns (zt_key_columns()).
-zt_grp_build <- function(keys, sort) {
+zt_grp_build <- function(keys, sort, call = NULL) {
   n <- if (length(keys)) length(keys[[1L]]) else 0L
   if (isTRUE(sort)) {
     g <- zt_grp_sort_route(keys, n)
@@ -44,7 +44,7 @@ zt_grp_build <- function(keys, sort) {
               order = g$order,
               keys = lapply(keys, zt_take, idx = g$first))
   if (isTRUE(sort)) {
-    if (g$n > 1L) out <- zt_grp_sorted(out, n)
+    if (g$n > 1L) out <- zt_grp_sorted(out, n, call)
     out <- zt_mark_first_key(out)
   }
   out
@@ -54,7 +54,7 @@ zt_grp_build <- function(keys, sort) {
 # carries that, as key_sort()'s values do (D22).
 zt_mark_first_key <- function(g) {
   if (length(g$keys)) {
-    g$keys[[1L]] <- zt_mark_sorted(g$keys[[1L]], FALSE, TRUE)
+    g$keys[[1L]] <- zt_mark_sorted(g$keys[[1L]], FALSE)
   }
   g
 }
@@ -123,15 +123,30 @@ zt_key_columns <- function(args, call) {
       ), call = call)
     }
   }
+  for (i in seq_along(cols)) zt_check_text(cols[[i]], sprintf("key column %d", i), call)
   cols
+}
+
+# A string marked "bytes" has no text to compare by (design D58, kernel
+# 6.1): a zutable_value_error, before the kernel would translate it.
+zt_check_text <- function(x, what, call) {
+  if (!is.character(x)) return(invisible(x))
+  at <- .Call(zt_str_bytes_at, x)
+  if (at > 0) {
+    zutable_abort("value", sprintf(
+      "%s has a string marked \"bytes\" at row %.0f; strings are text, so convert it with iconv() or `Encoding<-`",
+      what, at
+    ), call = call)
+  }
+  invisible(x)
 }
 
 # Renumber groups in the keys' sort order, NA last (design-kernel 6.2): the
 # kernel's sort over the distinct keys, for the keys and sizes the sort
 # route (zt_grp_sort_route) leaves to hashing. NA and NaN are separate
 # groups that tie in the order, so they keep first appearance.
-zt_grp_sorted <- function(g, n) {
-  k <- zt_sort_keys(g$keys, FALSE, sys.call())
+zt_grp_sorted <- function(g, n, call = NULL) {
+  k <- zt_sort_keys(g$keys, FALSE, call)
   if (k$strings) k <- zt_string_codes(k)
   o <- .Call(zt_key_order, k$keys, k$i64, k$dec, 1L)
   newid <- integer(g$n)

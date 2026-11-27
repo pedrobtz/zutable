@@ -45,20 +45,22 @@ NULL
 #' @rdname zutable-update
 #' @export
 copy <- function(x) {
+  call <- sys.call()
   if (!is_zutable(x)) {
-    zutable_abort("type", "copy() takes a zutable")
+    zutable_abort("type", "copy() takes a zutable", call = call)
   }
-  zt_validate(x)
+  zt_validate(x, call)
   .Call(zt_copy, x)
 }
 
 #' @rdname zutable-update
 #' @export
 freeze <- function(x) {
+  call <- sys.call()
   if (!is_zutable(x)) {
-    zutable_abort("type", "freeze() takes a zutable")
+    zutable_abort("type", "freeze() takes a zutable", call = call)
   }
-  zt_validate(x)
+  zt_validate(x, call)
   .Call(zt_freeze, x)
   invisible(x)
 }
@@ -167,16 +169,18 @@ zt_plan_update <- function(x, e, where, by, env, call) {
 }
 
 # The value of `col := node` as the column's type: the same type, an exact
-# widening (int32 into float64), or a literal that is exactly representable
+# widening (int32 into float64 or int64), or a literal that is exactly representable
 # there (§4.3). Anything else is a schema error (§6.1).
 zt_fit_node <- function(node, field, call) {
   type <- field$type
   if (zt_is_lit(node)) {
+    if (identical(type$id, "int64") && is.integer(node$value)) zt_require_type_package(type, call)
     v <- zt_lit_adapt(node$value, type)
     if (!is.null(v)) return(zt_lit_node(v, type))
   } else if (identical(node$type, type)) {
     return(node)
-  } else if (identical(node$type$id, "int32") && identical(type$id, "float64")) {
+  } else if (identical(node$type$id, "int32") && type$id %in% c("float64", "int64")) {
+    zt_require_type_package(type, call)
     return(zt_node("call", fn = "cast", args = list(node), type = type,
                    nullable = node$nullable, aggregate = node$aggregate))
   }
@@ -187,6 +191,10 @@ zt_fit_node <- function(node, field, call) {
 }
 
 zt_run_update <- function(x, up, call) {
+  zt_with_eval_call(call, zt_run_update_plan(x, up, call))
+}
+
+zt_run_update_plan <- function(x, up, call) {
   zt_check_not_frozen(x, call)
   schema <- attr(x, "schema", exact = TRUE)
   cols <- unclass(x)
@@ -209,7 +217,9 @@ zt_run_update <- function(x, up, call) {
     new[[nm]] <- zt_normalise(new[[nm]], schema$fields[[nm]], call)
   }
   rec <- attr(x, "plan", exact = TRUE)
-  step <- zt_step("update", schema, stmts = up$stmts, where = up$where, by = up$by)
+  zt_state$update_seq <- (zt_state$update_seq %||% 0) + 1
+  step <- zt_step("update", schema, stmts = up$stmts, where = up$where, by = up$by,
+                  token = zt_state$update_seq)
   plan <- zt_plan_record(list(source = list(kind = "table", anonymous = TRUE,
                                             schema = schema, parent = rec),
                               steps = list(step), schema = schema,
@@ -221,20 +231,36 @@ zt_run_update <- function(x, up, call) {
 
 # The primitive `[` makes its result visible, so `x[, a := 1]` at top level
 # would print the table. As data.table does, an update arms a one-shot
-# flag that print.zutable() reads, and every bracket clears it.
+# flag (D53, D57): only when its bracket is a top-level call (`frames`,
+# the frame number of the call `x[...]`, is 1), and holding the token of the update
+# step the table's plan record gained, never the table. The task callback
+# registered in .onLoad clears it once the top-level expression ends,
+# after autoprint, so an update that is not autoprinted leaves nothing
+# armed.
 zt_state <- new.env(parent = emptyenv())
 
-zt_arm_print_skip <- function(x, frames) {
-  zt_state$skip_print <- x
+zt_update_token <- function(x) {
+  steps <- attr(x, "plan", exact = TRUE)$steps
+  if (length(steps)) steps[[length(steps)]]$token
 }
 
-# Skipped only when print() runs at top level (autoprint, frame 2 or
-# less) for the very table the update returned; print() inside a
-# function, and any other table, prints.
+zt_arm_print_skip <- function(x, frames) {
+  zt_state$skip_print <- if (identical(frames, 1L)) zt_update_token(x)
+}
+
+# Skipped for the table whose last plan step is the armed update, once;
+# print() inside a function (frame 2 or more) always prints.
 zt_take_print_skip <- function(x, frames) {
   skip <- zt_state$skip_print
+  if (is.null(skip) || frames > 2L) return(FALSE)
+  if (!identical(zt_update_token(x), skip)) return(FALSE)
   zt_state$skip_print <- NULL
-  frames <= 2L && !is.null(skip) && identical(skip, x)
+  TRUE
+}
+
+zt_clear_print_skip <- function(...) {
+  zt_state$skip_print <- NULL
+  TRUE
 }
 
 # A block with no `:=` whose last statement is `.(...)` is a `select` with
@@ -357,8 +383,7 @@ zt_update_kernel <- function(up, cols, rows, scoped, keys, call) {
     work[[s$name]] <- v
     if (s$kind == "set") {
       col <- new[[s$name]]
-      if (is.data.frame(col)) col[rows, ] <- v else col[rows] <- v
-      new[[s$name]] <- col
+      new[[s$name]] <- zt_assign(col, rows, v)
     }
   }
   new

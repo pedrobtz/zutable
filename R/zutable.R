@@ -112,6 +112,10 @@ zt_from_columns <- function(cols, schema, call, n = NULL) {
     zutable_abort("schema", "column names must be unique and non-empty",
                   call = call)
   }
+  nms <- zt_enter_strings(nms, "the column names", call)
+  names(cols) <- nms
+  cols <- Map(function(col, nm) zt_entry_column(col, sprintf("column `%s`", nm), call),
+              cols, nms)
   if (is.null(schema)) {
     fields <- lapply(seq_along(cols), function(i) {
       new_field(nms[[i]], infer_type(cols[[i]], nms[[i]], call))
@@ -171,8 +175,9 @@ zt_normalise <- function(x, field, call) {
   type <- field$type
   what <- field$name
   if (is.character(x) && !is.object(x)) {
-    x <- enc2utf8(x)
+    x <- zt_enter_strings(x, sprintf("column `%s`", what), call)
   }
+  zt_check_time_nan(x, type, sprintf("column `%s`", what), call)
   if (identical(type$id, "timestamp") && !identical(type$unit, "ns")) {
     attr(x, "tzone") <- type$tz %||% "UTC"
     us <- posixct_to_us(x, what, call)
@@ -203,6 +208,18 @@ zt_normalise <- function(x, field, call) {
   x
 }
 
+# D63: NaN is float64's value (D47), not a date's or a time's; it is
+# refused where such a vector enters.
+zt_check_time_nan <- function(x, type, what, call) {
+  if (type$id %in% c("date", "timestamp") && !identical(type$unit, "ns") &&
+      any(is.nan(unclass(x)))) {
+    zutable_abort("value", sprintf(
+      "%s is %s: a value is NaN, which is not a time; use NA for a missing one",
+      what, format(type)
+    ), call = call)
+  }
+}
+
 zt_any_missing <- function(x) {
   if (is.data.frame(x)) {
     return(any(zt_struct_missing(x)))
@@ -210,18 +227,14 @@ zt_any_missing <- function(x) {
   any(zt_is_missing(x))
 }
 
-# Missing elements: NA for atomic vectors, NULL for list elements.
-zt_is_missing <- function(x) {
-  if (is.list(x) && !is.data.frame(x) && !is.object(x)) {
-    return(vapply(x, is.null, NA))
-  }
-  is.na(x)
-}
+# Missing elements are the package's nulls (zt_is_null()): NA but not NaN
+# for float64 (D47, #63), NULL for list elements.
+zt_is_missing <- function(x) zt_is_null(x)
 
 # A struct row is missing when every field of it is.
 zt_struct_missing <- function(x) {
   if (!length(x)) return(logical(zt_nrow_of(x)))
-  Reduce(`&`, lapply(x, zt_is_missing))
+  Reduce(`&`, lapply(x, zt_is_null))
 }
 
 # The schema check on entry (§9.1): one pass over the columns, so a stale
@@ -294,6 +307,10 @@ as.data.frame.zutable <- function(x, ...) {
 
 #' @export
 print.zutable <- function(x, n = 10L, ...) {
+  if (!is.numeric(n) || length(n) != 1L || is.na(n) || n < 0 || n != trunc(n)) {
+    zutable_abort("syntax", "`n` is a whole number of rows to print, 0 or more",
+                  call = sys.call())
+  }
   frames <- sys.nframe()
   if (zt_take_print_skip(x, frames)) return(invisible(x))
   zt_validate(x)
@@ -304,7 +321,7 @@ print.zutable <- function(x, n = 10L, ...) {
               if (length(s) == 1L) "" else "s",
               if (is_frozen(x)) ", frozen" else ""))
   if (!length(s)) return(invisible(x))
-  show <- min(rows, n)
+  show <- as.integer(min(rows, n))
   idx <- seq_len(show)
   cells <- lapply(seq_along(s$fields), function(i) {
     col <- x[[i]]
@@ -328,8 +345,40 @@ print.zutable <- function(x, n = 10L, ...) {
   invisible(x)
 }
 
+# Rows `idx` of a column. A struct (data.frame) is taken by row, field by
+# field (#55); a vector class with no `[` method gets its attributes back,
+# as na_of() does (#57).
 zt_take <- function(col, idx) {
-  if (is.data.frame(col)) col[idx, , drop = FALSE] else col[idx]
+  if (is.data.frame(col)) {
+    if (is.logical(idx)) idx <- which(rep_len(idx, zt_nrow_of(col)))
+    out <- lapply(col, zt_take, idx = idx)
+    return(structure(out, names = names(col), class = class(col),
+                     row.names = .set_row_names(length(idx))))
+  }
+  out <- col[idx]
+  if (is.object(col) && !identical(class(out), class(col))) {
+    nm <- names(out)
+    attrs <- attributes(col)
+    attrs$names <- NULL
+    attributes(out) <- attrs
+    names(out) <- nm
+  }
+  out
+}
+
+# `col` with rows `idx` replaced by the rows of `value` (as many rows as
+# `idx` selects, or one, recycled): a struct by row, field by field (#55).
+zt_assign <- function(col, idx, value) {
+  if (is.logical(idx)) idx <- which(rep_len(idx, zt_nrow_of(col)))
+  if (!length(idx)) return(col)
+  if (zt_nrow_of(value) == 1L && length(idx) != 1L) value <- zt_take(value, rep(1L, length(idx)))
+  if (is.data.frame(col)) {
+    for (j in seq_along(col)) col[[j]] <- zt_assign(col[[j]], idx, value[[j]])
+    return(col)
+  }
+  # A list value keeps its NULL elements: `[<-` deletes only for NULL itself.
+  col[idx] <- value
+  col
 }
 
 zt_format_cells <- function(col) {

@@ -127,3 +127,93 @@ test_that("refusals", {
   expect_error(join(x, data.frame(k = 1:2), on = k), class = "zutable_type_error")
   expect_error(join(x, x, on = .(k, k)), class = "zutable_syntax_error")
 })
+
+test_that("int64 keys match by value, NA as NA, in both executors (#60)", {
+  skip_if_not_installed("zuint")
+  vals <- c("0", NA, "9223372036854775807", "-9223372036854775807",
+            "9218868437227405313", "9218868437227405314", "9218868437227405312", "1")
+  a <- zutable(k = zuint::int64(vals), i = seq_along(vals))
+  b <- zutable(k = zuint::int64(c("0", "9218868437227405314", "9223372036854775807",
+                                  "-9223372036854775807", NA, "9218868437227405312")),
+               v = 1:6)
+  ak <- as.character(a$k)
+  bk <- as.character(b$k)
+  for (na_equal in c(TRUE, FALSE)) {
+    # Brute force over every pair, keys compared as decimal text.
+    want <- do.call(rbind, lapply(seq_along(ak), function(i) {
+      hit <- which(vapply(bk, USE.NAMES = FALSE, function(y) {
+        if (is.na(ak[[i]]) || is.na(y)) na_equal && is.na(ak[[i]]) && is.na(y)
+        else ak[[i]] == y
+      }, NA))
+      if (length(hit)) data.frame(i = i, v = unname(hit))
+    }))
+    for (ex in c("kernel", "reference")) {
+      withr::local_options(zutable.executor = ex)
+      got <- join(a, b, on = k, na_equal = na_equal)
+      expect_identical(plain(got[select = .(i, v)]), plain(want),
+                       info = paste(ex, na_equal))
+    }
+  }
+})
+
+test_that("a join's nullability comes from the schemas, not the data (#65)", {
+  sa <- schema(k = not_null(int32), a = not_null(string))
+  sb <- schema(k = not_null(int32), v = not_null(float64))
+  a <- as_zutable(data.frame(k = 1:2, a = c("p", "q")), sa)
+  b_all <- as_zutable(data.frame(k = 1:2, v = c(1, 2)), sb)
+  b_some <- as_zutable(data.frame(k = c(1L, 3L), v = c(1, 3)), sb)
+  # The rule (design §4.3, D54): the side a join does not preserve becomes
+  # nullable; a key is nullable when either side's key is and y's rows
+  # can appear alone.
+  want <- list(
+    inner = schema(k = not_null(int32), a = not_null(string), v = not_null(float64)),
+    left = schema(k = not_null(int32), a = not_null(string), v = float64),
+    right = schema(k = not_null(int32), a = string, v = not_null(float64)),
+    full = schema(k = not_null(int32), a = string, v = float64),
+    semi = sa, anti = sa
+  )
+  for (ex in c("kernel", "reference")) {
+    withr::local_options(zutable.executor = ex)
+    for (how in names(want)) {
+      for (b in list(b_all, b_some)) {
+        j <- join(a, b, on = k, how = how)
+        expect_identical(schema(j), want[[how]], info = paste(ex, how))
+        expect_identical(zt_explain_lines(j)[[1L]],
+                         sprintf("table  %s", paste(format(want[[how]]), collapse = ", ")),
+                         info = paste(ex, how))
+        expect_no_error(conform(j, schema(j)))
+      }
+    }
+  }
+  # A nullable key on either side makes the key nullable where y's rows
+  # can stand alone.
+  bn <- as_zutable(data.frame(k = c(1L, NA), v = c(1, 3)), schema(k = int32, v = float64))
+  expect_false(schema(join(a, bn, on = k, how = "left"))$fields$k$nullable)
+  expect_true(schema(join(a, bn, on = k, how = "full"))$fields$k$nullable)
+  expect_true(schema(join(a, bn, on = k, how = "right"))$fields$k$nullable)
+})
+
+test_that("join(on =) is spelled as the bracket is (#83)", {
+  x <- zutable(k = c(1L, 2L, 3L), j = c("a", "b", "a"), xv = 1:3)
+  y <- zutable(k = c(1L, 3L), j = c("a", "a"), yv = c(10, 30))
+  want_k <- join(x, y, on = .(k == k), suffix = c(".x", ".y"))
+  want_kj <- join(x, y, on = .(k == k, j == j))
+  # A variable named like a column: bare names are columns, never it.
+  k <- "j"
+  j <- "nothing"
+  expect_identical(join(x, y, on = k, suffix = c(".x", ".y")), want_k)
+  expect_identical(join(x, y, on = c(k, j)), want_kj)
+  expect_identical(join(x, y, on = "k", suffix = c(".x", ".y")), want_k)
+  expect_identical(join(x, y, on = c("k", "j")), want_kj)
+  keys <- c("k", "j")
+  expect_identical(join(x, y, on = ..keys), want_kj)
+  f <- function(tab, by) join(tab, y, on = ..by)
+  expect_identical(f(x, c("k", "j")), want_kj)
+  one <- "k"
+  expect_identical(join(x, y, on = ..one, suffix = c(".x", ".y")), want_k)
+  expect_error(join(x, y, on = ..no_such_variable), class = "zutable_syntax_error")
+  bad <- 3
+  expect_error(join(x, y, on = ..bad), class = "zutable_syntax_error")
+  expect_error(join(x, y, on = c(k + 1)), class = "zutable_syntax_error")
+  expect_error(join(x, y, on = "nope"), class = "zutable_schema_error")
+})

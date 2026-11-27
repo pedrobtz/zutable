@@ -4,13 +4,17 @@
 
 test_that("key_sort() marks what it knows, in base R's codes", {
   expect_identical(sorted_meta(key_sort(c(3L, 1L, 2L))), c(1L, 1L))
-  expect_identical(sorted_meta(key_sort(c(3, NA, 1))), c(1L, 0L))
-  expect_identical(sorted_meta(key_sort(c(3, NA, 1), na.last = FALSE)), c(2L, 0L))
+  expect_identical(sorted_meta(key_sort(c(3L, 1L, 2L), decreasing = TRUE)), c(-1L, 1L))
+  # A direction only without NA (#56, design-kernel D46 amended): base R's
+  # sort() and order(na.last = NA) trust a direction without reading the
+  # NA mark, so a vector with an NA is marked NA-holding only.
+  expect_identical(sorted_meta(key_sort(c(3, NA, 1))), c(NA_integer_, 0L))
+  expect_identical(sorted_meta(key_sort(c(3, NA, 1), na.last = FALSE)), c(NA_integer_, 0L))
   expect_identical(sorted_meta(key_sort(c(3, NA, 1), na.last = NA)), c(1L, 1L))
-  expect_identical(sorted_meta(key_sort(c(3, NA, 1), decreasing = TRUE)), c(-1L, 0L))
+  expect_identical(sorted_meta(key_sort(c(3, NA, 1), decreasing = TRUE)), c(NA_integer_, 0L))
   expect_identical(
     sorted_meta(key_sort(c(3, NA, 1), decreasing = TRUE, na.last = FALSE)),
-    c(-2L, 0L)
+    c(NA_integer_, 0L)
   )
   expect_identical(sorted_meta(key_sort(c(TRUE, FALSE))), c(1L, 1L))
   expect_identical(sorted_meta(key_sort(factor(c("b", "a")))), c(1L, 1L))
@@ -89,7 +93,9 @@ test_that("a shared payload is copied before a write, never changed", {
   expect_identical(z, c(9L, 2L, 3L))
 })
 
-test_that("serialize() round trip keeps the values, attributes and metadata", {
+test_that("sorted values serialize as their plain payload (#80)", {
+  # design-kernel D46, amended: the marks are not written, so a saved
+  # object reads back without zutable and no mark is trusted from a file.
   for (x in list(
     key_sort(c(3L, NA, 1L)),
     key_sort(c(2.5, -1, NaN), decreasing = TRUE, na.last = FALSE),
@@ -99,21 +105,73 @@ test_that("serialize() round trip keeps the values, attributes and metadata", {
     key_sort(c(b = 2, a = 1)),
     key_sort(as.POSIXct("2026-01-01", tz = "UTC") + c(10, 0))
   )) {
-    y <- unserialize(serialize(x, NULL))
+    plain_x <- x[seq_along(x)]
+    names(plain_x) <- names(x)
+    bytes <- serialize(x, NULL, ascii = TRUE)
+    expect_identical(bytes, serialize(plain_x, NULL, ascii = TRUE))
+    expect_false(grepl("zutable|zt_sorted", rawToChar(bytes)))
+    y <- unserialize(bytes)
     expect_identical(y, x)
     expect_identical(attributes(y), attributes(x))
-    expect_identical(sorted_meta(y), sorted_meta(x))
+    expect_null(sorted_meta(y))
   }
-  # Metadata a write dropped stays dropped.
-  x <- key_sort(c(2L, 1L))
-  x[1L] <- 5L
-  expect_identical(sorted_meta(unserialize(serialize(x, NULL))), sorted_meta(x))
   # Through a file, as saveRDS() does.
   f <- withr::local_tempfile(fileext = ".rds")
   s <- key_sort(c(9, 3, 4))
   saveRDS(s, f)
-  expect_identical(readRDS(f), s)
-  expect_identical(sorted_meta(readRDS(f)), c(1L, 1L))
+  expect_identical(readRDS(f), c(3, 4, 9))
+  expect_null(sorted_meta(readRDS(f)))
+})
+
+test_that("a saved key_sort() result reads back where zutable is not installed (#80)", {
+  skip_on_cran()
+  base_libs <- c(.Library, .Library.site)
+  skip_if(any(file.exists(file.path(base_libs, "zutable"))),
+          "zutable is in the base library")
+  f <- withr::local_tempfile(fileext = ".rds")
+  saveRDS(list(i = key_sort(c(3L, 1L, 2L)), s = key_sort(c("b", "a")),
+               f = key_sort(factor(c("y", "x")))), f)
+  empty <- withr::local_tempfile()
+  dir.create(empty)
+  script <- withr::local_tempfile(fileext = ".R")
+  writeLines(c(
+    sprintf(".libPaths(%s)", deparse(empty)),
+    "stopifnot(!requireNamespace('zutable', quietly = TRUE))",
+    sprintf("x <- readRDS(%s)", deparse(f)),
+    "dput(x)"
+  ), script)
+  out <- suppressWarnings(system2(file.path(R.home("bin"), "Rscript"),
+                                  c("--vanilla", shQuote(script)), stdout = TRUE, stderr = TRUE))
+  expect_null(attr(out, "status"))
+  got <- eval(parse(text = out))
+  expect_identical(got, list(i = 1:3, s = c("a", "b"), f = factor(c("x", "y"))))
+})
+
+test_that("the unserialize method trusts no mark from a stream (#52)", {
+  # A well-formed stream gives the payload, unmarked.
+  ok <- unserialize(sorted_stream("zt_sorted_int", 13L, c(1L, 2L, 3L), c(1L, 1L)))
+  expect_identical(ok, 1:3)
+  expect_null(sorted_meta(ok))
+  # Marks that lie, or are malformed: the payload, never a believed mark.
+  for (marks in list(integer(), 1L, c(1, 1), c(7L, 5L), NULL, c(1L, 1L))) {
+    y <- unserialize(sorted_stream("zt_sorted_int", 13L, c(3L, 1L, 2L), marks))
+    expect_identical(y, c(3L, 1L, 2L))
+    expect_null(sorted_meta(y))
+    expect_true(is.unsorted(y))
+    expect_identical(sort(y), 1:3)
+    print(y)
+  }
+  y <- unserialize(sorted_stream("zt_sorted_real", 14L, c(1, NA, 2), c(1L, 1L)))
+  expect_true(anyNA(y))
+  expect_identical(sort(y), c(1, 2))
+  # A payload that is not the class's type, or not a list of two: a
+  # zutable_value_error, not a crash.
+  expect_error(unserialize(sorted_stream("zt_sorted_int", 13L, c(1, 2), c(1L, 1L))),
+               class = "zutable_value_error")
+  expect_error(unserialize(sorted_stream("zt_sorted_str", 16L, 1:2, c(1L, 1L))),
+               class = "zutable_value_error")
+  expect_error(unserialize(sorted_stream("zt_sorted_lgl", 10L, structure(TRUE, foo = 1), 1:2)),
+               class = "zutable_value_error")
 })
 
 test_that("grp(sort = TRUE) marks its first key column sorted", {
@@ -155,4 +213,43 @@ test_that("element access, inspect() and order() read through the wrapper", {
   expect_identical(order(s), order(plain))
   expect_identical(order(s, decreasing = TRUE), order(plain, decreasing = TRUE))
   expect_identical(sort(s, method = "radix"), sort(plain, method = "radix"))
+})
+
+test_that("base R reads marked values as it reads an unmarked copy (#56)", {
+  vals <- list(
+    integer = c(3L, NA, 1L, 2L, 1L),
+    double = c(3, NA, 1, 2.5, -0, NaN),
+    factor = factor(c("b", NA, "a", "c", "a")),
+    Date = as.Date("2026-01-01") + c(3, NA, 1, 2),
+    POSIXct = as.POSIXct("2026-01-01", tz = "UTC") + c(3, NA, 1, 2)
+  )
+  reads <- function(y) {
+    out <- list(
+      sort(y), sort(y, decreasing = TRUE), sort(y, na.last = TRUE),
+      sort(y, na.last = FALSE), sort(y, method = "radix"),
+      sort(y, decreasing = TRUE, na.last = TRUE),
+      order(y), order(y, na.last = FALSE), order(y, na.last = NA),
+      order(y, decreasing = TRUE), order(y, decreasing = TRUE, na.last = NA),
+      order(y, method = "radix", na.last = NA),
+      is.unsorted(y), is.unsorted(y, na.rm = TRUE), is.unsorted(y, strictly = TRUE),
+      anyNA(y), unique(y), rev(y), y[!is.na(y)], which(is.na(y)),
+      sort(unique(y)), length(sort(y))
+    )
+    if (!is.factor(y)) out <- c(out, list(range(y, na.rm = TRUE), min(y, na.rm = TRUE)))
+    out
+  }
+  for (type in names(vals)) {
+    x <- vals[[type]]
+    for (dec in c(FALSE, TRUE)) {
+      for (na in list(TRUE, FALSE, NA)) {
+        y <- key_sort(x, decreasing = dec, na.last = na)
+        u <- y[seq_along(y)]
+        expect_null(sorted_meta(u))
+        expect_identical(reads(y), reads(u),
+                         info = sprintf("%s, decreasing %s, na.last %s", type, dec, na))
+      }
+    }
+    k <- grp(x, sort = TRUE)$keys[[1L]]
+    expect_identical(reads(k), reads(k[seq_along(k)]), info = paste(type, "grp(sort = TRUE)"))
+  }
 })
