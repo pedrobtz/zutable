@@ -231,6 +231,35 @@ the type of its context when it is exactly representable there, so
 
 </dl></div>
 
+    <div class="section level2">
+    <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="va">z</span> <span class="op">&lt;-</span> <span class="fu"><a href="zutable.html">zutable</a></span><span class="op">(</span>day <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/as.Date.html" class="external-link">as.Date</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"2026-01-05"</span>, <span class="st">"2026-02-10"</span>, <span class="st">"2026-02-20"</span><span class="op">)</span><span class="op">)</span>,</span></span>
+<span class="r-in"><span>             qty <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">3L</span>, <span class="fl">5L</span>, <span class="cn">NA</span><span class="op">)</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="va">z</span><span class="op">[</span>where <span class="op">=</span> <span class="va">qty</span> <span class="op">&gt;</span> <span class="fl">2</span>, select <span class="op">=</span> <span class="fu">.</span><span class="op">(</span>month <span class="op">=</span> <span class="fu">date_trunc</span><span class="op">(</span><span class="st">"month"</span>, <span class="va">day</span><span class="op">)</span>,</span></span>
+<span class="r-in"><span>                               more <span class="op">=</span> <span class="va">qty</span> <span class="op">+</span> <span class="fl">1L</span>, txt <span class="op">=</span> <span class="fu">cast</span><span class="op">(</span><span class="va">qty</span>, <span class="va">string</span><span class="op">)</span><span class="op">)</span><span class="op">]</span></span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> &lt;zutable&gt; 2 rows x 3 columns</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   month      more    txt</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   &lt;date&gt;     &lt;int32&gt; &lt;string&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 1 2026-01-01 4       3</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 2 2026-02-01 6       5</span>
+<span class="r-in"><span><span class="co"># case() skips an NA condition; ifelse() would give NA.</span></span></span>
+<span class="r-in"><span><span class="va">z</span><span class="op">[</span>select <span class="op">=</span> <span class="fu">.</span><span class="op">(</span>size <span class="op">=</span> <span class="fu">case</span><span class="op">(</span><span class="va">qty</span> <span class="op">&gt;</span> <span class="fl">4</span> <span class="op">~</span> <span class="st">"big"</span>, <span class="cn">TRUE</span> <span class="op">~</span> <span class="st">"small"</span><span class="op">)</span><span class="op">)</span><span class="op">]</span></span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> &lt;zutable&gt; 3 rows x 1 column</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   size</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   &lt;string&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 1 small</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 2 big</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 3 small</span>
+<span class="r-in"><span><span class="co"># r() runs arbitrary R, its result type declared.</span></span></span>
+<span class="r-in"><span><span class="va">z</span><span class="op">[</span>select <span class="op">=</span> <span class="fu">.</span><span class="op">(</span>half <span class="op">=</span> <span class="fu">r</span><span class="op">(</span><span class="va">qty</span> <span class="op">/</span> <span class="fl">2</span>, <span class="va">float64</span><span class="op">)</span><span class="op">)</span><span class="op">]</span></span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> &lt;zutable&gt; 3 rows x 1 column</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   half</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   &lt;float64&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 1 1.5</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 2 2.5</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 3 NA</span>
+</code></pre></div>
+    </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside></div>
 

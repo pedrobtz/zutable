@@ -276,3 +276,33 @@ it takes. T is one type throughout a signature.
 - `cast`:
 
   Conversion that errors on the first value it cannot represent.
+
+## Examples
+
+``` r
+z <- zutable(day = as.Date(c("2026-01-05", "2026-02-10", "2026-02-20")),
+             qty = c(3L, 5L, NA))
+z[where = qty > 2, select = .(month = date_trunc("month", day),
+                               more = qty + 1L, txt = cast(qty, string))]
+#> <zutable> 2 rows x 3 columns
+#>   month      more    txt
+#>   <date>     <int32> <string>
+#> 1 2026-01-01 4       3
+#> 2 2026-02-01 6       5
+# case() skips an NA condition; ifelse() would give NA.
+z[select = .(size = case(qty > 4 ~ "big", TRUE ~ "small"))]
+#> <zutable> 3 rows x 1 column
+#>   size
+#>   <string>
+#> 1 small
+#> 2 big
+#> 3 small
+# r() runs arbitrary R, its result type declared.
+z[select = .(half = r(qty / 2, float64))]
+#> <zutable> 3 rows x 1 column
+#>   half
+#>   <float64>
+#> 1 1.5
+#> 2 2.5
+#> 3 NA
+```

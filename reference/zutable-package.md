@@ -9,7 +9,7 @@ result, and every type error, is known before any data is read. Existing
 columns are updated in place, a table can be frozen against further
 change, and grouping, sorting, joining and reducing run on a
 cache-conscious kernel whose header other packages can use through
-'LinkingTo'.
+LinkingTo.
 
 ## See also
 

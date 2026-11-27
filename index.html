@@ -64,13 +64,16 @@
 <li>
 <code>:=</code> updates existing columns in place and never changes a table’s schema.</li>
 <li>Grouping, sorting, joins and reductions run on a C kernel whose header other packages can use through <code>LinkingTo</code>.</li>
-<li>It imports no other package; <a href="https://github.com/pedrobtz/zufast" class="external-link">zufast</a>, on CRAN, is needed only to build it, and <code>pak</code> installs it for you.</li>
+<li>It imports no other package; <a href="https://github.com/pedrobtz/zufast" class="external-link">zufast</a>, on CRAN, is needed only to build it and is installed with it.</li>
 </ul>
 <div class="section level2">
 <h2 id="installation">Installation<a class="anchor" aria-label="anchor" href="#installation"></a>
 </h2>
-<p>zutable is not on CRAN yet. Install the development version from GitHub:</p>
+<p>Install the released version from CRAN:</p>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/install.packages.html" class="external-link">install.packages</a></span><span class="op">(</span><span class="st">"zutable"</span><span class="op">)</span></span></code></pre></div>
+<p>Or the development version from GitHub:</p>
+<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># install.packages("pak")</span></span>
 <span><span class="fu">pak</span><span class="fu">::</span><span class="fu"><a href="https://pak.r-lib.org/reference/pak.html" class="external-link">pak</a></span><span class="op">(</span><span class="st">"pedrobtz/zutable"</span><span class="op">)</span></span></code></pre></div>
 </div>
@@ -78,7 +81,7 @@
 <h2 id="usage">Usage<a class="anchor" aria-label="anchor" href="#usage"></a>
 </h2>
 <p>Build a table, then ask the bracket for the volume-weighted price of each <code>id</code> after the first day:</p>
-<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://pedrobtz.github.io/zutable/">zutable</a></span><span class="op">)</span></span>
 <span><span class="va">trades</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/zutable.html">zutable</a></span><span class="op">(</span></span>
 <span>  id  <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1L</span>, <span class="fl">1L</span>, <span class="fl">2L</span>, <span class="fl">2L</span>, <span class="fl">3L</span><span class="op">)</span>,</span>
