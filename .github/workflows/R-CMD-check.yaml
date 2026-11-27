@@ -46,14 +46,14 @@ jobs:
       pre-install: Rscript tools/ci-binaries.R
       # r-actions' default runners, plus Windows on R-devel: CRAN checks
       # Windows on R-devel and nothing else in CI does (the containers are
-      # Linux). And Ubuntu on R 4.1, the `Depends` floor (design D64, #74):
+      # Linux). And Ubuntu on R 4.2, the `Depends` floor (design D64, #74):
       # it builds altrep.c's branch for R before 4.5, which no other leg
-      # does. On 24.04: pak for R 4.1 fails on ubuntu-latest (26.04) before
-      # printing an error. Runs in the full profile only.
+      # does. 24.04, which still carries old R builds. Runs in the full
+      # profile only.
       runners: >-
         [{"os": "macos-latest", "r": "release"},
          {"os": "windows-latest", "r": "release"},
          {"os": "windows-latest", "r": "devel"},
          {"os": "ubuntu-latest", "r": "release"},
          {"os": "ubuntu-latest", "r": "oldrel-1"},
-         {"os": "ubuntu-24.04", "r": "4.1"}]
+         {"os": "ubuntu-24.04", "r": "4.2"}]

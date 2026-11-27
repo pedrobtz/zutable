@@ -11,7 +11,7 @@ Description: Not a real package and never published. It proves that
 License: MIT + file LICENSE
 Encoding: UTF-8
 Depends: 
-    R (>= 4.1)
+    R (>= 4.2)
 LinkingTo: 
     zutable,
     zufast

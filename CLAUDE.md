@@ -125,7 +125,7 @@ emitters and vocabulary (design §14). Helpers: none yet. Runtime: none yet.
 ## Continuous integration
 
 Calls the shared r-actions workflows `r-cmd-check.yml` (profile `auto`, plus
-in the full profile a Windows R-devel row, an Ubuntu R 4.1 row for the
+in the full profile a Windows R-devel row, an Ubuntu R 4.2 row for the
 `Depends` floor (D64), `nosuggests` and `nold`; weekly
 on Mondays 02:41 UTC), `native-checks.yaml` (sanitizers with ASan,
 valgrind, lto, rchk, analyzers, cran-special; valgrind reads

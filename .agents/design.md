@@ -154,7 +154,7 @@ For now 0.1.0 includes the kernel; the cut stays flexible (D35, §16).
 | From C | `LinkingTo`, for the kernel's header |
 | Hides symbols | yes (R3) |
 | Vendored code | the sort pieces of RFC 0037 §4.3 |
-| `Depends: R` | 4.1 (R2) |
+| `Depends: R` | 4.2 (R2, D64) |
 | Language | en-GB (R2) |
 
 **Relationships**, all through `Suggests` unless stated:
@@ -1185,7 +1185,10 @@ maintainer's agreement to the recommendations of 2026-11-26.
 - **D64 (M).** The `Depends: R (>= 4.1)` floor of R2 is checked by an
   Ubuntu R 4.1 leg in the full profile of R CMD check (#74). If that leg
   shows a real cost, the floor rises to the oldest R the leg passes on,
-  with a dated reason, not to R 4.5. 2026-11-26, Stage 20.
+  with a dated reason, not to R 4.5. 2026-11-26, Stage 20. **Raised to
+  R 4.2** on 2026-11-27: two Suggests, `decimal` and `duckdb` (the
+  conformance oracle), need R >= 4.2, so an R 4.1 leg cannot install
+  its dependencies and nothing could check that floor.
 
 ## 16. Order of work
 

@@ -152,8 +152,9 @@ Stage 20 (#22) acted on the review of 2026-11-26.
   `min-target-hits`: its output cannot tell a failure inside zutable.so
   from one in R, since `Rf_allocVector()`'s error names no call
   (gap #92).
-- **R 4.1.** An Ubuntu R 4.1 leg in the full profile builds altrep.c's
-  branch for R before 4.5 (D64, #74).
+- **R 4.2.** An Ubuntu R 4.2 leg in the full profile checks the
+  `Depends` floor and builds altrep.c's branch for R before 4.5 (D64,
+  #74).
 
 ## Objects
 
