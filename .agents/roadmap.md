@@ -43,7 +43,7 @@ fewer: held, in 2 days; the whole kernel, Stage 9 to Stage 15, in 3.
 | 17 | [Assurance](#stage-17--assurance) | quick | [#19](https://github.com/pedrobtz/zutable/issues/19) | [#44](https://github.com/pedrobtz/zutable/pull/44) | 2026-11-19 |
 | 18 | [Full CI](#stage-18--full-ci) | full | [#20](https://github.com/pedrobtz/zutable/issues/20) | [#45](https://github.com/pedrobtz/zutable/pull/45), [#47](https://github.com/pedrobtz/zutable/pull/47) | 2026-11-20 |
 | 19 | [v0.1.0 readiness](#stage-19--v010-readiness) | full | [#21](https://github.com/pedrobtz/zutable/issues/21) | [#49](https://github.com/pedrobtz/zutable/pull/49) | 2026-11-26 |
-| 20 | [Review](#stage-20--review) | full | [#22](https://github.com/pedrobtz/zutable/issues/22) | [#104](https://github.com/pedrobtz/zutable/pull/104) | |
+| 20 | [Review](#stage-20--review) | full | [#22](https://github.com/pedrobtz/zutable/issues/22) | [#104](https://github.com/pedrobtz/zutable/pull/104), [#105](https://github.com/pedrobtz/zutable/pull/105) | 2026-11-27 |
 
 ## Stage 0 — Package identity
 
