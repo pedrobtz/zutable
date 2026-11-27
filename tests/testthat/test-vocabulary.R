@@ -163,10 +163,14 @@ test_that("SQL literals do not change under a hostile session", {
 test_that("date_trunc() in a zone follows the wall clock across DST (#58)", {
   # Nothing depends on the session's zone.
   withr::local_timezone("Pacific/Chatham")
+  # Under gctorture, every case at three units through the kernel: the
+  # calendar arithmetic is pure R and the same in both executors.
+  units <- if (under_torture()) c("hour", "day", "week") else NULL
+  executors <- if (under_torture()) "kernel" else c("kernel", "reference")
   for (case in dst_cases()) {
     z <- as_zutable(data.frame(t = .POSIXct(utc(case$at), case$tz)))
-    for (unit in names(case$want)) {
-      for (ex in c("kernel", "reference")) {
+    for (unit in units %||% names(case$want)) {
+      for (ex in executors) {
         withr::local_options(zutable.executor = ex)
         got <- z[select = .(r = date_trunc(..unit, t))]$r
         expect_identical(as.double(got), utc(case$want[[unit]]),
@@ -223,6 +227,7 @@ test_that("a date outside years 0 to 9999 casts to ISO 8601 expanded text (#58)"
 })
 
 test_that("date_trunc() in a zone agrees with DuckDB's ICU (#58)", {
+  skip_conformance_under_torture()
   con <- duck_connect_icu()
   later <- 0L
   for (case in dst_cases()) {

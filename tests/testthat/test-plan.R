@@ -53,7 +53,8 @@ test_that("plan, result and the clauses' rules agree on every schema (#72)", {
       if (!f$nullable) expect_false(anyNA(v), info = paste(info, f$name))
     }
   }
-  for (nn in c(TRUE, FALSE)) {
+  # Under gctorture, x nullable and y not only: the typing is pure R.
+  for (nn in if (under_torture()) FALSE else c(TRUE, FALSE)) {
     null_x <- !nn
     null_y <- nn
     w <- function(id, null) if (null) as.name(id) else call("not_null", as.name(id))

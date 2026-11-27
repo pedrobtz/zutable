@@ -146,12 +146,18 @@ test_that("each string of a vector is read by its own ISO form (#54)", {
       lapply(perms(v[-i]), function(p) c(v[[i]], p))
     }))
   }
+  # Under gctorture, the four rotations put each form at each position.
+  orders <- if (under_torture()) {
+    lapply(0:3, function(k) (seq_along(forms) + k - 1L) %% 4L + 1L)
+  } else {
+    perms(seq_along(forms))
+  }
   for (tz in c("UTC", "Asia/Tokyo")) {
     # One at a time, each with its own format: base R as the oracle.
     one <- vapply(forms, function(f) {
       posixct_to_us(as.POSIXct(f[[1L]], tz = tz, format = f[[2L]]))
     }, 0)
-    for (p in perms(seq_along(forms))) {
+    for (p in orders) {
       s <- vapply(forms[p], `[[`, "", 1L)
       got <- ec(s, call("timestamp", "us", tz))
       expect_identical(posixct_to_us(got), one[p], info = paste(tz, s, collapse = ","))

@@ -41,7 +41,9 @@ jobs:
       # Inverted, because `cond && 0 || 10` is always 10: an expression
       # treats 0 as false.
       test-timeout-minutes: ${{ (github.event_name != 'schedule' && github.event_name != 'workflow_dispatch') && 10 || 0 }}
-      timeout-minutes: 240
+      # 360, GitHub's limit for a hosted job (2026-11-27): Stage 20's review
+      # tests took step 20 past 240 minutes even lightened, about 275 now.
+      timeout-minutes: 360
       # Step 20 lightens the tests that repeat pure-R work or one native
       # path at many sizes (tests/testthat/helper-0-torture.R): by Stage 11 the
       # whole suite took more than the 240 minutes (2026-11-18). Each still

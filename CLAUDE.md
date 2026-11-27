@@ -148,7 +148,8 @@ under which the pure-R typing sweep, the many-size sort sweeps, the
 kernel differentials and the million-row tests do less, and the DuckDB
 conformance tests (but the double parser's) are skipped
 (`tests/testthat/helper-0-torture.R`): the whole suite outgrew the
-240-minute job by Stage 11, again by Stage 13, and at Stage 18. `platforms.yaml` runs
+240-minute job by Stage 11, again by Stage 13, and at Stage 18; at
+Stage 20 the job's limit rose to 360 minutes, GitHub's maximum. `platforms.yaml` runs
 `tools/ci/platform.sh` on each OS: `check-headers`, the C tests with the
 fuzz target's 20,000-input smoke and the replay of the committed corpus
 (`tools/fuzz/corpus/`), the fuzz reach over the kernel headers on macOS
